@@ -1,4 +1,5 @@
 #!/bin/bash
+# todo - add ignore letter case
 
 GITHUB_REPO="https://raw.githubusercontent.com/github/gitignore/main"
 TEMP_FILE=".gitignore.temp"
