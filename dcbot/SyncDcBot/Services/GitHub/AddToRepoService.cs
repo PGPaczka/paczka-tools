@@ -7,12 +7,12 @@ namespace SyncDcBot.Services;
 
 public record GitHubResult(bool Success, string Message, LogEventLevel LogLevel);
 
-public class GitHubService
+public class AddToRepoService
 {
     private readonly GitHubClient _github;
     private readonly IConfiguration _config;
 
-    public GitHubService(GitHubClient github, IConfiguration config)
+    public AddToRepoService(GitHubClient github, IConfiguration config)
     {
         _github = github;
         _config = config;
