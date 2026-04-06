@@ -1,8 +1,10 @@
 ﻿using Discord.Interactions;
 using Serilog;
+using SyncDcBot.Repositories;
 
 namespace SyncDcBot.Commands;
 
-using ILogger = Serilog.ILogger;
-
-public abstract class CommandBase : InteractionModuleBase<SocketInteractionContext> { }
+public abstract class CommandBase(CommandResultStore resultStore) : InteractionModuleBase<SocketInteractionContext>
+{
+    protected readonly CommandResultStore ResultStore = resultStore;
+}

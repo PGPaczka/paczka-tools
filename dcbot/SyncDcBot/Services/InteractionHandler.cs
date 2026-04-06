@@ -5,6 +5,7 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.Extensions.Configuration;
 using Serilog;
+using Serilog.Events;
 using SyncDcBot.Repositories;
 using IResult = Discord.Interactions.IResult;
 
@@ -18,12 +19,12 @@ public class InteractionHandler
     private readonly IConfiguration _config;
     private readonly ILogger _logger;
     private readonly CommandResultStore _resultStore;
-    
+    private readonly ulong _logChannelId;
+
     private const string LogTemplate = "/{Command} [{Parameters}] by {User}({UserId})";
-    private const string LogTemplateWithMessage = LogTemplate + " -> {Message}";
+    private const string LogTemplateWithMessage = LogTemplate + " success -> {Message}";
     private const string LogTemplateErrorWithMessage = LogTemplate + " failed -> {Reason}";
-    
-    
+
     public InteractionHandler(
         DiscordSocketClient client,
         InteractionService interactions,
@@ -36,6 +37,7 @@ public class InteractionHandler
         _config = config;
         _resultStore = resultStore;
         _logger = Log.ForContext("Source", "Command");
+        _logChannelId = ulong.Parse(config["LogChannelId"]!);
     }
 
     public async Task InitializeAsync()
@@ -43,14 +45,14 @@ public class InteractionHandler
         _client.Ready += OnReadyAsync;
         _client.InteractionCreated += OnInteractionAsync;
         _interactions.SlashCommandExecuted += OnSlashCommandExecuted;
-        
+
         await _interactions.AddModulesAsync(Assembly.GetEntryAssembly(), _services);
     }
 
     private async Task OnReadyAsync()
     {
         var guildId = ulong.Parse(_config["GuildId"]!);
-        
+
         // instant registration for concrete server
         await _interactions.RegisterCommandsToGuildAsync(guildId);
         Log.ForContext("Source", "App").Information("Commands registered");
@@ -66,14 +68,24 @@ public class InteractionHandler
     {
         var parameters = ExtractCommandParameters(ctx);
         var businessResult = _resultStore.Take(ctx.Interaction.Id);
+        businessResult ??= new CommandResult(
+            IsSuccess: result.IsSuccess, 
+            Message: string.IsNullOrEmpty(result.ErrorReason) ?  "OK" : result.ErrorReason, 
+            LogLevel: result.IsSuccess ? LogEventLevel.Information : LogEventLevel.Warning
+            ); 
 
-        if (!result.IsSuccess)
+        var action = businessResult.IsSuccess
+            ? HandleSuccess(cmd, ctx, businessResult, parameters)
+            : HandleError(cmd, ctx, parameters, businessResult, result);
+        var response = await action;
+
+        if (businessResult.ShouldBotRespond())
         {
-            await HandleError(cmd, ctx, result, parameters);
-            return;
+            var responseAction = ctx.Interaction.HasResponded
+                ? ctx.Interaction.FollowupAsync(response, ephemeral: businessResult.ShouldBotRespondEphemeral())
+                : ctx.Interaction.RespondAsync(response, ephemeral: businessResult.ShouldBotRespondEphemeral());
+            await responseAction;
         }
-        
-        HandleSuccess(cmd, ctx, businessResult, parameters);
     }
 
     private static string ExtractCommandParameters(IInteractionContext ctx)
@@ -83,39 +95,59 @@ public class InteractionHandler
             : "";
     }
 
-    private void HandleSuccess(SlashCommandInfo cmd, IInteractionContext ctx, CommandResult? businessResult, string parameters)
+    private async Task<string> HandleSuccess(SlashCommandInfo cmd, IInteractionContext ctx, CommandResult businessResult,
+        string parameters)
     {
-        if (businessResult is not null)
-        {
-            _logger.Write(businessResult.LogLevel, LogTemplateWithMessage,
-                cmd.Name, parameters, ctx.User.Username, ctx.User.Id, businessResult.Message);
-        }
-        else
-        {
-            _logger.Information(LogTemplate,
-            cmd.Name, parameters, ctx.User.Username, ctx.User.Id);
-        }
+        var level = businessResult.LogLevel;
+        var message = businessResult.Message;
+
+        _logger.Write(level, LogTemplateWithMessage,
+            cmd.Name, parameters, ctx.User.Username, ctx.User.Id, message);
+        await SendToLogChannelAsync(FormatDiscordMessage(cmd, ctx, parameters, true, message));
+        
+        return businessResult.Message;
     }
 
-    private async Task HandleError(SlashCommandInfo cmd, IInteractionContext ctx, IResult result, string parameters)
+    private async Task<string> HandleError(SlashCommandInfo cmd, IInteractionContext ctx, string parameters, CommandResult? businessResult, IResult result)
     {
         _logger.Warning(LogTemplateErrorWithMessage,
-            cmd.Name, parameters, ctx.User.Username, ctx.User.Id, result.ErrorReason);
+            cmd.Name, parameters, ctx.User.Username, ctx.User.Id, businessResult?.Message);
+        await SendToLogChannelAsync(FormatDiscordMessage(cmd, ctx, parameters, false, businessResult?.Message));
 
-        var msg = result.Error switch
-        {
-            InteractionCommandError.UnmetPrecondition => $"{EmojiRepo.ErrorEmoji} No permission to execute this command: {result.ErrorReason}",
-            InteractionCommandError.Exception         => $"{EmojiRepo.ErrorEmoji} Error: {result.ErrorReason}",
-            _                                         => $"{EmojiRepo.ErrorEmoji} {result.ErrorReason}"
-        };
+        return GenerateErrorMessageForUser(result, businessResult);
+    }
 
-        if (ctx.Interaction.HasResponded)
+    private static string GenerateErrorMessageForUser(IResult result, CommandResult? businessResult)
+    {
+        string msg;
+        if (businessResult == null)
         {
-            await ctx.Interaction.FollowupAsync(msg, ephemeral: true);
+            msg = result.Error switch
+            {
+                InteractionCommandError.UnmetPrecondition => "No permission to execute this command:",
+                InteractionCommandError.Exception         => "Error:",
+                _                                         => ""
+            };
         }
         else
         {
-            await ctx.Interaction.RespondAsync(msg, ephemeral: true);
+            msg = businessResult.Message;
         }
+        var finalMsg = $"{EmojiRepo.ErrorEmoji} {msg} {result.ErrorReason}";
+        return finalMsg;
+    }
+
+    private static string FormatDiscordMessage(SlashCommandInfo cmd, IInteractionContext ctx, string parameters,
+        bool isSuccess, string? result = null)
+    {
+        var emoji = isSuccess ? EmojiRepo.SuccessEmoji : EmojiRepo.ErrorEmoji;
+        var base_ = $"{emoji} `/{cmd.Name}` [{parameters}] by {ctx.User.Mention}";
+        return result is not null ? $"{base_} → {result}" : base_;
+    }
+
+    private async Task SendToLogChannelAsync(string message)
+    {
+        if (_client.GetChannel(_logChannelId) is not ITextChannel channel) return;
+        await channel.SendMessageAsync(message);
     }
 }

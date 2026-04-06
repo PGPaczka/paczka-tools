@@ -1,4 +1,3 @@
-﻿using SyncDcBot;
-using SyncDcBot.Configuration;
+﻿using SyncDcBot.Configuration;
 
 await new BotApplication().RunAsync();

@@ -19,7 +19,8 @@ public static class ServiceRegistry
         "GuildId",
         "RepoOwner", 
         "RepoName", 
-        "AdminRoleId"
+        "AdminRoleId",
+        "LogChannelId"
     ];
 
     public static void Register(HostBuilderContext ctx, IServiceCollection services)
@@ -29,7 +30,7 @@ public static class ServiceRegistry
         services
             .AddSingleton<InteractionHandler>()
             .AddSingleton<DiscordLoggingService>()
-            .AddSingleton<GitHubService>()
+            .AddSingleton<AddToRepoService>()
             .AddSingleton<CommandResultStore>();
     }
 
@@ -37,7 +38,10 @@ public static class ServiceRegistry
     {
         services.AddSingleton(new DiscordSocketClient(new DiscordSocketConfig
         {
-            GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.MessageContent,
+            GatewayIntents = GatewayIntents.Guilds
+                             | GatewayIntents.GuildMessages
+                             | GatewayIntents.MessageContent
+                             | GatewayIntents.GuildMembers,
             LogLevel = LogSeverity.Info
         }));
 

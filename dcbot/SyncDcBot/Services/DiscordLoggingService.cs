@@ -1,15 +1,20 @@
-﻿using Discord.Interactions;
+﻿using Discord;
+using Discord.Interactions;
 using Discord.WebSocket;
 using Serilog;
 using Serilog.Events;
 
 namespace SyncDcBot.Services;
 
-// logs stricte technical discord info
+// logs strict technical discord info
 public class DiscordLoggingService
 {
     private readonly DiscordSocketClient _discordClient;
     private readonly InteractionService _interactions;
+    
+    private Exception? _lastException;
+    private DateTime _lastExceptionTime = DateTime.MinValue;
+    private static readonly TimeSpan DuplicateWindow = TimeSpan.FromMinutes(1);
 
     public DiscordLoggingService(
         DiscordSocketClient discordClient,
@@ -26,25 +31,43 @@ public class DiscordLoggingService
         return Task.CompletedTask;
     }
 
-    // todo: check what it does
-    private Task OnLog(Discord.LogMessage log)
+    private Task OnLog(LogMessage log)
     {
-        // GatewayReconnectException is a normal flow, supress it
+        var logger = Log.ForContext("Source", log.Source);
+        var level  = ConvertSeverityDiscordToSerilog(log.Severity);
+
         if (log.Exception is GatewayReconnectException)
         {
-            Log.ForContext("Source", log.Source)
-                .Debug("Server requested a reconnect");
+            logger.Debug("Server requested a reconnect");
             return Task.CompletedTask;
         }
-        
-        var level = ConvertEventDiscordToSerilog(log.Severity);
-        Log.ForContext("Source", log.Source)
-            .Write(level, log.Exception, "{Message}", log.Message ?? log.Exception?.Message ?? "Unknown error");
+
+        if (log.Exception is not null && IsDuplicateException(log.Exception))
+        {
+            logger.Write(level, "(repeated) {Message}", log.Exception.Message);
+            return Task.CompletedTask;
+        }
+
+        logger.Write(level, log.Exception,
+            "{Message}", log.Message ?? log.Exception?.Message ?? "Unknown error");
+
         return Task.CompletedTask;
     }
 
+    private bool IsDuplicateException(Exception exception)
+    {
+        var now = DateTime.UtcNow;
+        var isDuplicate = exception.Message == _lastException?.Message
+                          && now - _lastExceptionTime < DuplicateWindow;
+
+        _lastException     = exception;
+        _lastExceptionTime = now;
+
+        return isDuplicate;
+    }
+
     // Bridge: Discord.LogSeverity → Serilog.LogEventLevel
-    private LogEventLevel ConvertEventDiscordToSerilog(Discord.LogSeverity severity)
+    private LogEventLevel ConvertSeverityDiscordToSerilog(Discord.LogSeverity severity)
     {
         return severity switch
         {

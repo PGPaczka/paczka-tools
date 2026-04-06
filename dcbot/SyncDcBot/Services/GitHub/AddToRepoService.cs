@@ -5,7 +5,13 @@ using SyncDcBot.Repositories;
 
 namespace SyncDcBot.Services;
 
-public record GitHubResult(bool Success, string Message, LogEventLevel LogLevel);
+public record GitHubResult(bool Success, string Message, LogEventLevel LogLevel)
+{
+    public CommandResult ToCommandResult()
+    {
+        return new CommandResult(Success, Message, LogLevel);
+    }
+}
 
 public class AddToRepoService
 {
@@ -41,7 +47,7 @@ public class AddToRepoService
         }
         catch (NotFoundException)
         {
-            return new GitHubResult(false, $"{EmojiRepo.ErrorEmoji} User `{ghUser}` not found on GitHub.", LogEventLevel.Warning);
+            return new GitHubResult(false, $"User `{ghUser}` not found on GitHub.", LogEventLevel.Warning);
         }
     }
 
@@ -52,7 +58,7 @@ public class AddToRepoService
             await _github.Repository.Collaborator.Add(owner, repo, ghUser);
             
             return new GitHubResult(true,
-                $"{EmojiRepo.SuccessEmoji} User **{ghUser}** was invited to `{owner}/{repo}`! It must be accepted on GitHub.", 
+                $"{EmojiRepo.SuccessEmoji} User **{ghUser}** was invited to `{owner}/{repo}`! Invitation must be accepted on GitHub.", 
                 LogEventLevel.Information);
         }
         catch (ForbiddenException)

@@ -1,13 +1,15 @@
 ﻿using Discord.Interactions;
-using SyncDcBot.Commands.Modules;
+using Serilog.Events;
+using SyncDcBot.Repositories;
 
 namespace SyncDcBot.Commands;
 
-public class GeneralModule : CommandBase
+public class GeneralModule(CommandResultStore resultStore) : CommandBase(resultStore)
 {
     [SlashCommand("ping", "Check if bot is up")]
-    public async Task PingAsync()
+    public Task PingAsync()
     {
-        await RespondAsync($"🏓 Pong! Delay: **{Context.Client.Latency}ms**");
+        ResultStore.SetSuccess(Context.Interaction.Id, $"🏓 Pong! Delay: **{Context.Client.Latency}ms**", BotResponseType.Visible);
+        return Task.CompletedTask;
     }
 }
