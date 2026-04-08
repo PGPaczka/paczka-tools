@@ -47,7 +47,7 @@ public class BotApplication
         var config = _host.Services.GetRequiredService<IConfiguration>();
 
         _logger.Information("Token loaded");
-        await client.LoginAsync(TokenType.Bot, config["BotToken"]);
+        await client.LoginAsync(TokenType.Bot, config["DiscordConfig:BotToken"]);
         await client.StartAsync();
         await _host.RunAsync();
     }

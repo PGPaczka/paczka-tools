@@ -14,15 +14,20 @@ public static class ServiceRegistry
 {
     public static readonly string[] RequiredKeys =
     [
-        "BotToken", 
-        "GitHubToken", 
-        "GuildId",
-        "RepoOwner", 
-        "RepoName", 
-        "AdminRoleId",
-        "LogChannelId"
+        "DiscordConfig:BotToken",
+        "DiscordConfig:GuildId",
+        "DiscordConfig:LogChannelId",
+        "DiscordConfig:AdminRoleId",
+        
+        "GitHubConfig:GitHubToken",
+        "GitHubConfig:RepoOwner",
+        "GitHubConfig:RepoName",
+        
+        "GCC:GmailConfig:GmailCredentials:installed:client_id",
+        "GCC:GmailConfig:GmailCredentials:installed:client_secret"
+        // "GCC:GmailConfig:GmailToken:RefreshToken" // required only in production (after first launch)
     ];
-
+    
     public static void Register(HostBuilderContext ctx, IServiceCollection services)
     {
         AddDiscord(services);
@@ -61,7 +66,7 @@ public static class ServiceRegistry
     {
         services.AddSingleton(_ => new GitHubClient(new ProductHeaderValue("SyncDcBot"))
         {
-            Credentials = new Credentials(config["GitHubToken"])
+            Credentials = new Credentials(config["GitHubConfig:GitHubToken"])
         });
     }
 }

@@ -26,8 +26,8 @@ public class AddToRepoService
 
     public async Task<GitHubResult> AddCollaboratorAsync(string ghUser)
     {
-        var owner = _config["RepoOwner"];
-        var repo  = _config["RepoName"];
+        var owner = _config["GitHubConfig:RepoOwner"];
+        var repo  = _config["GitHubConfig:RepoName"];
 
         var userCheck = await VerifyUserExistsAsync(ghUser);
         if (!userCheck.Success)

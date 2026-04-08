@@ -31,8 +31,8 @@ public class GeneralModule(CommandResultStore resultStore, GmailSenderService gm
         }
         else
         {
-            ResultStore.SetFailure(Context.Interaction.Id, $"Something went wrong. Contact the admin (<@&{configuration["AdminRoleId"]}>) for help.");
+            ResultStore.SetFailure(Context.Interaction.Id, $"Something went wrong. Contact the admin (<@&{configuration["DiscordConfig:AdminRoleId"]}>) for help.");
         }
     }
     
-}
+} 

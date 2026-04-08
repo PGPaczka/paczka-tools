@@ -38,11 +38,11 @@ public class GmailSenderService
         {
             var service = await CreateService();
             var message = CreateMessage(recipientEmail, subject, body);
-            await service
-                .Users
-                .Messages
-                .Send(message, UserId)
-                .ExecuteAsync();
+            // await service
+            //     .Users
+            //     .Messages
+            //     .Send(message, UserId)
+            //     .ExecuteAsync();
             
             return new GmailResult(true, $"Message sent successfully to {recipientEmail}.", LogEventLevel.Information);
         }

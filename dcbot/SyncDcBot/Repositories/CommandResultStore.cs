@@ -31,7 +31,8 @@ public class CommandResultStore
     public void Set(ulong interactionId, CommandResult result) =>
         _results[interactionId] = result;
 
-    public void SetSuccess(ulong interactionId, string msg, BotResponseType responseType = BotResponseType.Ephemeral) =>
+    public void 
+        SetSuccess(ulong interactionId, string msg, BotResponseType responseType = BotResponseType.Ephemeral) =>
         _results[interactionId] = CommandResult.Success(msg,  responseType);
     
     public void SetFailure(ulong interactionId, string msg, BotResponseType responseType = BotResponseType.Ephemeral) =>

@@ -13,9 +13,9 @@ public static class SerilogConfiguration
 
     public static void Configure(HostBuilderContext ctx, LoggerConfiguration log)
     {
-        var consoleTemplate = ctx.Configuration["ConsoleLogTemplate"] ?? DefaultTemplate;
-        var fileTemplate    = ctx.Configuration["FileLogTemplate"] ?? DefaultTemplate;
-        var maxLogSize      = ctx.Configuration.GetValue<int>("MaxLogSizeInMB", 50) * 1024 * 1024;
+        var consoleTemplate = ctx.Configuration["LogsConfig:ConsoleLogTemplate"] ?? DefaultTemplate;
+        var fileTemplate    = ctx.Configuration["LogsConfig:FileLogTemplate"] ?? DefaultTemplate;
+        var maxLogSize      = ctx.Configuration.GetValue<int>("LogsConfig:MaxLogSizeInMB", 50) * 1024 * 1024;
 
         log
             .MinimumLevel.Debug()

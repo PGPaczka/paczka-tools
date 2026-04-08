@@ -34,8 +34,8 @@ public class BypassPrRulesService
 
     public async Task<GitHubResult> BypassMergePullRequestAsync(string prUrl)
     {
-        var owner = _config["RepoOwner"];
-        var repo = _config["RepoName"];
+        var owner = _config["GitHubConfig:RepoOwner"];
+        var repo = _config["GitHubConfig:RepoName"];
 
         var prParseResult = TryParsePullRequestNumber(prUrl, owner, repo, out var prNumber);
         if (!prParseResult.Success)

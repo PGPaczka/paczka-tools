@@ -22,8 +22,8 @@ public class InteractionHandler
     private readonly ulong _logChannelId;
 
     private const string LogTemplate = "/{Command} [{Parameters}] by {User}({UserId})";
-    private const string LogTemplateWithMessage = LogTemplate + " success -> `{Message}`";
-    private const string LogTemplateErrorWithMessage = LogTemplate + " failed -> `{Reason}`";
+    private const string LogTemplateWithMessage = LogTemplate + ": success -> `{Message}`";
+    private const string LogTemplateErrorWithMessage = LogTemplate + ": failed -> `{Reason}`";
 
     public InteractionHandler(
         DiscordSocketClient client,
@@ -37,7 +37,7 @@ public class InteractionHandler
         _config = config;
         _resultStore = resultStore;
         _logger = Log.ForContext("Source", "Command");
-        _logChannelId = ulong.Parse(config["LogChannelId"]!);
+        _logChannelId = ulong.Parse(config["DiscordConfig:LogChannelId"]!);
     }
 
     public async Task InitializeAsync()
@@ -51,7 +51,7 @@ public class InteractionHandler
 
     private async Task OnReadyAsync()
     {
-        var guildId = ulong.Parse(_config["GuildId"]!);
+        var guildId = ulong.Parse(_config["DiscordConfig:GuildId"]!);
 
         // instant registration for concrete server
         await _interactions.RegisterCommandsToGuildAsync(guildId);
@@ -142,6 +142,7 @@ public class InteractionHandler
     {
         var emoji = isSuccess ? EmojiRepo.SuccessEmoji : EmojiRepo.ErrorEmoji;
         var base_ = $"{emoji} `/{cmd.Name}` [{parameters}] by {ctx.User.Mention}";
+        // todo: think about it -> resultPure does not contain emoji (wanted/unwanted)? (logs channel has emojis, main channel does not)
         var resultPure = result?.Replace('`', '\'');
         return result is not null ? $"{base_} → `{resultPure}`" : base_;
     }
