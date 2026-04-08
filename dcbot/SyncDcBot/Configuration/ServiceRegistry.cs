@@ -31,7 +31,8 @@ public static class ServiceRegistry
             .AddSingleton<InteractionHandler>()
             .AddSingleton<DiscordLoggingService>()
             .AddSingleton<AddToRepoService>()
-            .AddSingleton<CommandResultStore>();
+            .AddSingleton<CommandResultStore>()
+            .AddSingleton<GmailSenderService>();
     }
 
     private static void AddDiscord(IServiceCollection services)

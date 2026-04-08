@@ -22,8 +22,8 @@ public class InteractionHandler
     private readonly ulong _logChannelId;
 
     private const string LogTemplate = "/{Command} [{Parameters}] by {User}({UserId})";
-    private const string LogTemplateWithMessage = LogTemplate + " success -> {Message}";
-    private const string LogTemplateErrorWithMessage = LogTemplate + " failed -> {Reason}";
+    private const string LogTemplateWithMessage = LogTemplate + " success -> `{Message}`";
+    private const string LogTemplateErrorWithMessage = LogTemplate + " failed -> `{Reason}`";
 
     public InteractionHandler(
         DiscordSocketClient client,
@@ -142,7 +142,8 @@ public class InteractionHandler
     {
         var emoji = isSuccess ? EmojiRepo.SuccessEmoji : EmojiRepo.ErrorEmoji;
         var base_ = $"{emoji} `/{cmd.Name}` [{parameters}] by {ctx.User.Mention}";
-        return result is not null ? $"{base_} → {result}" : base_;
+        var resultPure = result?.Replace('`', '\'');
+        return result is not null ? $"{base_} → `{resultPure}`" : base_;
     }
 
     private async Task SendToLogChannelAsync(string message)

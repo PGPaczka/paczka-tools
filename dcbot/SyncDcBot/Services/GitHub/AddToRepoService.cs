@@ -77,7 +77,7 @@ public class AddToRepoService
         {
             return new GitHubResult(false, 
                 $"{EmojiRepo.ErrorEmoji} Unexpected error: {ex.Message}", 
-                LogEventLevel.Warning);
+                LogEventLevel.Error);
         }
     }
     
