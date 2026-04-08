@@ -11,7 +11,7 @@ public class GeneralModule(CommandResultStore resultStore, GmailSenderService gm
     [SlashCommand("ping", "Check if bot is up")]
     public Task PingAsync()
     {
-        ResultStore.SetSuccess(Context.Interaction.Id, $"🏓 Pong! Delay: **{Context.Client.Latency}ms**", BotResponseType.Visible);
+        ResultStore.SetSuccess(Context.Interaction.Id, $"🏓 Pong! Delay: **{Context.Client.Latency}ms**", responseType: BotResponseType.Visible);
         return Task.CompletedTask;
     }
     
@@ -23,6 +23,8 @@ public class GeneralModule(CommandResultStore resultStore, GmailSenderService gm
         var mailTo = email;
         var subject = "Paczka - kod weryfikacyjny";
         var body = "Test";
+        
+        await Context.Interaction.DeferAsync(ephemeral: true);
         var result = (await gmailSenderService.SendMessage(mailTo, subject, body)).ToCommandResult();
 
         if (result.IsSuccess)
@@ -31,7 +33,7 @@ public class GeneralModule(CommandResultStore resultStore, GmailSenderService gm
         }
         else
         {
-            ResultStore.SetFailure(Context.Interaction.Id, $"Something went wrong. Contact the admin (<@&{configuration["DiscordConfig:AdminRoleId"]}>) for help.");
+            ResultStore.SetFailure(Context.Interaction.Id, result.Message, usrMsg: $"Something went wrong. Contact the admin (<@&{configuration["DiscordConfig:AdminRoleId"]}>) for help.");
         }
     }
     

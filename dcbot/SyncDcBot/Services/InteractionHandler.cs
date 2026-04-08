@@ -105,7 +105,7 @@ public class InteractionHandler
             cmd.Name, parameters, ctx.User.Username, ctx.User.Id, message);
         await SendToLogChannelAsync(FormatDiscordMessage(cmd, ctx, parameters, true, message));
         
-        return businessResult.Message;
+        return businessResult.GetUserMessage();
     }
 
     private async Task<string> HandleError(SlashCommandInfo cmd, IInteractionContext ctx, string parameters, CommandResult? businessResult, IResult result)
@@ -131,7 +131,7 @@ public class InteractionHandler
         }
         else
         {
-            msg = businessResult.Message;
+            msg = businessResult.GetUserMessage();
         }
         var finalMsg = $"{EmojiRepo.ErrorEmoji} {msg} {result.ErrorReason}";
         return finalMsg;
