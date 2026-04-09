@@ -9,7 +9,7 @@ namespace SyncDcBot.Commands;
 public class GeneralModule(CommandResultStore resultStore, GmailSenderService gmailSenderService, IConfiguration configuration) : CommandBase(resultStore)
 {
     [SlashCommand("ping", "Check if bot is up")]
-    public Task PingAsync()
+    public async Task PingAsync()
     {
         ResultStore.SetSuccess(Context.Interaction.Id, $"🏓 Pong! Delay: **{Context.Client.Latency}ms**", responseType: BotResponseType.Visible);
     }
