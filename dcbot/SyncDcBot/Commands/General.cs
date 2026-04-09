@@ -12,7 +12,6 @@ public class GeneralModule(CommandResultStore resultStore, GmailSenderService gm
     public Task PingAsync()
     {
         ResultStore.SetSuccess(Context.Interaction.Id, $"🏓 Pong! Delay: **{Context.Client.Latency}ms**", responseType: BotResponseType.Visible);
-        return Task.CompletedTask;
     }
     
     [SlashCommand("verify", "Send verification code")]
@@ -24,7 +23,7 @@ public class GeneralModule(CommandResultStore resultStore, GmailSenderService gm
         var subject = "Paczka - kod weryfikacyjny";
         var body = "Test";
         
-        await Context.Interaction.DeferAsync(ephemeral: true);
+        await Context.Interaction.DeferAsync();
         var result = (await gmailSenderService.SendMessage(mailTo, subject, body)).ToCommandResult();
 
         if (result.IsSuccess)

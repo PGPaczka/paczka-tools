@@ -2,7 +2,7 @@
 using SyncDcBot.Repositories;
 using SyncDcBot.Services;
 
-namespace SyncDcBot.Commands.Modules;
+namespace SyncDcBot.Commands;
 
 public class GitHubModule(AddToRepoService github, CommandResultStore resultStore) : CommandBase(resultStore)
 {

@@ -69,15 +69,14 @@ public class InteractionHandler
         var parameters = ExtractCommandParameters(ctx);
         var businessResult = _resultStore.Take(ctx.Interaction.Id);
         businessResult ??= new CommandResult(
-            IsSuccess: result.IsSuccess, 
-            Message: string.IsNullOrEmpty(result.ErrorReason) ?  "OK" : result.ErrorReason, 
+            IsSuccess: result.IsSuccess,
+            Message: string.IsNullOrEmpty(result.ErrorReason) ? "OK" : result.ErrorReason,
             LogLevel: result.IsSuccess ? LogEventLevel.Information : LogEventLevel.Warning
-            ); 
+        );
 
-        var action = businessResult.IsSuccess
+        var (response, logTask) = businessResult.IsSuccess
             ? HandleSuccess(cmd, ctx, businessResult, parameters)
             : HandleError(cmd, ctx, parameters, businessResult, result);
-        var response = await action;
 
         if (businessResult.ShouldBotRespond())
         {
@@ -86,7 +85,10 @@ public class InteractionHandler
                 : ctx.Interaction.RespondAsync(response, ephemeral: businessResult.ShouldBotRespondEphemeral());
             await responseAction;
         }
+
+        await logTask;
     }
+
 
     private static string ExtractCommandParameters(IInteractionContext ctx)
     {
@@ -95,26 +97,27 @@ public class InteractionHandler
             : "";
     }
 
-    private async Task<string> HandleSuccess(SlashCommandInfo cmd, IInteractionContext ctx, CommandResult businessResult,
-        string parameters)
+    private (string response, Task logTask) HandleSuccess(SlashCommandInfo cmd, IInteractionContext ctx, CommandResult businessResult, string parameters)
     {
         var level = businessResult.LogLevel;
         var message = businessResult.Message;
 
-        _logger.Write(level, LogTemplateWithMessage,
-            cmd.Name, parameters, ctx.User.Username, ctx.User.Id, message);
-        await SendToLogChannelAsync(FormatDiscordMessage(cmd, ctx, parameters, true, message));
-        
-        return businessResult.GetUserMessage();
+        _logger.Write(level, LogTemplateWithMessage, cmd.Name, parameters, ctx.User.Username, ctx.User.Id, message);
+    
+        var logTask = SendToLogChannelAsync(FormatDiscordMessage(cmd, ctx, parameters, true, message));
+        var response = $"{EmojiRepo.SuccessEmoji} {businessResult.GetUserMessage()}";
+    
+        return (response, logTask);
     }
 
-    private async Task<string> HandleError(SlashCommandInfo cmd, IInteractionContext ctx, string parameters, CommandResult? businessResult, IResult result)
+    private (string response, Task logTask) HandleError(SlashCommandInfo cmd, IInteractionContext ctx, string parameters, CommandResult? businessResult, IResult result)
     {
-        _logger.Warning(LogTemplateErrorWithMessage,
-            cmd.Name, parameters, ctx.User.Username, ctx.User.Id, businessResult?.Message);
-        await SendToLogChannelAsync(FormatDiscordMessage(cmd, ctx, parameters, false, businessResult?.Message));
-
-        return GenerateErrorMessageForUser(result, businessResult);
+        _logger.Warning(LogTemplateErrorWithMessage, cmd.Name, parameters, ctx.User.Username, ctx.User.Id, businessResult?.Message);
+    
+        var logTask = SendToLogChannelAsync(FormatDiscordMessage(cmd, ctx, parameters, false, businessResult?.Message));
+        var response = GenerateErrorMessageForUser(result, businessResult);
+    
+        return (response, logTask);
     }
 
     private static string GenerateErrorMessageForUser(IResult result, CommandResult? businessResult)
