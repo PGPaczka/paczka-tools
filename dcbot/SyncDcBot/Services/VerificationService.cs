@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using SyncDcBot.Repositories;
+using SyncDcBot.Types;
 
 
 //TODO: not finished!
@@ -91,7 +92,7 @@ public class VerificationService
             GetEmailBody(entry)
         );
 
-        if (!result.Success)
+        if (result.Type != GmailResultType.Success)
         {
             return CommandResult.Failure(
                 $"Failed to send verification email to {userEmail}: {result.Message}",

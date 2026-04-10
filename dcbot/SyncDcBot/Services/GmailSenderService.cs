@@ -1,38 +1,22 @@
-﻿using System.Text;
+﻿using System.Net;
+using System.Text;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Auth.OAuth2.Responses;
 using Google.Apis.Gmail.v1;
 using Google.Apis.Services;
 using Google.Apis.Util.Store;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
-using Serilog.Events;
-using SyncDcBot.Repositories;
 using SyncDcBot.Test.Services;
+using SyncDcBot.Types;
 
 namespace SyncDcBot.Services;
 
-public record GmailResult(bool Success, string Message, LogEventLevel LogLevel)
+public class GmailSenderService(IConfiguration configuration)
 {
-    public CommandResult ToCommandResult()
-    {
-        return new CommandResult(Success, Message, LogLevel);
-    }
-}
+    private const string ApplicationName = "PaczkaVerify";
+    private const string UserId = "me";
 
-public class GmailSenderService
-{
-    const string ApplicationName = "PaczkaVerify";
-    const string UserId = "me";
-
-    readonly IConfiguration _configuration;
-
-    public GmailSenderService(IConfiguration configuration)
-    {
-        _configuration = configuration;
-    }
-
-    public async Task<GmailResult> SendMessage(string recipientEmail, string subject, string body)
+    public async Task<ServiceResult<GmailResultType>> SendMessage(string recipientEmail, string subject, string body)
     {
         try
         {
@@ -44,15 +28,24 @@ public class GmailSenderService
                 .Send(message, UserId)
                 .ExecuteAsync();
             
-            return new GmailResult(true, $"Message sent successfully to {recipientEmail}.", LogEventLevel.Information);
+            return new ServiceResult<GmailResultType>(GmailResultType.Success);
         }
         catch (Google.GoogleApiException ex)
         {
-            return new GmailResult(false, $"Google API error: {ex.Error.Message}", LogEventLevel.Warning);
+            var type = ex.HttpStatusCode switch
+            {
+                HttpStatusCode.TooManyRequests  => GmailResultType.RateLimitExceeded,
+                HttpStatusCode.NotFound         => GmailResultType.RecipientNotFound,
+                HttpStatusCode.Unauthorized     => GmailResultType.Unauthorized,
+                HttpStatusCode.Forbidden        => GmailResultType.Unauthorized,
+                _                               => GmailResultType.UnexpectedError
+            };
+    
+            return new ServiceResult<GmailResultType>(type, ex.Error.Message);
         }
         catch (Exception ex)
         {
-            return new GmailResult(false, $"Unexpected error: {ex.Message}", LogEventLevel.Error);
+            return new ServiceResult<GmailResultType>(GmailResultType.UnexpectedError, ex.Message);
         }
     }
 
@@ -60,16 +53,16 @@ public class GmailSenderService
     {
         var secrets = new ClientSecrets
         {
-            ClientId = _configuration["GCC:GmailConfig:GmailCredentials:installed:client_id"],
-            ClientSecret = _configuration["GCC:GmailConfig:GmailCredentials:installed:client_secret"]
+            ClientId = configuration["GCC:GmailConfig:GmailCredentials:installed:client_id"],
+            ClientSecret = configuration["GCC:GmailConfig:GmailCredentials:installed:client_secret"]
         };
         
         if (string.IsNullOrEmpty(secrets.ClientId) || string.IsNullOrEmpty(secrets.ClientSecret))
         {
-            throw new InvalidOperationException("No Gmail secret in appsettings.json");
+            throw new ArgumentException("No Gmail secret in appsettings.json");
         }
         
-        var tokenResponse = _configuration.GetSection("GCC:GmailConfig:GmailToken").Get<TokenResponse>();
+        var tokenResponse = configuration.GetSection("GCC:GmailConfig:GmailToken").Get<TokenResponse>();
         var tokenDataStore = ResolveTokenDataStore(tokenResponse);
 
         var credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
@@ -94,10 +87,10 @@ public class GmailSenderService
         IDataStore tokenDataStore;
         if (tokenResponse?.RefreshToken is null)
         {
-            var isDevelopment = _configuration["Environment"] == "Development";
+            var isDevelopment = configuration["Environment"] == "Development";
             tokenDataStore = isDevelopment
                 ? new PrintTokenDataStore()
-                : throw new InvalidOperationException("No refresh token found in appsettings.json on Production Environment");
+                : throw new ArgumentException("No refresh token found in appsettings.json on Production Environment");
         }
         else
         {

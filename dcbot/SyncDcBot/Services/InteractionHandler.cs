@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Serilog;
 using Serilog.Events;
 using SyncDcBot.Repositories;
+using SyncDcBot.Types;
 using IResult = Discord.Interactions.IResult;
 
 namespace SyncDcBot.Services;

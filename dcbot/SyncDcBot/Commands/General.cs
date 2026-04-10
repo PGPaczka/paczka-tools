@@ -1,8 +1,8 @@
 ﻿using Discord.Interactions;
 using Microsoft.Extensions.Configuration;
-using Serilog.Events;
 using SyncDcBot.Repositories;
 using SyncDcBot.Services;
+using SyncDcBot.Types;
 
 namespace SyncDcBot.Commands;
 
@@ -24,16 +24,19 @@ public class GeneralModule(CommandResultStore resultStore, GmailSenderService gm
         var body = "Test";
         
         await Context.Interaction.DeferAsync();
-        var result = (await gmailSenderService.SendMessage(mailTo, subject, body)).ToCommandResult();
+        var result = await gmailSenderService.SendMessage(mailTo, subject, body);
 
-        if (result.IsSuccess)
+        var errorMsg = $"Something went wrong. Contact the admin (<@&{configuration["DiscordConfig:AdminRoleId"]}>) for help.";
+        var commandResult = result.Type switch
         {
-            ResultStore.SetSuccess(Context.Interaction.Id, $"Verification code sent to `{email}`. Check junk/spam folder if you can't find it");
-        }
-        else
-        {
-            ResultStore.SetFailure(Context.Interaction.Id, result.Message, usrMsg: $"Something went wrong. Contact the admin (<@&{configuration["DiscordConfig:AdminRoleId"]}>) for help.");
-        }
+            GmailResultType.Success           => CommandResult.Success($"Verification code sent to `{email}`. Check junk/spam folder if you can't find it"),
+            GmailResultType.RecipientNotFound => CommandResult.Failure(result.Message, "Invalid email address."),
+            GmailResultType.RateLimitExceeded => CommandResult.Error(result.Message, errorMsg),
+            GmailResultType.Unauthorized      => CommandResult.Error(result.Message, errorMsg),
+            GmailResultType.UnexpectedError   => CommandResult.Error(result.Message, errorMsg),
+            _                                 => CommandResult.Error("ERROR")
+        };
+        ResultStore.Set(Context.Interaction.Id, commandResult);
     }
     
 } 
