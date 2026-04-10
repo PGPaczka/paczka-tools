@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using SyncDcBot.Types;
+using SyncDcBot.Types.Enums;
 
 namespace SyncDcBot.Repositories;
 

@@ -1,9 +1,10 @@
-﻿namespace SyncDcBot.Types;
+﻿namespace SyncDcBot.Types.Enums;
 
 public enum GitHubResultType
 {
     Success, 
-    NotFound, 
+    UserNotFound, 
+    RepoNotFound, 
     Unauthorized,
     UnexpectedError
 }

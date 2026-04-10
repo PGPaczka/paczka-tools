@@ -7,6 +7,8 @@ using Microsoft.Extensions.Hosting;
 using Octokit;
 using SyncDcBot.Repositories;
 using SyncDcBot.Services;
+using SyncDcBot.Services.GitHub;
+using SyncDcBot.Types;
 
 namespace SyncDcBot.Configuration;
 
@@ -34,19 +36,20 @@ public static class ServiceRegistry
         services
             .AddMemoryCache();
             
-        AddDiscord(services);
+        AddDiscord(ctx.Configuration, services);
         AddGitHub(ctx.Configuration, services);
-        
+
         services
             .AddSingleton<InteractionHandler>()
             .AddSingleton<DiscordLoggingService>()
-            .AddSingleton<AddToRepoService>()
             .AddSingleton<CommandResultStore>()
-            .AddSingleton<VerificationService>()
-            .AddSingleton<GmailSenderService>();
+            .AddSingleton<AddToRepoService>()
+            .AddSingleton<BypassPrRulesService>()
+            .AddSingleton<GmailSenderService>()
+            .AddSingleton<VerificationService>();
     }
 
-    private static void AddDiscord(IServiceCollection services)
+    private static void AddDiscord(IConfiguration config, IServiceCollection services)
     {
         services.AddSingleton(new DiscordSocketClient(new DiscordSocketConfig
         {
@@ -66,6 +69,8 @@ public static class ServiceRegistry
                 DefaultRunMode = RunMode.Async
             });
         });
+        
+        CommandResult.AdminRoleId = config["DiscordConfig:AdminRoleId"]!;
     }
 
     private static void AddGitHub(IConfiguration config, IServiceCollection services)

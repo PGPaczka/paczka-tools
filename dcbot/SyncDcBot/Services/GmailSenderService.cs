@@ -8,6 +8,7 @@ using Google.Apis.Util.Store;
 using Microsoft.Extensions.Configuration;
 using SyncDcBot.Test.Services;
 using SyncDcBot.Types;
+using SyncDcBot.Types.Enums;
 
 namespace SyncDcBot.Services;
 
@@ -28,7 +29,7 @@ public class GmailSenderService(IConfiguration configuration)
                 .Send(message, UserId)
                 .ExecuteAsync();
             
-            return new ServiceResult<GmailResultType>(GmailResultType.Success);
+            return ServiceResult.Create(GmailResultType.Success);
         }
         catch (Google.GoogleApiException ex)
         {
@@ -41,11 +42,11 @@ public class GmailSenderService(IConfiguration configuration)
                 _                               => GmailResultType.UnexpectedError
             };
     
-            return new ServiceResult<GmailResultType>(type, ex.Error.Message);
+            return ServiceResult.Create(type, ex.Error.Message);
         }
         catch (Exception ex)
         {
-            return new ServiceResult<GmailResultType>(GmailResultType.UnexpectedError, ex.Message);
+            return ServiceResult.Create(GmailResultType.UnexpectedError, ex.Message);
         }
     }
 

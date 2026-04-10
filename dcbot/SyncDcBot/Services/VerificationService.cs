@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using SyncDcBot.Types;
+using SyncDcBot.Types.Enums;
 
 //TODO: not finished!
 namespace SyncDcBot.Services;
@@ -43,20 +44,23 @@ public class VerificationService
     {
         if (!EmailFormat.IsMatch(userEmail))
         {
-            return new ServiceResult<SendCodeResultType>(SendCodeResultType.InvalidEmailFormat);
+            return ServiceResult.Create(SendCodeResultType.InvalidEmailFormat);
         }
 
         if (_cache.TryGetValue<VerificationEntry>(userId, out var userVerificationEntry))
         {
-            return new ServiceResult<SendCodeResultType, SendCodePendingData>(
+            return ServiceResult.CreateWith(
                 SendCodeResultType.CodeAlreadyPending,
-                new SendCodePendingData(userVerificationEntry));
+                new SendCodePendingData(userVerificationEntry)
+            );
         }
 
         var code = GenerateCode();
+        
         var utcNow = DateTimeOffset.UtcNow;
         var expirationTime = utcNow.Add(CodeExpiryTime);
         var additionalTtl = TimeSpan.FromHours(1);
+        
         var entry = new VerificationEntry(code, utcNow,expirationTime, Attempts: 0);
         _cache.Set(userId, entry, expirationTime + additionalTtl);
 
@@ -68,12 +72,13 @@ public class VerificationService
 
         if (!gmailResult.IsSuccess)
         {
-            return new ServiceResult<SendCodeResultType, EmailFailedData>(
+            return ServiceResult.CreateWith(
                 SendCodeResultType.EmailDeliveryFailed,
-                new EmailFailedData(gmailResult));
+                new EmailFailedData(gmailResult)
+            );
         }
 
-        return new ServiceResult<SendCodeResultType>(SendCodeResultType.Success);
+        return ServiceResult.Create(SendCodeResultType.Success);
     }
 
     public VerifyCodeResultType VerifyCode(ulong userId, string code)

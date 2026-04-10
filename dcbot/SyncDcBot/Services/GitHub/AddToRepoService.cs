@@ -3,16 +3,9 @@ using Octokit;
 using Serilog.Events;
 using SyncDcBot.Repositories;
 using SyncDcBot.Types;
+using SyncDcBot.Types.Enums;
 
-namespace SyncDcBot.Services;
-
-public record GitHubResult(bool Success, string Message, LogEventLevel LogLevel)
-{
-    public CommandResult ToCommandResult()
-    {
-        return new CommandResult(Success, Message, LogLevel);
-    }
-}
+namespace SyncDcBot.Services.GitHub;
 
 public class AddToRepoService
 {
@@ -25,60 +18,49 @@ public class AddToRepoService
         _config = config;
     }
 
-    public async Task<GitHubResult> AddCollaboratorAsync(string ghUser)
+    public async Task<ServiceResult<GitHubResultType>> AddCollaboratorAsync(string ghUser)
     {
         var owner = _config["GitHubConfig:RepoOwner"];
         var repo  = _config["GitHubConfig:RepoName"];
 
         var userCheck = await VerifyUserExistsAsync(ghUser);
-        if (!userCheck.Success)
+        if (!userCheck.IsSuccess)
         {
             return userCheck;
         }
 
-        return await InviteToRepoAsync(ghUser, owner, repo);
+        var result = await InviteToRepoAsync(ghUser, owner, repo); 
+        return result;
     }
 
-    private async Task<GitHubResult> VerifyUserExistsAsync(string ghUser)
+    private async Task<ServiceResult<GitHubResultType>> VerifyUserExistsAsync(string ghUser)
     {
         try
         {
             await _github.User.Get(ghUser);
-            return new GitHubResult(true, "User found.", LogEventLevel.Debug);
+            return ServiceResult.Create(GitHubResultType.Success);
         }
         catch (NotFoundException)
         {
-            return new GitHubResult(false, $"User `{ghUser}` not found on GitHub.", LogEventLevel.Warning);
+            return ServiceResult.Create(GitHubResultType.UserNotFound);
         }
     }
 
-    private async Task<GitHubResult> InviteToRepoAsync(string ghUser, string owner, string repo)
+    private async Task<ServiceResult<GitHubResultType>> InviteToRepoAsync(string ghUser, string owner, string repo)
     {
         try
         {
             await _github.Repository.Collaborator.Add(owner, repo, ghUser);
-            
-            return new GitHubResult(true,
-                $"{EmojiRepo.SuccessEmoji} User **{ghUser}** was invited to `{owner}/{repo}`! Invitation must be accepted on GitHub.", 
-                LogEventLevel.Information);
+            return ServiceResult.Create(GitHubResultType.Success);
         }
-        catch (ForbiddenException)
+        catch (Exception exception)
         {
-            return new GitHubResult(false, 
-                $"{EmojiRepo.ErrorEmoji} Bot has no permissions to manage {owner}/{repo}.", 
-                LogEventLevel.Warning);
-        }
-        catch (NotFoundException)
-        {
-            return new GitHubResult(false, 
-                $"{EmojiRepo.ErrorEmoji} Bot error configuration. Contact bot maintainer.", 
-                LogEventLevel.Warning);
-        }
-        catch (Exception ex)
-        {
-            return new GitHubResult(false, 
-                $"{EmojiRepo.ErrorEmoji} Unexpected error: {ex.Message}", 
-                LogEventLevel.Error);
+            return exception switch
+            {
+                ForbiddenException  => ServiceResult.Create(GitHubResultType.Unauthorized),
+                NotFoundException   => ServiceResult.Create(GitHubResultType.RepoNotFound),
+                _                   => ServiceResult.Create(GitHubResultType.UnexpectedError, exception.Message)
+            };
         }
     }
     

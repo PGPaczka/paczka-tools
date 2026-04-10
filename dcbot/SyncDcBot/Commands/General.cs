@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using SyncDcBot.Repositories;
 using SyncDcBot.Services;
 using SyncDcBot.Types;
+using SyncDcBot.Types.Enums;
 
 namespace SyncDcBot.Commands;
 
@@ -67,15 +68,14 @@ public class GeneralModule(
 
     private CommandResult ConvertGmailResultToCommandResult(ServiceResult<GmailResultType> result, string email)
     {
-        var errorMsg = $"Something went wrong. Contact the admin (<@&{configuration["DiscordConfig:AdminRoleId"]}>) for help.";
         var commandResult = result.Type switch
         {
             GmailResultType.Success             => CommandResult.Success(
                 $"Verification code sent to `{email}`. Check junk/spam folder if you can't find it"),
             GmailResultType.RecipientNotFound   => CommandResult.Failure(result.Message, "Invalid email address."),
-            GmailResultType.RateLimitExceeded   => CommandResult.Error(result.Message, errorMsg),
-            GmailResultType.Unauthorized        => CommandResult.Error(result.Message, errorMsg),
-            GmailResultType.UnexpectedError     => CommandResult.Error(result.Message, errorMsg),
+            GmailResultType.RateLimitExceeded   => CommandResult.GeneralError(logMsg: result.Message!),
+            GmailResultType.Unauthorized        => CommandResult.GeneralError(logMsg: result.Message!),
+            GmailResultType.UnexpectedError     => CommandResult.GeneralError(logMsg: result.Message!),
             _ => throw new ArgumentOutOfRangeException(nameof(result.Type), result.Type, null)
         };
         return commandResult;

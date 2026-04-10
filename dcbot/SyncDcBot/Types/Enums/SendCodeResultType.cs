@@ -1,4 +1,4 @@
-﻿namespace SyncDcBot.Types;
+﻿namespace SyncDcBot.Types.Enums;
 
 public enum SendCodeResultType
 {
