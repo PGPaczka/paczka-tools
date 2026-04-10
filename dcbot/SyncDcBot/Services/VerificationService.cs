@@ -28,10 +28,17 @@ public class VerificationService
     private static readonly Regex EmailFormat = new(@"^s\d{6}@student\.pg\.edu\.pl$", RegexOptions.Compiled);
     
     private const string EmailSubject = "PG Paczka Verification Code";
-    private string GetEmailBody(VerificationEntry entry) =>
-        $"Your verification code: {entry.Code}\n" +
-        $"Code is valid for {CodeExpiryTime.TotalMinutes} minutes.\n" +
-        $"({entry.ExpiresAt})";
+    private string GetEmailBody(VerificationEntry entry)
+    {
+        var polandZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Warsaw");
+        var localExpiry = TimeZoneInfo.ConvertTime(entry.ExpiresAt, polandZone);
+
+        return $"Your verification code: {entry.Code}\n" +
+               $"Code is valid for {CodeExpiryTime.TotalMinutes} minutes.\n" +
+               $"(valid until " +
+               $"[{localExpiry:dd.MM.yyyy}] {localExpiry:HH:mm} (local) / " +
+               $"[{entry.ExpiresAt:dd.MM.yyyy}] {entry.ExpiresAt:HH:mm} (UTC))";
+    }
     
     public VerificationService(GmailSenderService gmailSender, IConfiguration config, IMemoryCache cache)
     {
@@ -81,6 +88,7 @@ public class VerificationService
         return ServiceResult.Create(SendCodeResultType.Success);
     }
 
+    // todo: maybe add info, when it expired, how many attempts left
     public VerifyCodeResultType VerifyCode(ulong userId, string code)
     {
         if (!_cache.TryGetValue<VerificationEntry>(userId, out var entry))

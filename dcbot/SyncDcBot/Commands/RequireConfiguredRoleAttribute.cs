@@ -16,6 +16,7 @@ public class RequireConfiguredRoleAttribute : PreconditionAttribute
         _configKey = configKey;
     }
 
+    // todo: add role and user ([user] does not belond to [role]
     public override Task<PreconditionResult> CheckRequirementsAsync(
         IInteractionContext context, ICommandInfo command, IServiceProvider services)
     {

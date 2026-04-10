@@ -13,6 +13,7 @@ public class GeneralModule(
     IConfiguration configuration) : CommandBase(resultStore)
 {
     [SlashCommand("ping", "Check if bot is up")]
+    
     public async Task PingAsync()
     {
         ResultStore.SetSuccess(Context.Interaction.Id, $"🏓 Pong! Delay: **{Context.Client.Latency}ms**",
@@ -38,6 +39,8 @@ public class GeneralModule(
     public async Task VerifyAsync(
         [Summary("email", "Email address)")] string email)
     {
+        // todo: check if user already has role
+        
         var codeExpiryTime = TimeSpan.FromMinutes(
             configuration.GetValue<int>("DiscordConfig:VerificationCodeExpiryMinutes", 15));
         var emailDomain = configuration.GetValue<string>("DiscordConfig:StudentEmailDomain")!;
@@ -70,8 +73,7 @@ public class GeneralModule(
     {
         var commandResult = result.Type switch
         {
-            GmailResultType.Success             => CommandResult.Success(
-                $"Verification code sent to `{email}`. Check junk/spam folder if you can't find it"),
+            GmailResultType.Success             => CommandResult.Success($"Verification code sent to `{email}`. Check junk/spam folder if you can't find it"),
             GmailResultType.RecipientNotFound   => CommandResult.Failure(result.Message, "Invalid email address."),
             GmailResultType.RateLimitExceeded   => CommandResult.GeneralError(logMsg: result.Message!),
             GmailResultType.Unauthorized        => CommandResult.GeneralError(logMsg: result.Message!),
@@ -80,4 +82,54 @@ public class GeneralModule(
         };
         return commandResult;
     }
+    
+    [SlashCommand("code", "Submit your verification code")]
+    public async Task VerifyCodeAsync(
+        [Summary("code", "Verification code sent to your email")] string code)
+    {
+        var userId = Context.User.Id;
+        var result = verificationService.VerifyCode(userId, code);
+
+        var commandResult = result switch
+        {
+            VerifyCodeResultType.Success          => CommandResult.Success(
+                $"User {Context.User.Username} ({userId}) verified successfully.",
+                "Your email has been verified successfully!"),
+
+            VerifyCodeResultType.InvalidCode      => CommandResult.Failure(
+                $"Invalid code attempt for userId={userId}.",
+                "Invalid code. Please try again."),
+
+            VerifyCodeResultType.Expired          => CommandResult.Failure(
+                $"Expired code for userId={userId}.",
+                "Your code has expired. Use `/verify` to request a new one."),
+
+            VerifyCodeResultType.NotFound         => CommandResult.Failure(
+                $"No pending verification for userId={userId}.",
+                "No verification code found. Use `/verify` to request one."),
+
+            VerifyCodeResultType.TooManyAttempts  => CommandResult.Failure(
+                $"Too many failed attempts for userId={userId}.",
+                "Too many failed attempts. You've been blacklisted. Contact administrator."),
+
+            VerifyCodeResultType.UnexpectedError  => CommandResult.GeneralError(
+                $"Unexpected cache error for userId={userId}."),
+
+            _ => throw new ArgumentOutOfRangeException(nameof(result), result, null)
+        };
+
+        if (result == VerifyCodeResultType.TooManyAttempts)
+        {
+            // blacklist user
+        }
+
+        if (result == VerifyCodeResultType.Success)
+        {
+            // add user to gh and to dc 
+        }
+        
+        ResultStore.Set(Context.Interaction.Id, commandResult);
+    }
+    
+    
 }

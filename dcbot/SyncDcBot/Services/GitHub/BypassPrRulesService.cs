@@ -9,6 +9,8 @@ public class BypassPrRulesService
 {
     private readonly GitHubClient _github;
     private readonly IConfiguration _config;
+    private string Owner => _config["GitHubConfig:RepoOwner"]!;
+    private string Repo => _config["GitHubConfig:RepoName"]!;
 
     public BypassPrRulesService(GitHubClient github, IConfiguration config)
     {
@@ -18,45 +20,37 @@ public class BypassPrRulesService
 
     public async Task<ServiceResult<BypassMergeResultType>> BypassMergePullRequestAsync(string prUrl)
     {
-        var owner = _config["GitHubConfig:RepoOwner"]!;
-        var repo = _config["GitHubConfig:RepoName"]!;
-
-        var parseResult = TryParsePullRequestNumber(prUrl, owner, repo, out var prNumber);
+        var parseResult = TryParsePullRequestNumber(prUrl, out var prNumber);
         if (!parseResult.IsSuccess) return parseResult;
 
-        var fetchResult = await FetchPullRequestAsync(owner, repo, prNumber);
+        var fetchResult = await FetchPullRequestAsync(prNumber);
         if (!fetchResult.IsSuccess) return fetchResult;
 
-        var forcePushResult = await CheckForForcePushAsync(owner, repo, fetchResult.Data!);
+        var forcePushResult = await CheckForForcePushAsync(fetchResult.Data!);
         if (!forcePushResult.IsSuccess) return forcePushResult;
 
-        var mergeResult = await MergePullRequestAsync(owner, repo, fetchResult.Data!);
+        var mergeResult = await MergePullRequestAsync(fetchResult.Data!);
         return mergeResult;
     }
 
-
-    private static ServiceResult<BypassMergeResultType> TryParsePullRequestNumber(
-        string prUrl, string owner, string repo, out int prNumber)
+    private ServiceResult<BypassMergeResultType> TryParsePullRequestNumber(string prUrl, out int prNumber)
     {
         prNumber = 0;
         try
         {
             var uri = new Uri(prUrl.Trim());
-            var expectedBase = $"github.com/{owner}/{repo}/pull/";
+            var expectedBase = $"github.com/{Owner}/{Repo}/pull/";
 
             if (!uri.AbsoluteUri.Contains(expectedBase))
             {
                 return ServiceResult.Create(BypassMergeResultType.InvalidUrl,
-                    $"Invalid PR URL. Expected: `github.com/{owner}/{repo}/pull/[number]`");
+                    $"Invalid PR URL. Expected: `github.com/{Owner}/{Repo}/pull/[number]`");
             }
 
-            var segment = uri.Segments.LastOrDefault()?.Trim('/');
-            if (!int.TryParse(segment, out prNumber))
-            {
-                return ServiceResult.Create(BypassMergeResultType.InvalidPrNumber);
-            }
-
-            return ServiceResult.Create(BypassMergeResultType.Success);
+            var lastSegment = uri.Segments.LastOrDefault()?.Trim('/');
+            return ServiceResult.Create(!int.TryParse(lastSegment, out prNumber)
+                ? BypassMergeResultType.InvalidPrNumberFormat
+                : BypassMergeResultType.Success);
         }
         catch
         {
@@ -64,12 +58,11 @@ public class BypassPrRulesService
         }
     }
 
-    private async Task<ServiceResult<BypassMergeResultType, PullRequest>> FetchPullRequestAsync(
-        string owner, string repo, int prNumber)
+    private async Task<ServiceResult<BypassMergeResultType, PullRequest>> FetchPullRequestAsync(int prNumber)
     {
         try
         {
-            var pr = await _github.PullRequest.Get(owner, repo, prNumber);
+            var pr = await _github.PullRequest.Get(Owner, Repo, prNumber);
 
             if (pr.State.Value == ItemState.Closed)
             {
@@ -83,65 +76,45 @@ public class BypassPrRulesService
                     .AlreadyMerged);
             }
 
-            return ServiceResult.CreateWith(BypassMergeResultType.Success, pr);
+            return ServiceResult.CreateWith(BypassMergeResultType
+                .Success, pr);
         }
         catch (NotFoundException)
         {
-            return ServiceResult.CreateWithDefault<BypassMergeResultType, PullRequest>(BypassMergeResultType.NotFound);
+            return ServiceResult.CreateWithDefault<BypassMergeResultType, PullRequest>(BypassMergeResultType
+                .NotFound);
         }
     }
 
-    private async Task<ServiceResult<BypassMergeResultType>> CheckForForcePushAsync(
-        string owner, string repo, PullRequest pr)
+    private async Task<ServiceResult<BypassMergeResultType>> CheckForForcePushAsync(PullRequest pr)
     {
         try
         {
-            var events = await _github.Issue.Timeline.GetAllForIssue(owner, repo, pr.Number);
+            var events = await _github.Issue.Timeline.GetAllForIssue(Owner, Repo, pr.Number);
 
-            var forcePushEvents = events
+            var latestForcePush = events
                 .Where(e => e.Event.Value == EventInfoState.HeadRefForcePushed)
                 .OrderByDescending(e => e.CreatedAt)
-                .ToList();
+                .FirstOrDefault();
 
-            if (!forcePushEvents.Any())
-            {
+            if (latestForcePush is null)
                 return ServiceResult.Create(BypassMergeResultType.Success);
-            }
 
-            var latestForcePush = forcePushEvents.First();
-
-            var masterCommitsAtForcePush = await _github
-                .Repository
-                .Commit
-                .GetAll(
-                    owner, repo,
-                    new CommitRequest
-                    {
-                        Sha = pr.Base.Ref,
-                        Until = latestForcePush.CreatedAt
-                    }
-                );
-
-            if (!masterCommitsAtForcePush.Any())
+            var masterShaAtForcePush = await GetMasterShaAtAsync(pr.Base.Ref, latestForcePush.CreatedAt);
+            if (masterShaAtForcePush is null)
             {
                 return ServiceResult.Create(BypassMergeResultType.UnexpectedError,
-                    $"Could not determine master state at the time of force push for PR #{pr.Number}.");
+                    $"Could not determine {pr.Base.Ref} state at the time of force push for PR #{pr.Number}.");
             }
 
-            var masterShaAtForcePush = masterCommitsAtForcePush.First().Sha;
-
-            // Merge Base (common commit) between master (at moment of Force Push) and current PR head
             var comparison = await _github.Repository.Commit.Compare(
-                owner, repo,
-                masterShaAtForcePush,
-                pr.Head.Sha);
+                Owner, Repo, masterShaAtForcePush, pr.Head.Sha);
 
-            // Merge Base should be equal master at the moment of Force Push
             if (comparison.MergeBaseCommit.Sha != masterShaAtForcePush)
             {
                 return ServiceResult.Create(BypassMergeResultType.ForcePushDetected,
                     $"PR #{pr.Number} — force push rewrote shared history with {pr.Base.Ref}. " +
-                    $"Master was at `{masterShaAtForcePush[..7]}`, " +
+                    $"Base was at `{masterShaAtForcePush[..7]}`, " +
                     $"merge base is at `{comparison.MergeBaseCommit.Sha[..7]}`.");
             }
 
@@ -154,16 +127,24 @@ public class BypassPrRulesService
         catch (Exception ex)
         {
             return ServiceResult.Create(BypassMergeResultType.UnexpectedError,
-                $"Failed to check force push for PR #{pr.Number}: {ex.Message}");
+                $"Failed to check force-push for PR #{pr.Number}: {ex.Message}");
         }
     }
 
-    private async Task<ServiceResult<BypassMergeResultType>> MergePullRequestAsync(
-        string owner, string repo, PullRequest pr)
+    private async Task<string?> GetMasterShaAtAsync(string branch, DateTimeOffset at)
+    {
+        var commits = await _github.Repository.Commit.GetAll(
+            Owner, Repo,
+            new CommitRequest { Sha = branch, Until = at });
+
+        return commits.FirstOrDefault()?.Sha;
+    }
+    
+    private async Task<ServiceResult<BypassMergeResultType>> MergePullRequestAsync(PullRequest pr)
     {
         try
         {
-            await _github.PullRequest.Merge(owner, repo, pr.Number, new MergePullRequest
+            await _github.PullRequest.Merge(Owner, Repo, pr.Number, new MergePullRequest
             {
                 CommitMessage = $"[bot] Admin bypass merge of PR #{pr.Number}: {pr.Title}",
                 MergeMethod = PullRequestMergeMethod.Merge

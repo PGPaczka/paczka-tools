@@ -12,6 +12,7 @@ public class GitHubModule(AddToRepoService github, BypassPrRulesService bypassPr
 {
     private static readonly string _adminRoleId = null!;
     [SlashCommand("dodaj-do-repo", "Adds user to Paczka github repo")]
+    [RequireConfiguredRole("DiscordConfig:AdminRoleId")]
     public async Task AddToRepoAsync(
         [Summary("profile", "Link to GitHub profile (eg. https://github.com/jankowalski)")]
         string profile)
@@ -55,7 +56,7 @@ public class GitHubModule(AddToRepoService github, BypassPrRulesService bypassPr
         {
             BypassMergeResultType.Success           => CommandResult.Success($"PR merged successfully: {prUrl}"),
             BypassMergeResultType.InvalidUrl        => CommandResult.Failure(result.Message),
-            BypassMergeResultType.InvalidPrNumber   => CommandResult.Failure("Could not parse PR number from the URL."),
+            BypassMergeResultType.InvalidPrNumberFormat   => CommandResult.Failure("Could not parse PR number from the URL."),
             BypassMergeResultType.NotFound          => CommandResult.Failure($"PR or its branch no longer exists."),
             BypassMergeResultType.AlreadyClosed     => CommandResult.Failure("This pull request is already closed."),
             BypassMergeResultType.AlreadyMerged     => CommandResult.Failure("This pull request is already merged."),

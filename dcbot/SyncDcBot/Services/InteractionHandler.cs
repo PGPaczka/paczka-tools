@@ -122,22 +122,17 @@ public class InteractionHandler
 
     private static string GenerateErrorMessageForUser(IResult result, CommandResult? businessResult)
     {
-        string msg;
-        if (businessResult == null)
+        if (businessResult != null)
+            return $"{EmojiRepo.ErrorEmoji} {businessResult.GetUserMessage()}";
+
+        var prefix = result.Error switch
         {
-            msg = result.Error switch
-            {
-                InteractionCommandError.UnmetPrecondition => "No permission to execute this command:",
-                InteractionCommandError.Exception         => "Error:",
-                _                                         => ""
-            };
-        }
-        else
-        {
-            msg = businessResult.GetUserMessage();
-        }
-        var finalMsg = $"{EmojiRepo.ErrorEmoji} {msg} {result.ErrorReason}";
-        return finalMsg;
+            InteractionCommandError.UnmetPrecondition => "No permission to execute this command:",
+            InteractionCommandError.Exception         => "Error:",
+            _                                         => ""
+        };
+
+        return $"{EmojiRepo.ErrorEmoji} {prefix} {result.ErrorReason}".Trim();
     }
 
     private static string FormatDiscordMessage(SlashCommandInfo cmd, IInteractionContext ctx, string parameters,

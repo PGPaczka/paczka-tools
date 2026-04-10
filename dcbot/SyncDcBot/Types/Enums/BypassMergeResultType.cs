@@ -4,7 +4,7 @@ public enum BypassMergeResultType
 {
     Success,
     InvalidUrl,
-    InvalidPrNumber,
+    InvalidPrNumberFormat,
     NotFound,
     AlreadyClosed,
     AlreadyMerged,
