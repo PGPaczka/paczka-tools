@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 using SyncDcBot.Services;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace SyncDcBot.Configuration;
 

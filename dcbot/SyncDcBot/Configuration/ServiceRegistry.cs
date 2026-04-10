@@ -18,6 +18,7 @@ public static class ServiceRegistry
         "DiscordConfig:GuildId",
         "DiscordConfig:LogChannelId",
         "DiscordConfig:AdminRoleId",
+        "DiscordConfig:StudentEmailDomain",
         
         "GitHubConfig:GitHubToken",
         "GitHubConfig:RepoOwner",
@@ -33,6 +34,7 @@ public static class ServiceRegistry
         AddDiscord(services);
         AddGitHub(ctx.Configuration, services);
         services
+            .AddMemoryCache()
             .AddSingleton<InteractionHandler>()
             .AddSingleton<DiscordLoggingService>()
             .AddSingleton<AddToRepoService>()
