@@ -31,14 +31,18 @@ public static class ServiceRegistry
     
     public static void Register(HostBuilderContext ctx, IServiceCollection services)
     {
+        services
+            .AddMemoryCache();
+            
         AddDiscord(services);
         AddGitHub(ctx.Configuration, services);
+        
         services
-            .AddMemoryCache()
             .AddSingleton<InteractionHandler>()
             .AddSingleton<DiscordLoggingService>()
             .AddSingleton<AddToRepoService>()
             .AddSingleton<CommandResultStore>()
+            .AddSingleton<VerificationService>()
             .AddSingleton<GmailSenderService>();
     }
 

@@ -7,3 +7,6 @@ public record ServiceResult<TType>(TType Type, string? Message = null) where TTy
     private static TType GetSuccessValue() 
         => (TType)Enum.Parse(typeof(TType), "Success");
 }
+
+public record ServiceResult<TType, TData>(TType Type, TData? Data = default, string? Message = null) 
+    : ServiceResult<TType>(Type, Message) where TType : Enum;

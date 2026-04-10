@@ -1,43 +1,18 @@
 ﻿using System.Text.RegularExpressions;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
-using SyncDcBot.Repositories;
 using SyncDcBot.Types;
-
 
 //TODO: not finished!
 namespace SyncDcBot.Services;
-
-public enum VerifyCodeResult
-{
-    Success,
-    NotFound,
-    Expired,
-    InvalidCode,
-    TooManyAttempts,
-    Error
-}
-
-public enum SendCodeResultType
-{
-    Success,
-    AlreadySent,
-    InvalidEmailFormat,
-    EmailFailed
-}
 
 public record VerificationEntry(string Code, DateTimeOffset SentAt, DateTimeOffset ExpiresAt, int Attempts)
 {
     public bool IsExpired => DateTimeOffset.UtcNow > ExpiresAt;
 }
 
-public record SendCodeResult(SendCodeResultType Type, string? ErrorMessage = null)
-{
-    public static SendCodeResult Success()                          => new(SendCodeResultType.Success);
-    public static SendCodeResult AlreadySent()                      => new(SendCodeResultType.AlreadySent);
-    public static SendCodeResult InvalidEmailFormat(string message) => new(SendCodeResultType.InvalidEmailFormat);
-    public static SendCodeResult EmailFailed(string message)        => new(SendCodeResultType.EmailFailed, message);
-}
+public record SendCodePendingData(VerificationEntry Entry);
+public record EmailFailedData(ServiceResult<GmailResultType> Data);
 
 public class VerificationService
 {
@@ -64,79 +39,75 @@ public class VerificationService
         _cache = cache;
     }
 
-    public async Task<CommandResult> StartVerification(ulong userId, string userEmail)
+    public async Task<ServiceResult<SendCodeResultType>> StartVerification(ulong userId, string userEmail)
     {
         if (!EmailFormat.IsMatch(userEmail))
         {
-            return CommandResult.Failure(
-                $"Invalid email format for userId={userId}: {userEmail}",
-                usrMsg: $"Email must be in format `s123456{EmailDomain}`");
+            return new ServiceResult<SendCodeResultType>(SendCodeResultType.InvalidEmailFormat);
         }
 
-        var utcNow = DateTimeOffset.UtcNow;
-        if (_cache.TryGetValue<VerificationEntry>(userId, out var userVerification))
+        if (_cache.TryGetValue<VerificationEntry>(userId, out var userVerificationEntry))
         {
-            return CommandResult.Failure(
-                $"Code has already been sent to {userEmail} at {userVerification.SentAt}.",
-                usrMsg: $"Code has been already sent. Check your inbox/junk folder. If you can't find it, wait until {userVerification.ExpiresAt} and try again");
+            return new ServiceResult<SendCodeResultType, SendCodePendingData>(
+                SendCodeResultType.CodeAlreadyPending,
+                new SendCodePendingData(userVerificationEntry));
         }
 
         var code = GenerateCode();
+        var utcNow = DateTimeOffset.UtcNow;
         var expirationTime = utcNow.Add(CodeExpiryTime);
+        var additionalTtl = TimeSpan.FromHours(1);
         var entry = new VerificationEntry(code, utcNow,expirationTime, Attempts: 0);
-        _cache.Set(userId, entry, expirationTime + TimeSpan.FromHours(1));
+        _cache.Set(userId, entry, expirationTime + additionalTtl);
 
-        var result = await _gmailSender.SendMessage(
+        var gmailResult = await _gmailSender.SendMessage(
             userEmail,
             EmailSubject,
             GetEmailBody(entry)
         );
 
-        if (result.Type != GmailResultType.Success)
+        if (!gmailResult.IsSuccess)
         {
-            return CommandResult.Failure(
-                $"Failed to send verification email to {userEmail}: {result.Message}",
-                usrMsg: "Failed to send verification email. Try again later.");
+            return new ServiceResult<SendCodeResultType, EmailFailedData>(
+                SendCodeResultType.EmailDeliveryFailed,
+                new EmailFailedData(gmailResult));
         }
 
-        return CommandResult.Success(
-            $"Verification email sent to {userEmail}",
-            usrMsg: $"Verification code sent to `{userEmail}`. Code is valid for {CodeExpiryTime.TotalMinutes} minutes.",
-            respondType: BotResponseType.Ephemeral);
+        return new ServiceResult<SendCodeResultType>(SendCodeResultType.Success);
     }
 
-    public VerifyCodeResult VerifyCode(ulong userId, string code)
+    public VerifyCodeResultType VerifyCode(ulong userId, string code)
     {
         if (!_cache.TryGetValue<VerificationEntry>(userId, out var entry))
         {
-            return VerifyCodeResult.NotFound;
+            return VerifyCodeResultType.NotFound;
         }
 
         if (entry is null)
         {
-            return VerifyCodeResult.Error;
+            return VerifyCodeResultType.UnexpectedError;
         }
         
         if (entry.IsExpired)
         {
-            return VerifyCodeResult.Expired;
+            return VerifyCodeResultType.Expired;
         }
         
         if (entry.Attempts >= MaxAttempts)
         {
-            return VerifyCodeResult.TooManyAttempts;
+            return VerifyCodeResultType.TooManyAttempts;
         }
 
         if (entry.Code != code)
         {
             _cache.Set(userId, entry with { Attempts = entry.Attempts + 1 }, entry.ExpiresAt - DateTimeOffset.UtcNow);
             return entry.Attempts + 1 >= MaxAttempts
-                ? VerifyCodeResult.TooManyAttempts
-                : VerifyCodeResult.InvalidCode;
+                ? VerifyCodeResultType.TooManyAttempts
+                : VerifyCodeResultType.InvalidCode;
         }
 
         _cache.Remove(userId);
-        return VerifyCodeResult.Success;
+        return VerifyCodeResultType.Success;
     }
 
     private static string GenerateCode()

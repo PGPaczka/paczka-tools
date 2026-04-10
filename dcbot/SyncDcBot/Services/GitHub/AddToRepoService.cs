@@ -2,6 +2,7 @@
 using Octokit;
 using Serilog.Events;
 using SyncDcBot.Repositories;
+using SyncDcBot.Types;
 
 namespace SyncDcBot.Services;
 
