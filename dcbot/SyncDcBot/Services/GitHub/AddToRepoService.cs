@@ -1,7 +1,6 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using System.Net;
+using Microsoft.Extensions.Configuration;
 using Octokit;
-using Serilog.Events;
-using SyncDcBot.Repositories;
 using SyncDcBot.Types;
 using SyncDcBot.Types.Enums;
 
@@ -18,26 +17,30 @@ public class AddToRepoService
         _config = config;
     }
 
-    public async Task<ServiceResult<GitHubResultType>> AddCollaboratorAsync(string ghUser)
+    public async Task<ServiceResult<GitHubResultType>> AddCollaboratorAsync(string? ghUsername)
     {
-        var owner = _config["GitHubConfig:RepoOwner"];
-        var repo  = _config["GitHubConfig:RepoName"];
+        var owner = _config["GitHubConfig:RepoOwner"]!;
+        var repo  = _config["GitHubConfig:RepoName"]!;
 
-        var userCheck = await VerifyUserExistsAsync(ghUser);
+        var userCheck = await VerifyUserExistsAsync(ghUsername);
         if (!userCheck.IsSuccess)
         {
             return userCheck;
         }
 
-        var result = await InviteToRepoAsync(ghUser, owner, repo); 
+        var result = await InviteToRepoAsync(ghUsername!, owner, repo); 
         return result;
     }
 
-    private async Task<ServiceResult<GitHubResultType>> VerifyUserExistsAsync(string ghUser)
+    private async Task<ServiceResult<GitHubResultType>> VerifyUserExistsAsync(string? ghUsername)
     {
         try
         {
-            await _github.User.Get(ghUser);
+            if (string.IsNullOrWhiteSpace(ghUsername))
+            {
+                throw new NotFoundException("GitHub username is missing", HttpStatusCode.NotFound);
+            }
+            await _github.User.Get(ghUsername);
             return ServiceResult.Create(GitHubResultType.Success);
         }
         catch (NotFoundException)
@@ -46,11 +49,11 @@ public class AddToRepoService
         }
     }
 
-    private async Task<ServiceResult<GitHubResultType>> InviteToRepoAsync(string ghUser, string owner, string repo)
+    private async Task<ServiceResult<GitHubResultType>> InviteToRepoAsync(string ghUsername, string owner, string repo)
     {
         try
         {
-            await _github.Repository.Collaborator.Add(owner, repo, ghUser);
+            await _github.Repository.Collaborator.Add(owner, repo, ghUsername);
             return ServiceResult.Create(GitHubResultType.Success);
         }
         catch (Exception exception)
@@ -64,18 +67,18 @@ public class AddToRepoService
         }
     }
     
-    public static bool TryParseGitHubLogin(string profile, out string login)
+    public static bool TryParseGitHubLogin(string profileLink, out string ghUsername)
     {
-        login = string.Empty;
+        ghUsername = string.Empty;
         try
         {
-            var uri = new Uri(profile.TrimEnd('/'));
+            var uri = new Uri(profileLink.TrimEnd('/'));
             var path = uri.AbsolutePath.Trim('/');
             if (string.IsNullOrEmpty(path) || path.Contains('/'))
             {
                 return false;
             }
-            login = path;
+            ghUsername = path;
             return true;
         }
         catch

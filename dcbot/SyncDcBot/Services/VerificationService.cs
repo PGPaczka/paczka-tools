@@ -7,9 +7,20 @@ using SyncDcBot.Types.Enums;
 //TODO: not finished!
 namespace SyncDcBot.Services;
 
-public record VerificationEntry(string Code, DateTimeOffset SentAt, DateTimeOffset ExpiresAt, int Attempts)
+public record VerificationEntry(string Code, 
+    string GitHubUsername, 
+    DateTimeOffset SentAt, 
+    DateTimeOffset ExpiresAt, 
+    int Attempts)
 {
     public bool IsExpired => DateTimeOffset.UtcNow > ExpiresAt;
+    
+    public DateTimeOffset GetPolishExpiryTime()
+    {
+        var polandZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Warsaw");
+        return TimeZoneInfo.ConvertTime(ExpiresAt, polandZone);
+    }
+    
 }
 
 public record SendCodePendingData(VerificationEntry Entry);
@@ -30,8 +41,7 @@ public class VerificationService
     private const string EmailSubject = "PG Paczka Verification Code";
     private string GetEmailBody(VerificationEntry entry)
     {
-        var polandZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Warsaw");
-        var localExpiry = TimeZoneInfo.ConvertTime(entry.ExpiresAt, polandZone);
+        var localExpiry = GetPolishTime(entry.ExpiresAt);
 
         return $"Your verification code: {entry.Code}\n" +
                $"Code is valid for {CodeExpiryTime.TotalMinutes} minutes.\n" +
@@ -39,7 +49,13 @@ public class VerificationService
                $"[{localExpiry:dd.MM.yyyy}] {localExpiry:HH:mm} (local) / " +
                $"[{entry.ExpiresAt:dd.MM.yyyy}] {entry.ExpiresAt:HH:mm} (UTC))";
     }
-    
+
+    public static DateTimeOffset GetPolishTime(DateTimeOffset time)
+    {
+        var polandZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Warsaw");
+        return TimeZoneInfo.ConvertTime(time, polandZone);
+    }
+
     public VerificationService(GmailSenderService gmailSender, IConfiguration config, IMemoryCache cache)
     {
         _gmailSender = gmailSender;
@@ -47,14 +63,15 @@ public class VerificationService
         _cache = cache;
     }
 
-    public async Task<ServiceResult<SendCodeResultType>> StartVerification(ulong userId, string userEmail)
+    public async Task<ServiceResult<SendCodeResultType>> StartVerification(ulong userId, string userEmail, string githubUsername)
     {
         if (!EmailFormat.IsMatch(userEmail))
         {
             return ServiceResult.Create(SendCodeResultType.InvalidEmailFormat);
         }
 
-        if (_cache.TryGetValue<VerificationEntry>(userId, out var userVerificationEntry))
+        if (_cache.TryGetValue<VerificationEntry>(userId, out var userVerificationEntry) 
+            && userVerificationEntry is {IsExpired: false})
         {
             return ServiceResult.CreateWith(
                 SendCodeResultType.CodeAlreadyPending,
@@ -68,7 +85,13 @@ public class VerificationService
         var expirationTime = utcNow.Add(CodeExpiryTime);
         var additionalTtl = TimeSpan.FromHours(1);
         
-        var entry = new VerificationEntry(code, utcNow,expirationTime, Attempts: 0);
+        var entry = new VerificationEntry(
+            Code: code,
+            GitHubUsername: githubUsername,
+            SentAt: utcNow,
+            ExpiresAt: expirationTime,
+            Attempts: 0);
+
         _cache.Set(userId, entry, expirationTime + additionalTtl);
 
         var gmailResult = await _gmailSender.SendMessage(
@@ -91,16 +114,11 @@ public class VerificationService
     // todo: maybe add info, when it expired, how many attempts left
     public VerifyCodeResultType VerifyCode(ulong userId, string code)
     {
-        if (!_cache.TryGetValue<VerificationEntry>(userId, out var entry))
+        if (!_cache.TryGetValue<VerificationEntry>(userId, out var entry) || entry is null)
         {
             return VerifyCodeResultType.NotFound;
         }
 
-        if (entry is null)
-        {
-            return VerifyCodeResultType.UnexpectedError;
-        }
-        
         if (entry.IsExpired)
         {
             return VerifyCodeResultType.Expired;
@@ -110,11 +128,14 @@ public class VerificationService
         {
             return VerifyCodeResultType.TooManyAttempts;
         }
-
+        
         if (entry.Code != code)
         {
-            _cache.Set(userId, entry with { Attempts = entry.Attempts + 1 }, entry.ExpiresAt - DateTimeOffset.UtcNow);
-            return entry.Attempts + 1 >= MaxAttempts
+            var updatedAttempts = entry.Attempts + 1;
+            var timeLeftToExpire = entry.ExpiresAt - DateTimeOffset.UtcNow;
+            _cache.Set(userId, entry with { Attempts = updatedAttempts }, timeLeftToExpire);
+    
+            return updatedAttempts >= MaxAttempts
                 ? VerifyCodeResultType.TooManyAttempts
                 : VerifyCodeResultType.InvalidCode;
         }

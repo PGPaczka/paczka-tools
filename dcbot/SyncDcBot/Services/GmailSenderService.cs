@@ -58,11 +58,6 @@ public class GmailSenderService(IConfiguration configuration)
             ClientSecret = configuration["GCC:GmailConfig:GmailCredentials:installed:client_secret"]
         };
         
-        if (string.IsNullOrEmpty(secrets.ClientId) || string.IsNullOrEmpty(secrets.ClientSecret))
-        {
-            throw new ArgumentException("No Gmail secret in appsettings.json");
-        }
-        
         var tokenResponse = configuration.GetSection("GCC:GmailConfig:GmailToken").Get<TokenResponse>();
         var tokenDataStore = ResolveTokenDataStore(tokenResponse);
 

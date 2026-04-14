@@ -93,7 +93,7 @@ public class InteractionHandler
     private static string ExtractCommandParameters(IInteractionContext ctx)
     {
         return ctx.Interaction is SocketSlashCommand slashCmd
-            ? string.Join(", ", slashCmd.Data.Options.Select(o => $"{o.Name}: {o.Value}"))
+            ? string.Join(", ", slashCmd.Data.Options.Select(o => $"**{o.Name}**: {o.Value}"))
             : "";
     }
 

@@ -20,6 +20,8 @@ public static class ServiceRegistry
         "DiscordConfig:GuildId",
         "DiscordConfig:LogChannelId",
         "DiscordConfig:AdminRoleId",
+        "DiscordConfig:VerifiedRoleId",
+        "DiscordConfig:BlacklistedRoleId",
         "DiscordConfig:StudentEmailDomain",
         
         "GitHubConfig:GitHubToken",

@@ -36,7 +36,7 @@ public class GitHubModule(AddToRepoService github, BypassPrRulesService bypassPr
             GitHubResultType.RepoNotFound       => CommandResult.GeneralError(logMsg: $"{owner}/{repo} repo not found. Check configuration."),
             GitHubResultType.Unauthorized       => CommandResult.GeneralError(logMsg: "Bot is not authorized to access the repo."),
             GitHubResultType.UnexpectedError    => CommandResult.GeneralError(logMsg: $"UnexpectedError: {result.Message!}"),
-            _ => throw new ArgumentOutOfRangeException(nameof(result.Type), result.Type, null)
+            _                                   => throw new ArgumentOutOfRangeException(nameof(result.Type), result.Type, null)
         };
         ResultStore.Set(Context.Interaction.Id, x);
     }
@@ -54,16 +54,16 @@ public class GitHubModule(AddToRepoService github, BypassPrRulesService bypassPr
 
         var commandResult = result.Type switch
         {
-            BypassMergeResultType.Success           => CommandResult.Success($"PR merged successfully: {prUrl}"),
-            BypassMergeResultType.InvalidUrl        => CommandResult.Failure(result.Message),
-            BypassMergeResultType.InvalidPrNumberFormat   => CommandResult.Failure("Could not parse PR number from the URL."),
-            BypassMergeResultType.NotFound          => CommandResult.Failure($"PR or its branch no longer exists."),
-            BypassMergeResultType.AlreadyClosed     => CommandResult.Failure("This pull request is already closed."),
-            BypassMergeResultType.AlreadyMerged     => CommandResult.Failure("This pull request is already merged."),
-            BypassMergeResultType.ForcePushDetected => CommandResult.Failure(result.Message),
-            BypassMergeResultType.NotMergeable      => CommandResult.Failure("Pull request is not mergeable. Check for conflicts."),
-            BypassMergeResultType.UnexpectedError   => CommandResult.GeneralError(result.Message!),
-            _                                       => throw new ArgumentOutOfRangeException(nameof(result.Type), result.Type, null)
+            BypassMergeResultType.Success               => CommandResult.Success($"PR merged successfully: {prUrl}"),
+            BypassMergeResultType.InvalidUrl            => CommandResult.Failure(result.Message),
+            BypassMergeResultType.InvalidPrNumberFormat => CommandResult.Failure("Could not parse PR number from the URL."),
+            BypassMergeResultType.NotFound              => CommandResult.Failure($"PR or its branch no longer exists."),
+            BypassMergeResultType.AlreadyClosed         => CommandResult.Failure("This pull request is already closed."),
+            BypassMergeResultType.AlreadyMerged         => CommandResult.Failure("This pull request is already merged."),
+            BypassMergeResultType.ForcePushDetected     => CommandResult.Failure(result.Message),
+            BypassMergeResultType.NotMergeable          => CommandResult.Failure("Pull request is not mergeable. Check for conflicts."),
+            BypassMergeResultType.UnexpectedError       => CommandResult.GeneralError(result.Message!),
+            _                                           => throw new ArgumentOutOfRangeException(nameof(result.Type), result.Type, null)
         };
         
         ResultStore.Set(Context.Interaction.Id, commandResult);
