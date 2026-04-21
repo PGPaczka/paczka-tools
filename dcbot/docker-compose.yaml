@@ -1,0 +1,13 @@
+services:
+  syncdcbot:
+    image: ${DOCKERHUB_USERNAME}/syncdcbot:latest
+    container_name: syncdcbot
+    restart: unless-stopped
+    volumes:
+      - ./appsettings.json:/app/appsettings.json:ro
+      - ./logs:/app/logs 
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
