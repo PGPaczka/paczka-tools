@@ -4,11 +4,10 @@ services:
     container_name: syncdcbot
     restart: unless-stopped
     volumes:
-      - ./appsettings.json:/app/appsettings.json:ro
+      - ./appsettings.json:/app/Configuration/appsettings.json:ro
       - ./logs:/app/logs 
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-# test 3
