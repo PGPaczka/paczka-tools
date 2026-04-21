@@ -12,6 +12,7 @@ RUN dotnet publish SyncDcBot/SyncDcBot.csproj \
     --no-restore
 
 FROM mcr.microsoft.com/dotnet/runtime:9.0 AS runtime
+USER root
 WORKDIR /app
 
 COPY --from=build /app/publish .

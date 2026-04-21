@@ -21,15 +21,18 @@ public class BotApplication
         _logger = Log.ForContext("Source", "App");
         ValidateConfiguration(_host.Services.GetRequiredService<IConfiguration>());
         await InitializeServicesAsync();
+        StartHealthCheck();
         await StartBotAsync();
     }
 
-    private IHost BuildHost() =>
-        Host.CreateDefaultBuilder()
+    private IHost BuildHost()
+    {
+        return Host.CreateDefaultBuilder()
             .ConfigureAppConfiguration(ConfigureApp)
             .ConfigureServices(ServiceRegistry.Register)
             .UseSerilog(SerilogConfiguration.Configure)
             .Build();
+    }
 
     private static void ConfigureApp(IConfigurationBuilder config)
     {
@@ -60,10 +63,15 @@ public class BotApplication
             .Where(key => string.IsNullOrEmpty(config[key]))
             .ToList();
 
-        if (missing.Count == 0) return;
+        if (missing.Count == 0)
+        {
+            return;
+        }
 
         foreach (var key in missing)
+        {
             _logger.Fatal("Missing required configuration key: {Key}", key);
+        }
 
         throw new InvalidOperationException($"Missing configuration keys: {string.Join(", ", missing)}");
     }
@@ -75,12 +83,19 @@ public class BotApplication
         var config = _host.Services.GetRequiredService<IConfiguration>();
         var url = config["HealthConfig:Url"]!;
 
-        var listener = new HttpListener();
-        listener.Prefixes.Add(url);
-        listener.Start();
-
-        _ = Task.Run(async () => { await HealthcheckConfiguration.RunHealthCheck(listener, health, discord); });
-
-        _logger.Information("Health check listening on {Url}", url);
+        try
+        {
+            var listener = new HttpListener();
+            listener.Prefixes.Add(url);
+            listener.Start();
+            
+            _ = Task.Run(async () => await HealthcheckConfiguration.RunHealthCheck(listener, health, discord));
+            
+            _logger.Information("Health check listening on {Url}", url);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to start health check listener");
+        }
     }
 }
