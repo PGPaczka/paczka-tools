@@ -6,6 +6,8 @@ services:
     volumes:
       - ./appsettings.json:/app/Configuration/appsettings.json:ro
       - ./logs:/app/logs 
+    ports:
+      - "8080:8080"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health/"]
       interval: 30s
