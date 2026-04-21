@@ -1,11 +1,12 @@
-﻿using Discord;
+﻿using System.Net;
+using Discord;
 using Discord.WebSocket;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 using SyncDcBot.Services;
-using Microsoft.Extensions.Caching.Memory;
+using SyncDcBot.Services.GitHub;
 
 namespace SyncDcBot.Configuration;
 
@@ -61,10 +62,25 @@ public class BotApplication
 
         if (missing.Count == 0) return;
 
-        var logger = Log.ForContext("Source", "App");
         foreach (var key in missing)
             _logger.Fatal("Missing required configuration key: {Key}", key);
 
         throw new InvalidOperationException($"Missing configuration keys: {string.Join(", ", missing)}");
+    }
+    
+    private void StartHealthCheck()
+    {
+        var discord = _host.Services.GetRequiredService<DiscordSocketClient>();
+        var health = _host.Services.GetRequiredService<HealthService>();
+        var config = _host.Services.GetRequiredService<IConfiguration>();
+        var url = config["HealthConfig:Url"]!;
+
+        var listener = new HttpListener();
+        listener.Prefixes.Add(url);
+        listener.Start();
+
+        _ = Task.Run(async () => { await HealthcheckConfiguration.RunHealthCheck(listener, health, discord); });
+
+        _logger.Information("Health check listening on {Url}", url);
     }
 }

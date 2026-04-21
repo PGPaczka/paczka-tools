@@ -29,8 +29,10 @@ public static class ServiceRegistry
         "GitHubConfig:RepoName",
         
         "GCC:GmailConfig:GmailCredentials:installed:client_id",
-        "GCC:GmailConfig:GmailCredentials:installed:client_secret"
+        "GCC:GmailConfig:GmailCredentials:installed:client_secret",
         // "GCC:GmailConfig:GmailToken:RefreshToken" // required only in production (after first launch)
+    
+        "HealthConfig:Url"
     ];
     
     public static void Register(HostBuilderContext ctx, IServiceCollection services)
@@ -48,7 +50,8 @@ public static class ServiceRegistry
             .AddSingleton<AddToRepoService>()
             .AddSingleton<BypassPrRulesService>()
             .AddSingleton<GmailSenderService>()
-            .AddSingleton<VerificationService>();
+            .AddSingleton<VerificationService>()
+            .AddSingleton<HealthService>();
     }
 
     private static void AddDiscord(IConfiguration config, IServiceCollection services)
