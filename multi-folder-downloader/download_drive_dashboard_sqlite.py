@@ -1053,6 +1053,9 @@ class RuntimeState:
         self.listing_timeout = listing_timeout
 
         self.stop_event = threading.Event()
+        # Workers mark the dashboard dirty whenever visible state changes.
+        # The renderer wakes promptly but still caps repaint frequency.
+        self.dashboard_dirty = threading.Event()
         self.shared_backoff = SharedBackoff()
         self.started_at = time.monotonic()
 
@@ -1096,6 +1099,7 @@ class RuntimeState:
                 field,
                 getattr(self.run_stats, field) + amount,
             )
+        self.dashboard_dirty.set()
 
     def snapshot_run_stats(self) -> RunStats:
         with self.stats_lock:
@@ -1108,6 +1112,7 @@ class RuntimeState:
             cutoff = now - 60.0
             while self._failure_times and self._failure_times[0] < cutoff:
                 self._failure_times.popleft()
+        self.dashboard_dirty.set()
 
     def failure_rate_60s(self) -> int:
         now = time.monotonic()
@@ -1148,6 +1153,7 @@ class RuntimeState:
             w.file_progress = file_progress
             w.folder_pk = folder_pk
             w.file_pk = file_pk
+        self.dashboard_dirty.set()
 
     def begin_folder(
         self,
@@ -1185,7 +1191,7 @@ class RuntimeState:
             file_pk=file_pk,
             status=f"pobieranie 1/{self.retries}",
             folder_progress=folder_progress,
-            file_progress="0 B/?",
+            file_progress="łączenie…",
         )
 
     def reset_worker(
@@ -1213,6 +1219,7 @@ class RuntimeState:
                 w.file_pk = None
                 w.started_at = None
                 w.operation_key = ""
+        self.dashboard_dirty.set()
 
     def update_worker(
         self,
@@ -1240,6 +1247,7 @@ class RuntimeState:
             else:
                 if file_pct:
                     w.file_progress = file_pct
+        self.dashboard_dirty.set()
 
     def wait_shared_backoff(self, worker_no: int) -> None:
         def on_wait(remaining: float):
@@ -1247,6 +1255,7 @@ class RuntimeState:
                 self.worker_views[worker_no].status = (
                     f"global backoff {remaining:4.1f}s"
                 )
+            self.dashboard_dirty.set()
         self.shared_backoff.wait(self.stop_event, on_wait=on_wait)
 
     def wait_local_backoff(
@@ -1266,6 +1275,7 @@ class RuntimeState:
                 self.worker_views[worker_no].status = (
                     f"backoff {attempt}/{self.retries} {remaining:4.1f}s"
                 )
+            self.dashboard_dirty.set()
             if self.stop_event.wait(min(0.25, remaining)):
                 raise GracefulStop()
 
@@ -1447,7 +1457,7 @@ def download_file_with_retry(
             folder=folder_display,
             item=file_name,
             count=f"{folder_completed + 1}/{folder_total}",
-            file_pct=human_bytes(size),
+            file_pct=f"{human_bytes(size)}/{human_bytes(size)} (100%)",
         )
         return "skipped"
 
@@ -1481,7 +1491,10 @@ def download_file_with_retry(
                     f"{human_bytes(bytes_total)} ({pct}%)"
                 )
             else:
-                progress_text = f"{human_bytes(bytes_so_far)}/?"
+                progress_text = (
+                    f"{human_bytes(bytes_so_far)}/? "
+                    f"(brak Content-Length)"
+                )
 
             if progress_text == last_progress["text"]:
                 return
@@ -1507,7 +1520,7 @@ def download_file_with_retry(
                 completed=folder_completed,
                 total=folder_total,
                 count=f"{folder_completed}/{folder_total}",
-                file_pct="0 B/?",
+                file_pct="łączenie…",
             )
 
             # If another worker recently got throttled/5xx, respect the same
@@ -1611,7 +1624,7 @@ def download_file_with_retry(
                 folder=folder_display,
                 item=file_name,
                 count=f"{folder_completed + 1}/{folder_total}",
-                file_pct=human_bytes(size),
+                file_pct=f"{human_bytes(size)}/{human_bytes(size)} (100%)",
             )
 
             logging.info(
@@ -2212,15 +2225,19 @@ def dashboard_loop(
     fullscreen: bool,
 ) -> None:
     """
-    Render the dashboard without scrolling/re-printing the terminal.
+    Event-driven Rich dashboard.
 
-    Fullscreen uses the terminal alternate-screen buffer. This is much less
-    prone to visible flashing than Rich's inline Live mode, especially in
-    Windows Terminal + WSL. We also disable Rich's automatic refresh thread
-    and repaint at one controlled cadence, so there aren't two independent
-    refresh loops fighting each other.
+    Worker progress/status changes wake the renderer immediately, but repaint
+    frequency is capped by ``refresh_hz``. Idle periods still repaint roughly
+    once per second for elapsed time, cooldowns and fail/min.
+
+    gdown 6.2 reports progress after every 512 KiB chunk. A fixed 1 Hz poll
+    can miss an entire small/fast file, leaving the visible frame at the
+    initial ``łączenie…`` state. Event-driven refresh makes those updates far
+    more likely to be visible without constantly repainting an idle dashboard.
     """
-    interval = max(0.10, 1.0 / max(0.1, refresh_hz))
+    min_interval = max(0.05, 1.0 / max(0.1, refresh_hz))
+    heartbeat = 1.0
 
     try:
         with Live(
@@ -2233,12 +2250,23 @@ def dashboard_loop(
             redirect_stdout=True,
             redirect_stderr=True,
         ) as live:
-            while not done_event.wait(interval):
-                # Build one coherent frame and perform exactly one terminal
-                # refresh. Avoid live.update(..., refresh=True), which can make
-                # inline mode visibly clear/redraw the whole region each tick.
+            last_refresh = time.monotonic()
+
+            while not done_event.is_set():
+                state.dashboard_dirty.wait(timeout=heartbeat)
+                state.dashboard_dirty.clear()
+
+                if done_event.is_set():
+                    break
+
+                elapsed = time.monotonic() - last_refresh
+                if elapsed < min_interval:
+                    if done_event.wait(min_interval - elapsed):
+                        break
+
                 live.update(render_dashboard(state), refresh=False)
                 live.refresh()
+                last_refresh = time.monotonic()
 
             live.update(render_dashboard(state), refresh=False)
             live.refresh()
@@ -2424,10 +2452,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--dashboard-refresh",
         type=float,
-        default=1.0,
+        default=5.0,
         help=(
-            "Dashboard refreshes per second. Default 1.0 reduces terminal "
-            "flicker while keeping transfer progress readable."
+            "Maximum dashboard refreshes per second. Rendering is event-driven; "
+            "idle dashboard still refreshes only about once per second. "
+            "Default 5.0 helps expose short-lived transfer progress."
         ),
     )
     parser.add_argument(
@@ -2480,17 +2509,22 @@ def validate_environment(args: argparse.Namespace) -> None:
 
     try:
         gv = package_version("gdown")
-        major = int(gv.split(".", 1)[0])
+        m = re.match(r"^(\d+)\.(\d+)", gv)
+        if m is None:
+            raise ValueError(f"nierozpoznana wersja: {gv}")
+        major_minor = (int(m.group(1)), int(m.group(2)))
     except Exception as exc:
         raise SystemExit(
             f"Nie mogę ustalić wersji gdown: {exc}"
         ) from exc
 
-    if major != 6:
+    # progress= callback was added in gdown 6.2.0.
+    if major_minor < (6, 2) or major_minor >= (7, 0):
         raise SystemExit(
-            f"Ten skrypt jest przygotowany dla gdown 6.x; wykryto {gv}.\n"
+            f"Ten dashboard wymaga gdown >=6.2,<7 do live byte progress; "
+            f"wykryto {gv}.\n"
             "Uruchom:\n"
-            "  pip install -U 'gdown>=6.1,<7' rich"
+            "  pip install -U 'gdown>=6.2,<7' rich"
         )
 
 
@@ -2558,6 +2592,7 @@ def main() -> int:
         f"SQLite:     {state_db}\n"
         f"Workers:    {args.workers}\n"
         f"Retries:    {args.retries}\n"
+        f"gdown:      {package_version('gdown')}\n"
         f"Tryb:       {'NOWY' if fresh else 'WZNOWIENIE'}\n"
         f"Queue start:{len(resumed_ids):>7} folderów\n"
     )
