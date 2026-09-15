@@ -2208,17 +2208,40 @@ def render_dashboard(state: RuntimeState) -> Layout:
 def dashboard_loop(
     state: RuntimeState,
     done_event: threading.Event,
+    refresh_hz: float,
+    fullscreen: bool,
 ) -> None:
+    """
+    Render the dashboard without scrolling/re-printing the terminal.
+
+    Fullscreen uses the terminal alternate-screen buffer. This is much less
+    prone to visible flashing than Rich's inline Live mode, especially in
+    Windows Terminal + WSL. We also disable Rich's automatic refresh thread
+    and repaint at one controlled cadence, so there aren't two independent
+    refresh loops fighting each other.
+    """
+    interval = max(0.10, 1.0 / max(0.1, refresh_hz))
+
     try:
         with Live(
             render_dashboard(state),
             console=state.console,
-            refresh_per_second=2,
+            screen=fullscreen,
+            auto_refresh=False,
             transient=False,
+            vertical_overflow="crop",
+            redirect_stdout=True,
+            redirect_stderr=True,
         ) as live:
-            while not done_event.wait(0.5):
-                live.update(render_dashboard(state), refresh=True)
-            live.update(render_dashboard(state), refresh=True)
+            while not done_event.wait(interval):
+                # Build one coherent frame and perform exactly one terminal
+                # refresh. Avoid live.update(..., refresh=True), which can make
+                # inline mode visibly clear/redraw the whole region each tick.
+                live.update(render_dashboard(state), refresh=False)
+                live.refresh()
+
+            live.update(render_dashboard(state), refresh=False)
+            live.refresh()
     finally:
         state.db.close_thread_connection()
 
@@ -2399,6 +2422,24 @@ def parse_args() -> argparse.Namespace:
         help="Timeout in seconds for one folder-listing HTTP request",
     )
     parser.add_argument(
+        "--dashboard-refresh",
+        type=float,
+        default=1.0,
+        help=(
+            "Dashboard refreshes per second. Default 1.0 reduces terminal "
+            "flicker while keeping transfer progress readable."
+        ),
+    )
+    parser.add_argument(
+        "--inline-dashboard",
+        action="store_true",
+        help=(
+            "Render the dashboard inline instead of using the terminal "
+            "alternate screen. Fullscreen is the default because it flickers "
+            "less in Windows Terminal/WSL."
+        ),
+    )
+    parser.add_argument(
         "--state-db",
         default=None,
         help=(
@@ -2434,6 +2475,8 @@ def validate_environment(args: argparse.Namespace) -> None:
         raise SystemExit("--backoff musi być > 0")
     if args.listing_timeout <= 0:
         raise SystemExit("--listing-timeout musi być > 0")
+    if args.dashboard_refresh <= 0:
+        raise SystemExit("--dashboard-refresh musi być > 0")
 
     try:
         gv = package_version("gdown")
@@ -2556,7 +2599,12 @@ def main() -> int:
     dashboard_done = threading.Event()
     dashboard_thread = threading.Thread(
         target=dashboard_loop,
-        args=(state, dashboard_done),
+        args=(
+            state,
+            dashboard_done,
+            args.dashboard_refresh,
+            not args.inline_dashboard,
+        ),
         daemon=True,
         name="dashboard",
     )
