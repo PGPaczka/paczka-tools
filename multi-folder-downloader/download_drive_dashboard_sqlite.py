@@ -9,6 +9,7 @@ import os
 import queue
 import random
 import re
+import shutil
 import sqlite3
 import threading
 import time
@@ -91,6 +92,7 @@ class WorkerView:
     file_pk: int | None = None
     started_at: float | None = None
     operation_key: str = ""
+    last_error: str = ""
 
 
 class SharedBackoff:
@@ -108,6 +110,12 @@ class SharedBackoff:
     def remaining(self) -> float:
         with self._lock:
             return max(0.0, self._next_allowed - time.monotonic())
+
+    def snapshot(self) -> tuple[float, str]:
+        """Return (remaining_seconds, reason). Reason is blank once expired."""
+        with self._lock:
+            remaining = max(0.0, self._next_allowed - time.monotonic())
+            return remaining, (self._reason if remaining > 0 else "")
 
     def penalize(self, delay: float, reason: str) -> float:
         deadline = time.monotonic() + delay
@@ -130,22 +138,48 @@ class SharedBackoff:
                 raise GracefulStop()
 
 
-def exponential_delay(base: float, failed_attempt: int) -> float:
-    raw = min(base * (2 ** max(0, failed_attempt - 1)), 60.0)
+def exponential_delay(
+    base: float,
+    failed_attempt: int,
+    cap: float = 60.0,
+) -> float:
+    raw = min(base * (2 ** max(0, failed_attempt - 1)), cap)
     return raw + random.uniform(0.0, min(2.0, raw * 0.15))
+
+
+# requests raises e.g. "429 Client Error: Too Many Requests" /
+# "503 Server Error: Service Unavailable", which contains neither
+# "status code 5xx" nor "http 5xx". Catch that shape explicitly.
+_TRANSIENT_STATUS_RE = re.compile(
+    r"\b(429|500|502|503|504)\b\s+(client|server)\s+error"
+)
 
 
 def is_transient_error(exc: BaseException) -> bool:
     text = repr(exc).lower()
     tokens = (
+        # explicit HTTP status shapes we raise ourselves / see from libs
         "status code 429", "status code 500", "status code 502",
         "status code 503", "status code 504", "http 429", "http 500",
-        "http 502", "http 503", "http 504", "too many requests",
-        "rate limit", "quota", "temporar", "timeout", "timed out",
+        "http 502", "http 503", "http 504",
+        # requests / urllib3 phrasings
+        "server error", "service unavailable", "bad gateway",
+        "gateway timeout",
+        # Google Drive throttling messages surfaced by gdown on downloads.
+        # These are the common cases that previously slipped through, so the
+        # shared/global backoff never engaged for file transfers.
+        "too many requests", "too many users",
+        "try accessing the file again later", "again later",
+        "many accesses",
+        # generic rate/quota/transient network signals
+        "rate limit", "ratelimit", "quota", "temporar",
+        "timeout", "timed out",
         "connection reset", "connection aborted", "connectionerror",
-        "remote end closed",
+        "connection error", "remote end closed", "broken pipe",
     )
-    return any(token in text for token in tokens)
+    if any(token in text for token in tokens):
+        return True
+    return _TRANSIENT_STATUS_RE.search(text) is not None
 
 
 def now_iso() -> str:
@@ -190,17 +224,6 @@ def relative_display(path: Path, output: Path) -> str:
         return "." if str(rel) == "." else str(rel)
     except ValueError:
         return str(path)
-
-
-def backoff_wait(
-    stop_event: threading.Event,
-    base: float,
-    attempt: int,
-) -> None:
-    wait = min(base * (2 ** max(0, attempt - 1)), 60.0)
-    wait += random.uniform(0.0, min(2.0, wait * 0.20))
-    if stop_event.wait(wait):
-        raise GracefulStop()
 
 
 def remove_sqlite_files(path: Path) -> None:
@@ -414,11 +437,14 @@ class Database:
         return fresh
 
     def recover_after_interruption(self) -> None:
-        conn = self._conn()
         stamp = now_iso()
-        with conn:
+        # Connections run in autocommit mode (isolation_level=None), so
+        # `with conn:` would NOT wrap these in one transaction. Use the
+        # explicit BEGIN IMMEDIATE helper so the three status repairs commit
+        # atomically, exactly like every other multi-statement write.
+        with self.transaction() as tx:
             # A listing that did not make it to SQLite must be repeated.
-            conn.execute(
+            tx.execute(
                 """
                 UPDATE folders
                 SET status='pending', updated_at=?
@@ -428,7 +454,7 @@ class Database:
             )
 
             # A persisted listing never needs to be fetched again.
-            conn.execute(
+            tx.execute(
                 """
                 UPDATE folders
                 SET status='listed', updated_at=?
@@ -438,7 +464,7 @@ class Database:
             )
 
             # gdown keeps the .part file. Next run can use resume=True.
-            conn.execute(
+            tx.execute(
                 """
                 UPDATE files
                 SET status='pending', updated_at=?
@@ -1042,15 +1068,29 @@ class RuntimeState:
         workers: int,
         retries: int,
         backoff: float,
+        max_backoff: float,
         listing_timeout: float,
         run_log_dir: Path,
+        cookies_file: str | None = None,
+        use_cookies: bool = False,
     ):
         self.db = db
         self.output = output
         self.workers = workers
         self.retries = retries
         self.backoff = backoff
+        self.max_backoff = max_backoff
         self.listing_timeout = listing_timeout
+        # Authentication for Drive requests. cookies_file is an explicit
+        # Netscape cookies.txt; use_cookies also enables gdown's own jar.
+        self.cookies_file = cookies_file
+        self.use_cookies = use_cookies or (cookies_file is not None)
+        # gdown rewrites the cookies file after every successful download. With
+        # several workers hitting one shared file that races and can corrupt
+        # the user's login cookies, so each worker gets its own private copy
+        # and the original --cookies file is never touched.
+        self._worker_cookie_files: dict[int, str] = {}
+        self._worker_cookie_lock = threading.Lock()
 
         self.stop_event = threading.Event()
         # Workers mark the dashboard dirty whenever visible state changes.
@@ -1073,6 +1113,14 @@ class RuntimeState:
         self._failure_times = deque()
         self._failure_lock = threading.Lock()
 
+        # Transient (retried, throttling-looking) events in a rolling 60s
+        # window. Unlike fail/min this counts back-offs that the retry logic
+        # recovered from, so it exposes throttling pressure BEFORE it turns
+        # into permanent failures — the number to watch when deciding whether
+        # to lower --workers.
+        self._transient_times = deque()
+        self._transient_lock = threading.Lock()
+
         self.log_dir = run_log_dir
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self.run_log = self.log_dir / "run.log"
@@ -1091,6 +1139,25 @@ class RuntimeState:
 
         self.tmp_root = output.parent / ".paczka_download_tmp"
         self.tmp_root.mkdir(parents=True, exist_ok=True)
+
+    def worker_cookies_path(self, worker_no: int) -> str | None:
+        """
+        Per-worker private copy of the cookies file (created lazily). Returns
+        None when no cookies are configured, so callers pass gdown's default.
+        """
+        if not self.cookies_file:
+            return None
+        with self._worker_cookie_lock:
+            path = self._worker_cookie_files.get(worker_no)
+            if path is None:
+                path = str(self.tmp_root / f"cookies_w{worker_no}.txt")
+                try:
+                    shutil.copyfile(self.cookies_file, path)
+                    os.chmod(path, 0o600)
+                except OSError:
+                    path = self.cookies_file  # fall back to the shared file
+                self._worker_cookie_files[worker_no] = path
+            return path
 
     def inc(self, field: str, amount: int = 1) -> None:
         with self.stats_lock:
@@ -1121,6 +1188,23 @@ class RuntimeState:
             while self._failure_times and self._failure_times[0] < cutoff:
                 self._failure_times.popleft()
             return len(self._failure_times)
+
+    def record_transient(self) -> None:
+        now = time.monotonic()
+        with self._transient_lock:
+            self._transient_times.append(now)
+            cutoff = now - 60.0
+            while self._transient_times and self._transient_times[0] < cutoff:
+                self._transient_times.popleft()
+        self.dashboard_dirty.set()
+
+    def transient_rate_60s(self) -> int:
+        now = time.monotonic()
+        with self._transient_lock:
+            cutoff = now - 60.0
+            while self._transient_times and self._transient_times[0] < cutoff:
+                self._transient_times.popleft()
+            return len(self._transient_times)
 
     def worker_snapshot(self) -> dict[int, WorkerView]:
         with self._workers_lock:
@@ -1153,6 +1237,7 @@ class RuntimeState:
             w.file_progress = file_progress
             w.folder_pk = folder_pk
             w.file_pk = file_pk
+            w.last_error = ""
         self.dashboard_dirty.set()
 
     def begin_folder(
@@ -1219,6 +1304,7 @@ class RuntimeState:
                 w.file_pk = None
                 w.started_at = None
                 w.operation_key = ""
+                w.last_error = ""
         self.dashboard_dirty.set()
 
     def update_worker(
@@ -1228,15 +1314,16 @@ class RuntimeState:
         status: str,
         folder: str,
         item: str = "",
-        completed: int | None = None,
-        total: int | None = None,
         count: str | None = None,
         file_pct: str = "",
+        note: str | None = None,
     ) -> None:
         with self._workers_lock:
             w = self.worker_views[worker_no]
             w.status = status
             w.folder = folder
+            if note is not None:
+                w.last_error = note
             if count is not None:
                 w.folder_progress = count
             if w.file_pk is not None:
@@ -1341,6 +1428,12 @@ def list_folder_with_retry(
             raise
 
         except Exception as exc:
+            # If a stop was requested mid-request, some libraries wrap the
+            # GracefulStop raised from our callbacks into a generic exception.
+            # Treat that as a clean stop instead of a false failure/retry.
+            if state.stop_event.is_set():
+                raise GracefulStop()
+
             last_error = repr(exc)
             logging.warning(
                 "Listing failed %d/%d drive_id=%s path=%s error=%r",
@@ -1353,18 +1446,19 @@ def list_folder_with_retry(
 
             if attempt < state.retries:
                 state.inc("folder_retries")
-                delay = exponential_delay(state.backoff, attempt)
+                delay = exponential_delay(state.backoff, attempt, state.max_backoff)
 
                 # retry n/N increments exactly by one for every failed attempt.
                 state.update_worker(
                     worker_no,
                     status=f"retry {attempt}/{state.retries}",
                     folder=folder_display,
-                    item=str(exc),
                     count="…",
+                    note=str(exc),
                 )
 
                 if is_transient_error(exc):
+                    state.record_transient()
                     state.shared_backoff.penalize(
                         delay,
                         f"W{worker_no} folder: {exc!r}",
@@ -1407,6 +1501,21 @@ def existing_local_file(
         candidate = base.with_name(base.name + known_ext)
         if candidate.is_file() and candidate.stat().st_size > 0:
             return candidate
+
+    # gdown may export with an extension other than our GOOGLE_NATIVE_EXT
+    # guess (e.g. .csv, drawings, unusual types). Fall back to any sibling
+    # whose stem matches the base name, so a previously exported native file
+    # is skipped on resume instead of being re-downloaded every run.
+    parent = base.parent
+    if parent.is_dir():
+        for sibling in parent.iterdir():
+            if (
+                sibling.is_file()
+                and sibling.suffix
+                and sibling.stem == base.name
+                and sibling.stat().st_size > 0
+            ):
+                return sibling
 
     return None
 
@@ -1505,8 +1614,6 @@ def download_file_with_retry(
                 status=f"pobieranie {attempt}/{state.retries}",
                 folder=folder_display,
                 item=file_name,
-                completed=folder_completed,
-                total=folder_total,
                 count=f"{folder_completed}/{folder_total}",
                 file_pct=progress_text,
             )
@@ -1517,8 +1624,6 @@ def download_file_with_retry(
                 status=f"pobieranie {attempt}/{state.retries}",
                 folder=folder_display,
                 item=file_name,
-                completed=folder_completed,
-                total=folder_total,
                 count=f"{folder_completed}/{folder_total}",
                 file_pct="łączenie…",
             )
@@ -1535,7 +1640,9 @@ def download_file_with_retry(
                     url=url,
                     output=str(temp_dir) + os.sep,
                     quiet=True,
-                    use_cookies=False,
+                    use_cookies=state.use_cookies,
+                    cookies_file=state.worker_cookies_path(worker_no),
+                    user_agent=FOLDER_UA,
                     verify=True,
                     resume=True,
                     progress=on_progress,
@@ -1585,7 +1692,9 @@ def download_file_with_retry(
                     url=url,
                     output=str(base_target),
                     quiet=True,
-                    use_cookies=False,
+                    use_cookies=state.use_cookies,
+                    cookies_file=state.worker_cookies_path(worker_no),
+                    user_agent=FOLDER_UA,
                     verify=True,
                     resume=True,
                     progress=on_progress,
@@ -1645,6 +1754,13 @@ def download_file_with_retry(
             raise
 
         except Exception as exc:
+            # gdown may swallow the GracefulStop raised from on_progress and
+            # re-surface it as a generic exception. Honour the stop request
+            # rather than turning a Ctrl+C into retries and a false failure.
+            if state.stop_event.is_set():
+                state.db.set_file_pending_after_stop(file_pk)
+                raise GracefulStop()
+
             last_error = repr(exc)
             logging.warning(
                 "Download failed %d/%d url=%s path=%s error=%r",
@@ -1657,20 +1773,20 @@ def download_file_with_retry(
 
             if attempt < state.retries:
                 state.inc("file_retries")
-                delay = exponential_delay(state.backoff, attempt)
+                delay = exponential_delay(state.backoff, attempt, state.max_backoff)
 
                 state.update_worker(
                     worker_no,
                     status=f"retry {attempt}/{state.retries}",
                     folder=folder_display,
                     item=file_name,
-                    completed=folder_completed,
-                    total=folder_total,
                     count=f"{folder_completed}/{folder_total}",
                     file_pct="—",
+                    note=str(exc),
                 )
 
                 if is_transient_error(exc):
+                    state.record_transient()
                     state.shared_backoff.penalize(
                         delay,
                         f"W{worker_no} file: {exc!r}",
@@ -1693,6 +1809,7 @@ def download_file_with_retry(
         item=file_name,
         count=f"{folder_completed + 1}/{folder_total}",
         file_pct="—",
+        note=last_error,
     )
     logging.error(
         "Giving up file %s path=%s error=%s",
@@ -1780,8 +1897,6 @@ def process_folder(
             status="przetwarzanie",
             folder=folder_display,
             item="",
-            completed=completed if total else 1,
-            total=total if total else 1,
             count=f"{completed}/{total}",
             file_pct="",
         )
@@ -1809,8 +1924,6 @@ def process_folder(
                 status="przetwarzanie",
                 folder=folder_display,
                 item=file_row["name"],
-                completed=completed if total else 1,
-                total=total if total else 1,
                 count=f"{completed}/{total}",
                 file_pct="",
             )
@@ -1822,8 +1935,6 @@ def process_folder(
             status="folder gotowy",
             folder=folder_display,
             item="",
-            completed=total if total else 1,
-            total=total if total else 1,
             count=f"{total}/{total}",
             file_pct="",
         )
@@ -1862,9 +1973,9 @@ def worker_main(
 
     sess, _ = _get_session(
         proxy=None,
-        use_cookies=False,
+        use_cookies=state.use_cookies,
         user_agent=FOLDER_UA,
-        cookies_file=None,
+        cookies_file=state.cookies_file,
     )
 
     try:
@@ -2051,6 +2162,80 @@ def build_summary_panel(state: RuntimeState) -> Panel:
     )
 
 
+def build_session_panel(state: RuntimeState) -> Panel:
+    """
+    Stats for THIS process run only (reset on every start), as opposed to the
+    cumulative SQLite totals in the 'ODKRYTE DOTYCHCZAS' panel above.
+    """
+    run = state.snapshot_run_stats()
+    elapsed = time.monotonic() - state.started_at
+
+    files_done = run.files_downloaded_this_run
+    # Only show a rate once there is enough elapsed time and data for it to be
+    # meaningful; otherwise a near-zero denominator prints absurd GiB/s.
+    if elapsed >= 2.0 and run.downloaded_bytes_this_run > 0:
+        speed_text = f"{human_bytes(int(run.downloaded_bytes_this_run / elapsed))}/s"
+    else:
+        speed_text = "—"
+    avg_per_file = (
+        run.downloaded_bytes_this_run // files_done if files_done else 0
+    )
+
+    transient_rate = state.transient_rate_60s()
+    fail_rate = state.failure_rate_60s()
+    cooldown, backoff_reason = state.shared_backoff.snapshot()
+
+    grid = Table.grid(expand=True, padding=(0, 1))
+    grid.add_column(ratio=1)
+    grid.add_column(ratio=1)
+    grid.add_column(ratio=1)
+
+    grid.add_row(
+        f"[bold]Czas sesji:[/] {format_duration(elapsed)}",
+        f"[bold]Pobrane:[/] {files_done} plików / "
+        f"{human_bytes(run.downloaded_bytes_this_run)}",
+        f"[bold]Prędkość:[/] {speed_text}   "
+        f"[dim]śr. {human_bytes(int(avg_per_file))}/plik[/]",
+    )
+
+    grid.add_row(
+        f"[bold]Pominięte istniejące:[/] "
+        f"{run.files_skipped_existing_this_run} / "
+        f"{human_bytes(run.skipped_bytes_this_run)}",
+        f"[bold]Foldery:[/] {run.folders_listed_this_run} traversowane, "
+        f"{run.folders_resumed_without_listing} wznowione",
+        f"[bold]Retry:[/] folder {run.folder_retries} / "
+        f"plik {run.file_retries}",
+    )
+
+    grid.add_row(
+        f"[bold]Fails w sesji:[/] "
+        f"[red]{run.files_failed_this_run}[/] plików, "
+        f"[red]{run.folders_failed_this_run}[/] folderów",
+        f"[bold]throttling/min (60s):[/] [yellow]{transient_rate}[/]   "
+        f"[dim](fail/min {fail_rate})[/]",
+        (
+            f"[bold]Global backoff:[/] [yellow]{cooldown:4.1f}s[/] "
+            f"[dim]{shorten(backoff_reason, 30)}[/]"
+            if cooldown > 0
+            else "[bold]Global backoff:[/] 0.0s"
+        ),
+    )
+
+    return Panel(
+        grid,
+        title=(
+            "[bold blue]TA SESJA[/] — "
+            "[blue]liczniki tylko od startu tego procesu[/]"
+        ),
+        subtitle=(
+            "throttling/min = transient retry z backoffem w ostatnich 60s; "
+            "rośnie, gdy Google ogranicza ruch → rozważ mniej --workers"
+        ),
+        border_style="blue",
+    )
+
+
 def build_workers_panel(state: RuntimeState) -> Panel:
     views = state.worker_snapshot()
     now = time.monotonic()
@@ -2062,18 +2247,30 @@ def build_workers_panel(state: RuntimeState) -> Panel:
     table.add_column("Postęp folderu", no_wrap=True, width=17)
     table.add_column("Plik", ratio=2, overflow="ellipsis")
     table.add_column("Postęp pliku", no_wrap=True, width=27)
+    table.add_column("Ostatni błąd", ratio=2, overflow="ellipsis")
     table.add_column("Czas", no_wrap=True, width=9)
 
     for worker_no in sorted(views):
         w = views[worker_no]
         elapsed = None if w.started_at is None else now - w.started_at
+
+        status = w.status
+        if "FAILED" in status:
+            status = f"[bold red]{status}[/]"
+        elif "backoff" in status or status.startswith("retry"):
+            status = f"[yellow]{status}[/]"
+
+        err = w.last_error
+        err_cell = f"[red]{shorten(err, 80)}[/]" if err else "[dim]—[/]"
+
         table.add_row(
             f"[cyan]W{worker_no}[/]",
-            w.status,
+            status,
             w.folder or "—",
             w.folder_progress,
             w.file,
             w.file_progress,
+            err_cell,
             format_duration(elapsed),
         )
 
@@ -2082,7 +2279,7 @@ def build_workers_panel(state: RuntimeState) -> Panel:
         title="[bold]Workery[/]",
         subtitle=(
             "Czas = bieżący folder podczas traversalu albo bieżący plik podczas pobierania; "
-            "retry/backoff wlicza się do tego czasu."
+            "retry/backoff wlicza się do tego czasu. Ostatni błąd = na czym worker robi retry."
         ),
         border_style="cyan",
     )
@@ -2212,6 +2409,7 @@ def render_dashboard(state: RuntimeState) -> Layout:
     layout = Layout()
     layout.split_column(
         Layout(build_summary_panel(state), size=7),
+        Layout(build_session_panel(state), size=7),
         Layout(build_workers_panel(state), size=max(9, state.workers + 5)),
         Layout(build_tree_panel(state), ratio=1),
     )
@@ -2444,10 +2642,41 @@ def parse_args() -> argparse.Namespace:
         help="Initial exponential retry delay in seconds",
     )
     parser.add_argument(
+        "--max-backoff",
+        type=float,
+        default=300.0,
+        help=(
+            "Upper cap for a single exponential retry delay, in seconds "
+            "(default 300). Only matters with higher --retries: the sequence "
+            "2,4,8,16,32,64,128,256,... is clamped to this value. Raise it "
+            "when Google throttles hard and you want longer cooldowns."
+        ),
+    )
+    parser.add_argument(
         "--listing-timeout",
         type=float,
         default=90.0,
         help="Timeout in seconds for one folder-listing HTTP request",
+    )
+    parser.add_argument(
+        "--cookies",
+        default=None,
+        help=(
+            "Path to a Netscape cookies.txt exported from a browser logged "
+            "into Google. Using authenticated cookies raises Drive's rate "
+            "limits a lot and usually clears the anonymous 'Cannot retrieve "
+            "file url / many accesses' throttle. Applies to both folder "
+            "listing and file downloads."
+        ),
+    )
+    parser.add_argument(
+        "--use-cookies",
+        action="store_true",
+        help=(
+            "Use gdown's own cached cookies (~/.cache/gdown/cookies.txt) "
+            "instead of, or in addition to, --cookies. On its own it enables "
+            "the cookie jar gdown maintains between runs."
+        ),
     )
     parser.add_argument(
         "--dashboard-refresh",
@@ -2502,6 +2731,8 @@ def validate_environment(args: argparse.Namespace) -> None:
         raise SystemExit("--retries musi być >= 1")
     if args.backoff <= 0:
         raise SystemExit("--backoff musi być > 0")
+    if args.max_backoff < args.backoff:
+        raise SystemExit("--max-backoff musi być >= --backoff")
     if args.listing_timeout <= 0:
         raise SystemExit("--listing-timeout musi być > 0")
     if args.dashboard_refresh <= 0:
@@ -2531,6 +2762,14 @@ def validate_environment(args: argparse.Namespace) -> None:
 def main() -> int:
     args = parse_args()
     validate_environment(args)
+
+    if args.cookies is not None:
+        cookies_path = Path(args.cookies).expanduser()
+        if not cookies_path.is_file():
+            raise SystemExit(
+                f"--cookies: plik nie istnieje: {cookies_path}"
+            )
+        args.cookies = str(cookies_path)
 
     output = Path(args.output).expanduser().resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -2575,8 +2814,11 @@ def main() -> int:
         workers=args.workers,
         retries=args.retries,
         backoff=args.backoff,
+        max_backoff=args.max_backoff,
         listing_timeout=args.listing_timeout,
         run_log_dir=run_log_dir,
+        cookies_file=args.cookies,
+        use_cookies=args.use_cookies,
     )
 
     resumed_ids = db.resumable_folder_ids()
@@ -2592,6 +2834,8 @@ def main() -> int:
         f"SQLite:     {state_db}\n"
         f"Workers:    {args.workers}\n"
         f"Retries:    {args.retries}\n"
+        f"Backoff:    {args.backoff}s → max {args.max_backoff}s\n"
+        f"Auth:       {'cookies: ' + args.cookies if args.cookies else ('gdown cache' if args.use_cookies else 'anonimowo')}\n"
         f"gdown:      {package_version('gdown')}\n"
         f"Tryb:       {'NOWY' if fresh else 'WZNOWIENIE'}\n"
         f"Queue start:{len(resumed_ids):>7} folderów\n"
@@ -2689,6 +2933,16 @@ def main() -> int:
                 break
 
     finally:
+        # Make sure no worker is still writing before we repair statuses.
+        # After a forced (second) Ctrl+C the join loop above can break out
+        # while workers are alive; running recover_after_interruption()
+        # concurrently with a worker mid-write is a race. Signal stop and
+        # give the workers a bounded chance to wind down first.
+        state.stop_event.set()
+        for thread in threads:
+            if thread.is_alive():
+                thread.join(timeout=args.listing_timeout + 5)
+
         db.recover_after_interruption()
         dashboard_done.set()
         if dashboard_thread.is_alive():
