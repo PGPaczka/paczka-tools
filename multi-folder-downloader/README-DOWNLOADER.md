@@ -1,57 +1,31 @@
 # Paczka Drive Downloader
 
-Narzędzie do rekurencyjnego pobierania dużego, publicznie dostępnego drzewa Google Drive z zachowaniem oryginalnej struktury katalogów.
+Narzędzie do rekurencyjnego pobierania dużego, publicznie dostępnego drzewa Google Drive z zachowaniem oryginalnej struktury katalogów. Ma trwały checkpoint w SQLite (wznawianie po przerwaniu), równoległych workerów, live dashboard w terminalu, retry z backoffem, wspólny globalny cooldown przy throttlingu Google oraz obsługę plików Google Docs/Sheets/Slides (przez eksport).
 
-Skrypt jest przygotowany pod przypadek, w którym źródłowy folder zawiera dużo zagnieżdżonych folderów, skrótów do folderów, zwykłych plików oraz plików Google Docs / Sheets / Slides, a jednorazowe pobranie przez przeglądarkę lub standardowe `gdown --folder` jest zbyt wolne albo przerywa się na pojedynczym błędzie HTTP 500.
+Przeznaczone dla WSL / Linux i Pythona 3.
 
-Główny plik:
-
-```text
-download_drive_dashboard_sqlite.py
-```
-
-Domyślne źródło:
+Główne pliki:
 
 ```text
-https://drive.google.com/drive/folders/18mN48s232REZ1NAcQC9Lkm4uEBQ5yKK3
+download_drive_dashboard_sqlite.py   # główny downloader + dashboard
+diag_drive.py                        # diagnostyka (folder / plik / native) po linku
+cookie_header_to_txt.py              # nagłówek cookie z DevTools -> cookies.txt
+.gitignore
 ```
-
-Domyślny katalog docelowy:
-
-```text
-/home/billy/dev/paczka/PaczkaMerge/00_SOURCES
-```
-
-> **Ważne:** liczniki w dashboardzie opisane jako **„odkryte”** oznaczają tylko elementy znalezione do tej pory. Dopóki traversal drzewa Google Drive się nie zakończy, nie jest znana ostateczna liczba folderów ani plików.
 
 ---
 
-## Najważniejsze funkcje
+## Model działania (ważne)
 
-- zachowanie zagnieżdżonej struktury katalogów Google Drive,
-- równoległa praca kilku workerów,
-- live dashboard w terminalu przez `rich`,
-- bieżący status każdego workera,
-- postęp folderu `n/N`,
-- postęp konkretnego pliku, np. `38.2 MiB / 91.4 MiB (41%)`,
-- wizualizacja aktywnych workerów w drzewie,
-- retry z exponential backoff,
-- wspólny globalny cooldown po błędach wskazujących na throttling Google,
-- trwały checkpoint w SQLite,
-- wznowienie po `Ctrl+C`, zamknięciu terminala lub restarcie WSL,
-- osobne logowanie permanentnych faili,
-- końcowe statystyki,
-- obsługa Google Docs / Sheets / Slides przez eksport wykonywany przez `gdown`,
-- wykrywanie cykli folderów / shortcutów,
-- pomijanie poprawnie pobranych wcześniej plików.
+Skrypt używa dwóch różnych ścieżek dostępu do Google — i to celowo:
+
+- **Listowanie folderów** (`embeddedfolderview`) jest **anonimowe**. Dla publicznego folderu ten endpoint działa bez logowania; jeśli wyślesz do niego cookies, Google odbija żądanie na stronę logowania i zwraca pustkę (folder zostałby błędnie zapisany jako pusty). Dlatego listowanie NIGDY nie używa cookies.
+- **Pobieranie plików** używa `gdown` z UA przeglądarki, a przy `--cookies` również z Twoją zalogowaną sesją. Uwierzytelnienie mocno podnosi limity i jest wymagane m.in. dla plików native.
+- **Pliki native** (Docs/Sheets/Slides) pobierane są przez bezpośredni endpoint eksportu (`.../export?format=docx|xlsx|pptx`), a nie przez `uc?id=`.
 
 ---
 
 ## Wymagania
-
-Skrypt jest przeznaczony dla WSL / Linux i Pythona 3.
-
-Zalecane jest osobne virtualenv:
 
 ```bash
 sudo apt update
@@ -61,12 +35,12 @@ python3 -m venv ~/.venvs/gdown
 source ~/.venvs/gdown/bin/activate
 
 python -m pip install -U pip
-python -m pip install -U 'gdown>=6.1,<7' rich beautifulsoup4
+python -m pip install -U 'gdown>=6.2,<7' rich beautifulsoup4 requests
 ```
 
-Skrypt korzysta z prywatnych elementów API `gdown 6.x`, dlatego wersja główna jest celowo przypięta do `6.x`.
+Skrypt korzysta z prywatnych elementów API `gdown 6.x` i wymaga co najmniej **gdown 6.2.0** (wtedy dodano callback `progress=` do live postępu). Wersja jest przypięta do `>=6.2,<7`.
 
-Jeżeli chcesz przeglądać bazę checkpointu z terminala:
+Opcjonalnie do przeglądania checkpointu:
 
 ```bash
 sudo apt install -y sqlite3
@@ -74,634 +48,174 @@ sudo apt install -y sqlite3
 
 ---
 
-## Uruchomienie
+## Szybki start
 
-Przejdź do projektu:
+Adres źródłowego folderu jest **wymagany** (`--url`). Domyślny katalog wyjściowy to `sources/` utworzony o poziom **wyżej** niż skrypt (tworzony automatycznie).
 
 ```bash
-cd /home/billy/dev/paczka/PaczkaMerge
 source ~/.venvs/gdown/bin/activate
-```
 
-Standardowe uruchomienie:
-
-```bash
-python download_drive_dashboard_sqlite.py
-```
-
-Jawnie z czterema workerami:
-
-```bash
 python download_drive_dashboard_sqlite.py \
-  --workers 4 \
-  --retries 6
+  --url 'https://drive.google.com/drive/folders/ID_FOLDERU' \
+  --workers 4
 ```
 
-Dla obecnego źródła i outputu nie trzeba podawać `--url` ani `--output`, ponieważ są ustawione jako wartości domyślne w skrypcie.
+Po `Ctrl+C`, zamknięciu terminala lub restarcie WSL uruchom dokładnie tę samą komendę — skrypt wznowi pracę z SQLite.
 
 ---
 
-## Zalecana liczba workerów
+## Uwierzytelnienie (cookies)
 
-Punkt startowy:
+Potrzebne, gdy Google throttluje pobieranie (błąd „Cannot retrieve file url / many accesses") albo dla plików native. Uzyskasz je bez instalowania żadnego rozszerzenia:
 
-```text
-4 workery
-```
+1. Wejdź na `drive.google.com` **zalogowany** (nie incognito). Otwórz DevTools (F12) → zakładka **Network** → kliknij dowolny request do `drive.google.com` → sekcja **Request Headers** → skopiuj całą wartość nagłówka `cookie:`.
+2. Zamień nagłówek na plik `cookies.txt`:
 
-To kompromis między szybkością a ryzykiem throttlingu / niestabilności endpointów Google Drive.
+   ```bash
+   python cookie_header_to_txt.py -o cookies.txt
+   # ...wklej nagłówek i naciśnij Enter
+   ```
 
-Jeżeli zaczyna pojawiać się dużo HTTP `429`, `500`, `502`, `503`, `504` albo timeoutów, spróbuj:
+3. Uruchom pobieranie z cookies:
+
+   ```bash
+   python download_drive_dashboard_sqlite.py \
+     --url 'https://drive.google.com/drive/folders/ID_FOLDERU' \
+     --workers 2 --cookies cookies.txt
+   ```
+
+Uwagi:
+
+- Plik `cookies.txt` to praktycznie hasło do Twojego konta — jest w `.gitignore`, dostaje uprawnienia `600`, nie udostępniaj go.
+- Cookies wygasają (dni–tygodnie, część rotuje szybciej). Gdy znów zacznie sypać mimo działającej przeglądarki — wygeneruj `cookies.txt` na nowo.
+- Cookies dotyczą tylko **pobierania**. Listowanie i tak jest anonimowe.
+
+---
+
+## Diagnostyka: `diag_drive.py`
+
+Jeden skrypt do sprawdzenia, co Google naprawdę zwraca dla danego celu. Typ (folder / plik / native) jest wykrywany automatycznie z linku; można wymusić `--type`.
 
 ```bash
-python download_drive_dashboard_sqlite.py --workers 2
+# folder (listowanie – zawsze anonimowo)
+python diag_drive.py 'https://drive.google.com/drive/folders/ID'
+
+# plik (z cookies)
+python diag_drive.py 'https://drive.google.com/uc?id=ID' --cookies cookies.txt
+
+# native – test eksportu
+python diag_drive.py 'https://docs.google.com/document/d/ID/edit' --cookies cookies.txt
+
+# samo ID / open?id – typ nieznany, skrypt sam sprawdzi
+python diag_drive.py ID --cookies cookies.txt
+
+# porównanie bez UA przeglądarki
+python diag_drive.py 'https://drive.google.com/uc?id=ID' --no-ua
 ```
 
-lub:
-
-```bash
-python download_drive_dashboard_sqlite.py --workers 3
-```
-
-Jeżeli przez długi czas wszystko działa stabilnie, można eksperymentalnie spróbować `5-6`, ale zwiększanie liczby workerów nie musi przyspieszać pobierania. Google może zacząć mocniej ograniczać ruch.
+Pełna pomoc: `python diag_drive.py --help`.
 
 ---
 
 ## Dashboard
 
-Dashboard ma trzy główne sekcje.
+Cztery sekcje:
 
-### 1. Podsumowanie „ODKRYTE DOTYCHCZAS”
+1. **ODKRYTE DOTYCHCZAS** — skumulowane liczniki z SQLite (foldery/pliki odkryte i obsłużone, pasek postępu, global backoff). Mianowniki rosną w trakcie traversalu — to NIE jest finalna liczba.
+2. **TA SESJA** — liczniki tylko dla bieżącego procesu: pobrane pliki/bajty, prędkość, pominięte, foldery traversowane/wznowione, retry, fails w sesji, `throttling/min` oraz `Global backoff` z powodem.
+   - `throttling/min (60s)` = liczba transient-retry z backoffem w ostatnich 60 s. Rośnie, gdy Google ogranicza ruch → rozważ mniej `--workers`. (Lepszy sygnał niż `fail/min`, który liczy tylko permanentne faile.)
+3. **Workery** — na worker: status, folder, postęp folderu, plik, postęp pliku, **Ostatni błąd** (na czym worker robi retry) i czas.
+4. **Aktywne drzewo** — odkryta struktura z symbolami: `✓` gotowe, `…` pending, `↻` traversowanie, `⬇` pobieranie, `✗` fail, `⟳` cykl, `◌` częściowo.
 
-Przykład:
-
-```text
-ODKRYTE DOTYCHCZAS — to NIE jest finalna liczba; mianowniki rosną podczas traversalu
-
-Czas: 53:02       Ukończone dane: 1.1 GiB
-Fails: 97         fail/min (60s): 2
-Global backoff: 3.8s
-
-Foldery odkryte: 542
-119 / 542 traversed
-
-Pliki odkryte: 311
-265 / 311 obsłużonych
-```
-
-`542 foldery` oraz `311 plików` to **nie jest liczba wszystkich elementów na Drive**. To liczba elementów odkrytych przez traversal do bieżącej chwili.
-
-Przykładowo podczas działania może być:
-
-```text
-168 / 311
-243 / 482
-391 / 721
-```
-
-Dlatego procent może chwilowo spaść, gdy traversal odkryje dużą nową gałąź drzewa.
-
-`fail/min (60s)` oznacza liczbę **nowych permanentnych faili** zarejestrowanych w ciągu ostatnich 60 sekund. Pojedynczy retry nie jest liczony jako fail, jeśli później element pobierze się poprawnie.
+Fullscreen jest domyślny (mniej migania w Windows Terminal/WSL). `--inline-dashboard` przełącza na tryb inline, `--dashboard-refresh` ustawia maksymalną liczbę odświeżeń/s.
 
 ---
 
-### 2. Workery
+## Retry, backoff i globalny cooldown
 
-Kolumny są wyświetlane w kolejności:
+Domyślnie `--retries 6`, `--backoff 2`, `--max-backoff 300`. Opóźnienia rosną wykładniczo (2, 4, 8, 16, 32, 64, … s) i są przycinane do `--max-backoff`. Uwaga: przy domyślnych `--retries 6` sekwencja dochodzi tylko do ~32 s, więc `--max-backoff` ma znaczenie dopiero przy większej liczbie prób (np. `--retries 9`).
 
-```text
-Worker | Status | Folder | Postęp folderu | Plik | Postęp pliku | Czas
-```
-
-Przykład:
-
-```text
-W2 | pobieranie 3/6 | SEM3/AiSD | 11/19 | projekt.zip | 42.7 MiB/91.3 MiB (46%) | 02:41
-```
-
-Znaczenie kolumn:
-
-- **Worker** — numer workera,
-- **Status** — np. `trawersowanie`, `pobieranie`, `retry`, `global backoff`, `FAILED`,
-- **Folder** — aktualnie przetwarzany folder,
-- **Postęp folderu** — liczba obsłużonych bezpośrednich elementów względem liczby odkrytych w tym folderze,
-- **Plik** — aktualnie pobierany plik,
-- **Postęp pliku** — pobrane bajty / całkowity rozmiar oraz procent, jeśli Google zwróci rozmiar,
-- **Czas** — czas bieżącej operacji workera; przy traversalu jest to czas aktualnego folderu, a przy downloadzie czas aktualnego pliku. Retry i backoff wliczają się do czasu.
+Błędy wyglądające na throttling Google (429/500/502/503/504, „too many users", „many accesses", timeouty itd.) ustawiają **wspólny cooldown** — inne workery przed kolejnym NOWYM requestem respektują ten sam deadline. Trwające pobrania nie są przerywane.
 
 ---
 
-### 3. Aktywne drzewo
+## SQLite, wznawianie i tryby napraw
 
-Przykład:
+Domyślna baza: `download_state.sqlite` w katalogu nadrzędnym względem `sources/` (czyli obok `sources/`). Statusy folderów: `pending, listing, listed, processing, done, failed, cycle`. Statusy plików: `pending, downloading, done, skipped, failed`.
 
-```text
-00_SOURCES/
-├── ✓ SEM1
-├── ◌ SEM2
-│   ├── ↻ PO                 ← ↻ W1
-│   └── ◌ AiSD               ← ⬇ W3
-│       └── ⬇ W3 projekt.zip 42.7 MiB/91.3 MiB (46%)
-└── … SEM3
-```
-
-Symbole:
-
-```text
-✓   folder zakończony
-…   pending / jeszcze nieobsłużony
-↻   worker aktualnie traversuje folder
-⬇   worker pobiera plik z folderu
-✗   permanentny fail
-⟳   wykryty cykl shortcutów / folderów
-◌   folder odkryty / częściowo przetworzony
-```
-
-Drzewo nie drukuje bez ograniczeń wszystkich plików i wszystkich gałęzi. Aktywne oraz problematyczne gałęzie są rozwijane, a nieaktywne fragmenty zwijane, aby dashboard pozostał czytelny również przy tysiącach elementów.
-
----
-
-## Retry i exponential backoff
-
-Domyślnie:
-
-```text
---retries 6
---backoff 2
-```
-
-Kolejne opóźnienia mają charakter wykładniczy, mniej więcej:
-
-```text
-2 s
-4 s
-8 s
-16 s
-32 s
-60 s
-```
-
-Dodawany jest niewielki losowy jitter, aby workery nie ponawiały requestów dokładnie w tej samej chwili.
-
-Status pokazuje numer aktualnej próby, np.:
-
-```text
-pobieranie 1/6
-retry 1/6
-pobieranie 2/6
-retry 2/6
-...
-```
-
-### Globalny backoff
-
-Przy błędach wyglądających na throttling / chwilowy problem Google, np.:
-
-```text
-429
-500
-502
-503
-504
-timeout
-rate limit
-quota
-```
-
-worker może ustawić wspólny cooldown. Inne workery przed rozpoczęciem kolejnego requestu respektują ten sam deadline.
-
-Dzięki temu nie występuje sytuacja, w której jeden worker dostał sygnał „zwolnij”, ale pozostałe trzy natychmiast wysyłają następne requesty.
-
-Trwające już pobieranie nie jest z tego powodu sztucznie przerywane.
-
----
-
-## SQLite i wznowienie
-
-Domyślna baza checkpointu:
-
-```text
-/home/billy/dev/paczka/PaczkaMerge/download_state.sqlite
-```
-
-SQLite przechowuje informacje o odkrytych folderach i plikach oraz ich stanie.
-
-Typowe statusy folderów:
-
-```text
-pending
-listing
-listed
-processing
-done
-failed
-cycle
-```
-
-Typowe statusy plików:
-
-```text
-pending
-downloading
-done
-skipped
-failed
-```
-
-### Co się dzieje po `Ctrl+C`?
-
-Możesz przerwać program:
-
-```text
-Ctrl+C
-```
-
-Następnie uruchomić dokładnie to samo:
+Tryby uruchomienia:
 
 ```bash
-python download_drive_dashboard_sqlite.py
+# ponów permanentne faile (foldery i pliki oznaczone jako failed)
+python download_drive_dashboard_sqlite.py --url '...' --retry-failed
+
+# przeliste foldery błędnie zapisane jako puste (child_count = 0)
+python download_drive_dashboard_sqlite.py --url '...' --relist-empty
+
+# skasuj checkpoint i zbuduj indeks od nowa (nie usuwa sources/)
+python download_drive_dashboard_sqlite.py --url '...' --reset-state
 ```
 
-Skrypt odczyta `download_state.sqlite` i wznowi pracę.
-
-Foldery, których listing został już poprawnie zapisany do SQLite, **nie powinny być ponownie traversowane** tylko dlatego, że program został zrestartowany.
-
-Jeżeli przerwanie nastąpiło dokładnie w trakcie pobierania listingu pojedynczego folderu przed zatwierdzeniem checkpointu, ten jeden folder może zostać odczytany ponownie.
-
-Pliki częściowo pobrane są uruchamiane z `resume=True`; tam, gdzie `gdown` może wykorzystać plik `.part`, transfer będzie kontynuowany.
-
----
-
-## Ponowienie permanentnych faili
-
-Standardowe ponowne uruchomienie nie próbuje w nieskończoność elementów oznaczonych jako `failed`.
-
-Aby ponownie otworzyć failed foldery i pliki:
+Podgląd stanu:
 
 ```bash
-python download_drive_dashboard_sqlite.py --retry-failed
+sqlite3 download_state.sqlite "SELECT status, COUNT(*) FROM files GROUP BY status;"
+sqlite3 download_state.sqlite "SELECT status, COUNT(*) FROM folders GROUP BY status;"
+sqlite3 download_state.sqlite "SELECT COUNT(*) FROM folders WHERE status='done' AND child_count=0;"
 ```
 
 ---
 
-## Reset checkpointu
+## Rozwiązywanie problemów
 
-Aby usunąć stan traversalu i zbudować indeks od nowa:
+**„Cannot retrieve file url … many accesses / check permissions" na WSZYSTKICH plikach, choć w przeglądarce działa.** To throttling anonimowego endpointu Twojego IP. Rozwiązanie: `--cookies cookies.txt` (patrz wyżej) i/lub mniej workerów, ewentualnie odczekanie, aż IP ostygnie. Potwierdzenie: `diag_drive.py <link_pliku> --cookies cookies.txt` — jeśli zwróci PLIK, cookies załatwiają sprawę; dołóż też UA (skrypt robi to automatycznie).
 
-```bash
-python download_drive_dashboard_sqlite.py --reset-state
-```
+**Ten sam błąd tylko na plikach, gdzie `open?id=` działa, a `uc?id=` nie.** To plik **native** (Docs/Sheets/Slides). Skrypt pobiera je przez eksport automatycznie; jeśli mimo to failuje, sprawdź `diag_drive.py <link> --type doc|sheet|slide --cookies cookies.txt`.
 
-Ta opcja usuwa checkpoint SQLite, ale nie usuwa katalogu `00_SOURCES`.
+**Foldery lokalnie puste, choć na Drive mają zawartość.** Zostały wylistowane jako puste — najczęściej dlatego, że listowanie dostało stronę logowania (np. gdy wcześniej wysyłano cookies do listowania) albo throttling. Napraw: `--relist-empty`. Potwierdzenie: `diag_drive.py <link_folderu>` (bez cookies) powinno pokazać `RAZEM > 0`.
 
-Istniejące lokalne pliki są przy ponownym odkryciu pomijane, jeżeli wyglądają na już pobrane.
+**Twardy limit per-plik („download quota exceeded").** Dotyczy konkretnego pliku i resetuje się ~24 h. Cookies tego nie obejdą — pomaga kopia pliku na własny Drive i pobranie kopii, albo odczekanie doby.
 
-Ręczne usunięcie checkpointu:
-
-```bash
-rm -f \
-  /home/billy/dev/paczka/PaczkaMerge/download_state.sqlite \
-  /home/billy/dev/paczka/PaczkaMerge/download_state.sqlite-wal \
-  /home/billy/dev/paczka/PaczkaMerge/download_state.sqlite-shm
-```
-
----
-
-## Logi
-
-Każde uruchomienie dostaje osobny katalog, np.:
-
-```text
-/home/billy/dev/paczka/PaczkaMerge/_download_logs/20260915_215423/
-```
-
-W środku znajdują się m.in.:
-
-```text
-run.log
-failures.csv
-summary.json
-```
-
-`failures.csv` zawiera m.in.:
-
-```text
-kind
-full_path
-parent_folder
-drive_id
-url
-attempts
-error
-```
-
-Dzięki temu można ustalić pełną lokalną ścieżkę elementu, Drive ID, bezpośredni link i ostatni błąd.
-
-SQLite pozostaje źródłem prawdy dla checkpointu również wtedy, gdy program został zakończony zanim zdążył zapisać końcowy raport CSV.
-
----
-
-## Podgląd faili bezpośrednio w SQLite
-
-Instalacja CLI:
-
-```bash
-sudo apt install -y sqlite3
-```
-
-Otwórz bazę:
-
-```bash
-sqlite3 /home/billy/dev/paczka/PaczkaMerge/download_state.sqlite
-```
-
-W SQLite:
-
-```sql
-.headers on
-.mode column
-```
-
-Wszystkie failed foldery i pliki razem z linkiem do Drive:
-
-```sql
-SELECT
-    'folder' AS type,
-    status,
-    local_path AS path,
-    drive_id,
-    'https://drive.google.com/drive/folders/' || drive_id AS url,
-    attempts,
-    last_error AS error
-FROM folders
-WHERE status IN ('failed', 'cycle')
-
-UNION ALL
-
-SELECT
-    'file' AS type,
-    status,
-    local_path AS path,
-    drive_id,
-    'https://drive.google.com/open?id=' || drive_id AS url,
-    attempts,
-    last_error AS error
-FROM files
-WHERE status = 'failed'
-
-ORDER BY path;
-```
-
-Wyjście:
-
-```text
-.quit
-```
-
----
-
-## Przydatne zapytania SQLite
-
-Liczba elementów według statusu:
-
-```sql
-SELECT status, COUNT(*)
-FROM folders
-GROUP BY status
-ORDER BY status;
-
-SELECT status, COUNT(*)
-FROM files
-GROUP BY status
-ORDER BY status;
-```
-
-Liczba permanentnych faili:
-
-```sql
-SELECT 'folders' AS type, COUNT(*) AS failed
-FROM folders
-WHERE status = 'failed'
-
-UNION ALL
-
-SELECT 'files', COUNT(*)
-FROM files
-WHERE status = 'failed';
-```
-
-Pliki nadal oczekujące:
-
-```sql
-SELECT local_path, drive_id
-FROM files
-WHERE status = 'pending'
-ORDER BY local_path;
-```
-
-Foldery nadal oczekujące na traversal:
-
-```sql
-SELECT local_path, drive_id
-FROM folders
-WHERE status = 'pending'
-ORDER BY local_path;
-```
+**Za dużo 429/500 / rośnie `throttling/min`.** Zejdź na `--workers 2` lub `1`. Więcej workerów nie zawsze znaczy szybciej.
 
 ---
 
 ## Parametry CLI
 
-Pełna pomoc:
-
-```bash
-python download_drive_dashboard_sqlite.py --help
-```
-
-Najważniejsze opcje:
+Pełna pomoc: `python download_drive_dashboard_sqlite.py --help`.
 
 ```text
---url URL
-    URL albo ID root folderu Google Drive.
-
---output PATH
-    Lokalny katalog wyjściowy.
-
---workers N
-    Liczba równoległych workerów. Domyślnie 4.
-
---retries N
-    Maksymalna liczba prób dla listingu folderu lub pobrania pliku.
-
---backoff SECONDS
-    Bazowe opóźnienie exponential backoff.
-
---listing-timeout SECONDS
-    Timeout jednego requestu listującego folder.
-
---state-db PATH
-    Niestandardowa ścieżka do SQLite checkpointu.
-
---retry-failed
-    Ponawia elementy wcześniej oznaczone jako failed.
-
---reset-state
-    Kasuje stan traversalu i buduje indeks od nowa.
-```
-
-Przykład z innym źródłem i outputem:
-
-```bash
-python download_drive_dashboard_sqlite.py \
-  --url 'https://drive.google.com/drive/folders/ID_FOLDERU' \
-  --output '/home/billy/inny-folder' \
-  --workers 3 \
-  --retries 8 \
-  --backoff 2
+--url URL              (WYMAGANE) URL lub ID root folderu Google Drive.
+--output PATH          Katalog wyjściowy. Domyślnie: ../sources względem skryptu.
+--workers N            Liczba równoległych workerów (domyślnie 4).
+--retries N            Maks. prób na listing folderu lub pobranie pliku (6).
+--backoff SECONDS      Bazowe opóźnienie exponential backoff (2.0).
+--max-backoff SECONDS  Górny limit pojedynczego opóźnienia (300).
+--listing-timeout SEC  Timeout jednego requestu listującego folder (90).
+--cookies PATH         Netscape cookies.txt (uwierzytelnione pobieranie).
+--use-cookies          Użyj własnego cache cookies gdown (~/.cache/gdown).
+--dashboard-refresh N  Maks. odświeżeń dashboardu na sekundę (5).
+--inline-dashboard     Dashboard inline zamiast alternate-screen.
+--state-db PATH        Niestandardowa ścieżka do SQLite checkpointu.
+--retry-failed         Ponów elementy oznaczone jako failed.
+--relist-empty         Przeliste foldery zapisane jako puste (child_count=0).
+--reset-state          Skasuj checkpoint i zbuduj indeks od nowa.
 ```
 
 ---
 
-## Struktura danych lokalnie
-
-Skrypt nie flattenuje drzewa. Przykładowo:
+## Struktura projektu
 
 ```text
-Google Drive:
-
-Wszystkie paczki/
-├── SEM1/
-│   └── Matematyka/
-│       └── Wykłady/
-│           └── wyklad1.pdf
-└── SEM2/
-    └── PO/
-        └── lab.zip
-```
-
-lokalnie pozostaje:
-
-```text
-00_SOURCES/
-├── SEM1/
-│   └── Matematyka/
-│       └── Wykłady/
-│           └── wyklad1.pdf
-└── SEM2/
-    └── PO/
-        └── lab.zip
-```
-
-Jeżeli Google Drive zawiera dwa elementy o identycznej nazwie w jednym folderze, kolejne egzemplarze dostają sufiks, np.:
-
-```text
-plik.pdf
-plik__dup2.pdf
-plik__dup3.pdf
-```
-
-To zapobiega nadpisaniu jednego pliku drugim na lokalnym filesystemie.
-
----
-
-## Pliki Google Docs / Sheets / Slides
-
-Pliki Google-native nie istnieją na Drive jako zwykłe binarne `.docx`, `.xlsx` czy `.pptx`. `gdown` eksportuje je podczas pobierania.
-
-Typowy wynik:
-
-```text
-Google Docs   -> .docx
-Google Sheets -> .xlsx
-Google Slides -> .pptx
-```
-
-Niektóre mniej typowe pliki Google-native mogą zachowywać się inaczej zależnie od aktualnych możliwości `gdown` i endpointów Google.
-
----
-
-## Publiczne uprawnienia
-
-Ta konfiguracja bazuje na anonimowym dostępie do publicznie udostępnionych folderów / plików.
-
-Jeżeli root folder jest publiczny, ale shortcut wskazuje do folderu, którego anonimowy użytkownik nie może otworzyć, ten fragment może zostać oznaczony jako failed.
-
-Najprostszy test konkretnego folderu:
-
-```bash
-gdown \
-  'https://drive.google.com/drive/folders/ID_FOLDERU' \
-  -O '/tmp/gdown-test'
-```
-
-Jeżeli pojedynczy folder działa, ale duże drzewo sporadycznie zwraca HTTP 500, zwykle jest to chwilowy problem / throttling endpointu listującego, a nie problem z lokalnym katalogiem.
-
----
-
-## Znane ograniczenia
-
-1. Skrypt korzysta z nieoficjalnego publicznego widoku folderów Google Drive oraz z prywatnych elementów API `gdown 6.x`. Google lub `gdown` mogą w przyszłości zmienić zachowanie.
-2. Nie znamy pełnej liczby folderów i plików przed zakończeniem traversalu, dlatego dashboard pokazuje **odkryte dotychczas**, nie finalny total.
-3. Więcej workerów nie zawsze oznacza większą szybkość. Przy publicznym Google Drive agresywna równoległość może pogorszyć sytuację przez throttling.
-4. Dostęp publiczny root folderu nie gwarantuje publicznego dostępu do każdego celu shortcutu.
-5. `done` / `skipped` opiera się na checkpointach i obecności lokalnego pliku; skrypt nie wykonuje kryptograficznej walidacji zawartości każdego wcześniej pobranego pliku.
-
----
-
-## Zalecany workflow
-
-Pierwsze uruchomienie:
-
-```bash
-python download_drive_dashboard_sqlite.py --workers 4
-```
-
-Jeżeli Google zacznie mocno throttlowć:
-
-```bash
-python download_drive_dashboard_sqlite.py --workers 2
-```
-
-Po `Ctrl+C` albo restarcie WSL:
-
-```bash
-python download_drive_dashboard_sqlite.py --workers 4
-```
-
-Po zakończeniu głównej kolejki, aby ponowić permanentne błędy:
-
-```bash
-python download_drive_dashboard_sqlite.py \
-  --workers 2 \
-  --retry-failed
-```
-
-Następnie sprawdź:
-
-```text
-_download_logs/<timestamp>/failures.csv
-_download_logs/<timestamp>/summary.json
-```
-
-oraz w razie potrzeby samą bazę:
-
-```text
-download_state.sqlite
-```
-
----
-
-## Pliki projektu
-
-Docelowo wygodny układ katalogu może wyglądać tak:
-
-```text
-PaczkaMerge/
-├── 00_SOURCES/
-├── download_drive_dashboard_sqlite.py
-├── download_state.sqlite
-├── README.md
-├── .paczka_download_tmp/
+<root>/
+├── scripts/                         # (lub dowolny katalog ze skryptami)
+│   ├── download_drive_dashboard_sqlite.py
+│   ├── diag_drive.py
+│   ├── cookie_header_to_txt.py
+│   └── .gitignore
+├── sources/                         # pobrane materiały (domyślny output)
+├── download_state.sqlite            # checkpoint
+├── .paczka_download_tmp/            # tymczasowe pliki pobierania
 └── _download_logs/
     └── YYYYMMDD_HHMMSS/
         ├── run.log
@@ -709,5 +223,19 @@ PaczkaMerge/
         └── summary.json
 ```
 
-`00_SOURCES` zawiera pobrane materiały, `download_state.sqlite` checkpoint, a `_download_logs` historię poszczególnych uruchomień.
+`sources/` powstaje o poziom wyżej niż skrypt. Jeśli trzymasz skrypty bezpośrednio w `<root>/`, `sources/` powstanie w katalogu nadrzędnym — wskaż wtedy `--output` jawnie, jeśli chcesz inaczej.
 
+---
+
+## Bezpieczeństwo i git
+
+`.gitignore` w repo wyklucza sekrety i dane: `cookies.txt`, `credentials.json`, `token.json`, `download_state.sqlite*`, `sources/`, `_download_logs/`, `.paczka_download_tmp/` oraz typowe śmieci Pythona/edytora. Nigdy nie commituj cookies ani pobranych materiałów.
+
+---
+
+## Znane ograniczenia
+
+1. Opiera się na nieoficjalnym publicznym widoku folderów (`embeddedfolderview`) oraz prywatnych elementach API `gdown 6.x` — Google lub `gdown` mogą zmienić zachowanie.
+2. Pełna liczba folderów/plików nie jest znana przed końcem traversalu (dashboard pokazuje „odkryte dotychczas").
+3. Publiczny dostęp do root nie gwarantuje dostępu do każdego celu skrótu; foldery wymagające dostępu Twojego konta mogą nie listować się przez `embeddedfolderview`.
+4. `done`/`skipped` opiera się na checkpoincie i obecności pliku lokalnie — brak kryptograficznej walidacji zawartości.
