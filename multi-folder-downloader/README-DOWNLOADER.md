@@ -4,14 +4,20 @@ Narzędzie do rekurencyjnego pobierania dużego, publicznie dostępnego drzewa G
 
 Przeznaczone dla WSL / Linux i Pythona 3.
 
+Wszystko — skrypty, konfiguracja, docsy i dane SQLite — mieszka w tym katalogu (`multi-folder-downloader/`), obok repo. Jedyny wyjątek to sam output pobierania (`00_SOURCES/`), który celowo zostaje katalog wyżej — patrz [Struktura projektu](#struktura-projektu).
+
 Główne pliki:
 
 ```text
 download_drive_dashboard_sqlite.py   # główny downloader + dashboard
 diag_drive.py                        # diagnostyka (folder / plik / native) po linku
-cookie_header_to_txt.py              # nagłówek cookie z DevTools -> cookies.txt
 .gitignore
+cookies/
+└── cookie_header_to_txt.py          # nagłówek cookie z DevTools -> cookies.txt
+state/                                # tworzone automatycznie, checkpoint SQLite
 ```
+
+Wszystkie komendy poniżej zakładają, że jesteś w `multi-folder-downloader/` (`cd multi-folder-downloader`).
 
 ---
 
@@ -50,7 +56,7 @@ sudo apt install -y sqlite3
 
 ## Szybki start
 
-Adres źródłowego folderu jest **wymagany** (`--url`). Domyślny katalog wyjściowy to `sources/` utworzony o poziom **wyżej** niż skrypt (tworzony automatycznie).
+Adres źródłowego folderu jest **wymagany** (`--url`). Domyślny katalog wyjściowy to `00_SOURCES/` utworzony o poziom **wyżej** niż skrypt (tworzony automatycznie).
 
 ```bash
 source ~/.venvs/gdown/bin/activate
@@ -66,28 +72,32 @@ Po `Ctrl+C`, zamknięciu terminala lub restarcie WSL uruchom dokładnie tę sam�
 
 ## Uwierzytelnienie (cookies)
 
-Potrzebne, gdy Google throttluje pobieranie (błąd „Cannot retrieve file url / many accesses") albo dla plików native. Uzyskasz je bez instalowania żadnego rozszerzenia:
+Potrzebne, gdy Google throttluje pobieranie (błąd „Cannot retrieve file url / many accesses") albo dla plików native. Uzyskasz je bez instalowania żadnego rozszerzenia. Wszystko lądujące tutaj — sam skrypt konwertujący i wynikowy `cookies.txt` — mieszka w podkatalogu `cookies/`:
 
 1. Wejdź na `drive.google.com` **zalogowany** (nie incognito). Otwórz DevTools (F12) → zakładka **Network** → kliknij dowolny request do `drive.google.com` → sekcja **Request Headers** → skopiuj całą wartość nagłówka `cookie:`.
-2. Zamień nagłówek na plik `cookies.txt`:
+2. Zamień nagłówek na plik `cookies/cookies.txt`:
 
    ```bash
-   python cookie_header_to_txt.py -o cookies.txt
+   python cookies/cookie_header_to_txt.py
    # ...wklej nagłówek i naciśnij Enter
    ```
 
-3. Uruchom pobieranie z cookies:
+   Bez `-o` skrypt zapisuje zawsze obok siebie, czyli w `cookies/cookies.txt`, niezależnie z jakiego katalogu go uruchomisz.
+
+3. Uruchom pobieranie — **`--cookies` nie jest już potrzebne**, `download_drive_dashboard_sqlite.py` sam wykrywa i używa `cookies/cookies.txt`, jeśli ten plik istnieje:
 
    ```bash
    python download_drive_dashboard_sqlite.py \
      --url 'https://drive.google.com/drive/folders/ID_FOLDERU' \
-     --workers 2 --cookies cookies.txt
+     --workers 2
    ```
+
+   Żeby wskazać inny plik (np. inne konto), nadal możesz podać `--cookies /inna/sciezka/cookies.txt` jawnie — jawna flaga zawsze wygrywa z auto-wykrywaniem.
 
 Uwagi:
 
-- Plik `cookies.txt` to praktycznie hasło do Twojego konta — jest w `.gitignore`, dostaje uprawnienia `600`, nie udostępniaj go.
-- Cookies wygasają (dni–tygodnie, część rotuje szybciej). Gdy znów zacznie sypać mimo działającej przeglądarki — wygeneruj `cookies.txt` na nowo.
+- Plik `cookies/cookies.txt` to praktycznie hasło do Twojego konta — jest w `.gitignore`, dostaje uprawnienia `600`, nie udostępniaj go.
+- Cookies wygasają (dni–tygodnie, część rotuje szybciej). Gdy znów zacznie sypać mimo działającej przeglądarki — wygeneruj `cookies/cookies.txt` na nowo (nadpisze poprzedni).
 - Cookies dotyczą tylko **pobierania**. Listowanie i tak jest anonimowe.
 
 ---
@@ -96,18 +106,23 @@ Uwagi:
 
 Jeden skrypt do sprawdzenia, co Google naprawdę zwraca dla danego celu. Typ (folder / plik / native) jest wykrywany automatycznie z linku; można wymusić `--type`.
 
+Podobnie jak główny downloader, `diag_drive.py` sam wykrywa `cookies/cookies.txt`, jeśli plik tam jest — nie trzeba podawać `--cookies` ręcznie:
+
 ```bash
 # folder (listowanie – zawsze anonimowo)
 python diag_drive.py 'https://drive.google.com/drive/folders/ID'
 
-# plik (z cookies)
-python diag_drive.py 'https://drive.google.com/uc?id=ID' --cookies cookies.txt
+# plik (cookies wykrywane automatycznie z cookies/cookies.txt)
+python diag_drive.py 'https://drive.google.com/uc?id=ID'
 
 # native – test eksportu
-python diag_drive.py 'https://docs.google.com/document/d/ID/edit' --cookies cookies.txt
+python diag_drive.py 'https://docs.google.com/document/d/ID/edit'
 
 # samo ID / open?id – typ nieznany, skrypt sam sprawdzi
-python diag_drive.py ID --cookies cookies.txt
+python diag_drive.py ID
+
+# inny plik cookies niż domyślny
+python diag_drive.py 'https://drive.google.com/uc?id=ID' --cookies /inna/sciezka/cookies.txt
 
 # porównanie bez UA przeglądarki
 python diag_drive.py 'https://drive.google.com/uc?id=ID' --no-ua
@@ -141,7 +156,7 @@ Błędy wyglądające na throttling Google (429/500/502/503/504, „too many use
 
 ## SQLite, wznawianie i tryby napraw
 
-Domyślna baza: `download_state.sqlite` w katalogu nadrzędnym względem `sources/` (czyli obok `sources/`). Statusy folderów: `pending, listing, listed, processing, done, failed, cycle`. Statusy plików: `pending, downloading, done, skipped, failed`.
+Domyślna baza: `state/download_state.sqlite`, w podkatalogu obok skryptu (czyli w `multi-folder-downloader/state/`, nie w `00_SOURCES/`). Statusy folderów: `pending, listing, listed, processing, done, failed, cycle`. Statusy plików: `pending, downloading, done, skipped, failed`.
 
 Tryby uruchomienia:
 
@@ -152,25 +167,25 @@ python download_drive_dashboard_sqlite.py --url '...' --retry-failed
 # przeliste foldery błędnie zapisane jako puste (child_count = 0)
 python download_drive_dashboard_sqlite.py --url '...' --relist-empty
 
-# skasuj checkpoint i zbuduj indeks od nowa (nie usuwa sources/)
+# skasuj checkpoint i zbuduj indeks od nowa (nie usuwa 00_SOURCES/)
 python download_drive_dashboard_sqlite.py --url '...' --reset-state
 ```
 
 Podgląd stanu:
 
 ```bash
-sqlite3 download_state.sqlite "SELECT status, COUNT(*) FROM files GROUP BY status;"
-sqlite3 download_state.sqlite "SELECT status, COUNT(*) FROM folders GROUP BY status;"
-sqlite3 download_state.sqlite "SELECT COUNT(*) FROM folders WHERE status='done' AND child_count=0;"
+sqlite3 state/download_state.sqlite "SELECT status, COUNT(*) FROM files GROUP BY status;"
+sqlite3 state/download_state.sqlite "SELECT status, COUNT(*) FROM folders GROUP BY status;"
+sqlite3 state/download_state.sqlite "SELECT COUNT(*) FROM folders WHERE status='done' AND child_count=0;"
 ```
 
 ---
 
 ## Rozwiązywanie problemów
 
-**„Cannot retrieve file url … many accesses / check permissions" na WSZYSTKICH plikach, choć w przeglądarce działa.** To throttling anonimowego endpointu Twojego IP. Rozwiązanie: `--cookies cookies.txt` (patrz wyżej) i/lub mniej workerów, ewentualnie odczekanie, aż IP ostygnie. Potwierdzenie: `diag_drive.py <link_pliku> --cookies cookies.txt` — jeśli zwróci PLIK, cookies załatwiają sprawę; dołóż też UA (skrypt robi to automatycznie).
+**„Cannot retrieve file url … many accesses / check permissions" na WSZYSTKICH plikach, choć w przeglądarce działa.** To throttling anonimowego endpointu Twojego IP. Rozwiązanie: wygeneruj `cookies/cookies.txt` (patrz wyżej — zostanie wykryty automatycznie) i/lub mniej workerów, ewentualnie odczekanie, aż IP ostygnie. Potwierdzenie: `diag_drive.py <link_pliku>` — jeśli zwróci PLIK, cookies załatwiają sprawę; dołóż też UA (skrypt robi to automatycznie).
 
-**Ten sam błąd tylko na plikach, gdzie `open?id=` działa, a `uc?id=` nie.** To plik **native** (Docs/Sheets/Slides). Skrypt pobiera je przez eksport automatycznie; jeśli mimo to failuje, sprawdź `diag_drive.py <link> --type doc|sheet|slide --cookies cookies.txt`.
+**Ten sam błąd tylko na plikach, gdzie `open?id=` działa, a `uc?id=` nie.** To plik **native** (Docs/Sheets/Slides). Skrypt pobiera je przez eksport automatycznie; jeśli mimo to failuje, sprawdź `diag_drive.py <link> --type doc|sheet|slide`.
 
 **Foldery lokalnie puste, choć na Drive mają zawartość.** Zostały wylistowane jako puste — najczęściej dlatego, że listowanie dostało stronę logowania (np. gdy wcześniej wysyłano cookies do listowania) albo throttling. Napraw: `--relist-empty`. Potwierdzenie: `diag_drive.py <link_folderu>` (bez cookies) powinno pokazać `RAZEM > 0`.
 
@@ -186,17 +201,19 @@ Pełna pomoc: `python download_drive_dashboard_sqlite.py --help`.
 
 ```text
 --url URL              (WYMAGANE) URL lub ID root folderu Google Drive.
---output PATH          Katalog wyjściowy. Domyślnie: ../sources względem skryptu.
+--output PATH          Katalog wyjściowy. Domyślnie: ../00_SOURCES względem skryptu.
 --workers N            Liczba równoległych workerów (domyślnie 4).
 --retries N            Maks. prób na listing folderu lub pobranie pliku (6).
 --backoff SECONDS      Bazowe opóźnienie exponential backoff (2.0).
 --max-backoff SECONDS  Górny limit pojedynczego opóźnienia (300).
 --listing-timeout SEC  Timeout jednego requestu listującego folder (90).
 --cookies PATH         Netscape cookies.txt (uwierzytelnione pobieranie).
+                       Domyślnie: cookies/cookies.txt obok skryptu, jeśli istnieje.
 --use-cookies          Użyj własnego cache cookies gdown (~/.cache/gdown).
 --dashboard-refresh N  Maks. odświeżeń dashboardu na sekundę (5).
 --inline-dashboard     Dashboard inline zamiast alternate-screen.
 --state-db PATH        Niestandardowa ścieżka do SQLite checkpointu.
+                       Domyślnie: state/download_state.sqlite obok skryptu.
 --retry-failed         Ponów elementy oznaczone jako failed.
 --relist-empty         Przeliste foldery zapisane jako puste (child_count=0).
 --reset-state          Skasuj checkpoint i zbuduj indeks od nowa.
@@ -207,29 +224,40 @@ Pełna pomoc: `python download_drive_dashboard_sqlite.py --help`.
 ## Struktura projektu
 
 ```text
-<root>/
-├── scripts/                         # (lub dowolny katalog ze skryptami)
-│   ├── download_drive_dashboard_sqlite.py
-│   ├── diag_drive.py
-│   ├── cookie_header_to_txt.py
-│   └── .gitignore
-├── sources/                         # pobrane materiały (domyślny output)
-├── download_state.sqlite            # checkpoint
-├── .paczka_download_tmp/            # tymczasowe pliki pobierania
-└── _download_logs/
-    └── YYYYMMDD_HHMMSS/
-        ├── run.log
-        ├── failures.csv
-        └── summary.json
+<root>/                              # np. PaczkaMerge/
+├── .gitignore                       # tylko uniwersalne rzeczy (Python/edytor/system) + 00_SOURCES/
+├── 00_SOURCES/                      # pobrane materiały (domyślny output, katalog wyżej niż skrypty)
+└── multi-folder-downloader/         # skrypty, konfiguracja, docsy i dane SQLite — wszystko razem
+    ├── download_drive_dashboard_sqlite.py
+    ├── diag_drive.py
+    ├── README-DOWNLOADER.md
+    ├── .gitignore                   # pełny, samodzielny — sekrety/dane/śmieci tego katalogu
+    ├── cookies/                     # skrypt + pliki cookies, osobno od reszty
+    │   ├── cookie_header_to_txt.py
+    │   ├── cookies.txt              # sekret, lokalny, gitignored
+    │   └── header.txt               # opcjonalny input do cookie_header_to_txt.py, gitignored
+    ├── state/                       # checkpoint SQLite, osobno od reszty
+    │   └── download_state.sqlite
+    ├── .paczka_download_tmp/        # tymczasowe pliki pobierania
+    └── _download_logs/
+        └── YYYYMMDD_HHMMSS/
+            ├── run.log
+            ├── failures.csv
+            └── summary.json
 ```
 
-`sources/` powstaje o poziom wyżej niż skrypt. Jeśli trzymasz skrypty bezpośrednio w `<root>/`, `sources/` powstanie w katalogu nadrzędnym — wskaż wtedy `--output` jawnie, jeśli chcesz inaczej.
+`00_SOURCES/` powstaje o poziom wyżej niż skrypty (czyli w `<root>/`), bo to duży zbiór pobranych materiałów, osobny od narzędzia, które go tworzy. Wszystko inne — konfiguracja, cookies, checkpoint SQLite, logi, tymczasowe pliki — zostaje w `multi-folder-downloader/`, każde w swoim podkatalogu. Jeśli chcesz inny układ, wskaż `--output`, `--cookies` i/lub `--state-db` jawnie.
 
 ---
 
 ## Bezpieczeństwo i git
 
-`.gitignore` w repo wyklucza sekrety i dane: `cookies.txt`, `credentials.json`, `token.json`, `download_state.sqlite*`, `sources/`, `_download_logs/`, `.paczka_download_tmp/` oraz typowe śmieci Pythona/edytora. Nigdy nie commituj cookies ani pobranych materiałów.
+Repo ma dwa poziomy `.gitignore`:
+
+- `<root>/.gitignore` — tylko uniwersalne, generyczne wzorce (śmieci Pythona, edytora, systemu) plus `00_SOURCES/`, bo ten katalog fizycznie siedzi w rootcie i musi być tam zignorowany.
+- `multi-folder-downloader/.gitignore` — pełna, samodzielna kopia ignorująca wszystko specyficzne dla tego narzędzia: `cookies/cookies.txt`, `cookies/header.txt`, `credentials.json`, `token.json`, `state/download_state.sqlite*`, `_download_logs/`, `.paczka_download_tmp/` oraz też śmieci Pythona/edytora (żeby ten katalog działał samodzielnie, nawet gdybyś przeniósł go do innego repo).
+
+Nigdy nie commituj cookies ani pobranych materiałów.
 
 ---
 

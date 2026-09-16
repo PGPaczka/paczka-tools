@@ -16,11 +16,14 @@ WAŻNE: listowanie folderu (embeddedfolderview) jest zawsze ANONIMOWE —
 wysłanie cookies do tego endpointu powoduje przekierowanie na logowanie i
 pustą odpowiedź. Cookies są używane tylko przy pliku/eksporcie.
 
+Domyślnie, gdy --cookies nie jest podane, skrypt sam użyje
+cookies/cookies.txt obok siebie, jeśli ten plik istnieje.
+
 Przykłady:
   python diag_drive.py 'https://drive.google.com/drive/folders/ID'
-  python diag_drive.py 'https://drive.google.com/uc?id=ID' --cookies cookies.txt
-  python diag_drive.py ID --type sheet --cookies cookies.txt
-  python diag_drive.py 'https://drive.google.com/open?id=ID' --cookies cookies.txt
+  python diag_drive.py 'https://drive.google.com/uc?id=ID' --cookies cookies/cookies.txt
+  python diag_drive.py ID --type sheet --cookies cookies/cookies.txt
+  python diag_drive.py 'https://drive.google.com/open?id=ID' --cookies cookies/cookies.txt
 """
 from __future__ import annotations
 
@@ -33,6 +36,9 @@ from pathlib import Path
 
 import bs4
 import requests
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+DEFAULT_COOKIES_PATH = SCRIPT_DIR / "cookies" / "cookies.txt"
 
 UA = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -211,7 +217,14 @@ def main() -> int:
         description=__doc__,
     )
     ap.add_argument("target", help="URL lub ID (folder / plik / native)")
-    ap.add_argument("--cookies", default=None, help="Ścieżka do cookies.txt")
+    ap.add_argument(
+        "--cookies",
+        default=None,
+        help=(
+            "Ścieżka do cookies.txt (domyślnie, gdy pominięte: "
+            "cookies/cookies.txt obok skryptu, jeśli istnieje)."
+        ),
+    )
     ap.add_argument(
         "--type",
         choices=["auto", "folder", "file", "doc", "sheet", "slide"],
@@ -221,6 +234,9 @@ def main() -> int:
     ap.add_argument("--no-ua", action="store_true",
                     help="Wyślij bez UA przeglądarki (do porównania).")
     args = ap.parse_args()
+
+    if args.cookies is None and DEFAULT_COOKIES_PATH.is_file():
+        args.cookies = str(DEFAULT_COOKIES_PATH)
 
     kind, file_id = detect(args.target)
     if args.type != "auto":

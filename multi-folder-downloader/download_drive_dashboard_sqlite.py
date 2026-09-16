@@ -37,11 +37,16 @@ from gdown.exceptions import DownloadError
 from gdown.parse_url import _parse_google_drive_folder_id
 
 
-# No hardcoded source/target. --url is required and the default output is a
-# "sources" directory created one level ABOVE this script, e.g. with the
-# script in <root>/scripts/ the downloads land in <root>/sources/.
+# No hardcoded source/target for --url. The default output is a "00_SOURCES"
+# directory created one level ABOVE this script, e.g. with the script in
+# <root>/multi-folder-downloader/ the downloads land in <root>/00_SOURCES/.
+# The SQLite checkpoint, run logs, cookies and the download tmp dir default
+# to living next to this script instead, each in its own subfolder (see
+# DEFAULT_STATE_DB / DEFAULT_COOKIES_PATH / run_log_dir / tmp_root below).
 SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_OUTPUT = str(SCRIPT_DIR.parent / "sources")
+DEFAULT_OUTPUT = str(SCRIPT_DIR.parent / "00_SOURCES")
+DEFAULT_STATE_DB = SCRIPT_DIR / "state" / "download_state.sqlite"
+DEFAULT_COOKIES_PATH = SCRIPT_DIR / "cookies" / "cookies.txt"
 
 SCHEMA_VERSION = "2"
 
@@ -1185,7 +1190,7 @@ class RuntimeState:
             force=True,
         )
 
-        self.tmp_root = output.parent / ".paczka_download_tmp"
+        self.tmp_root = SCRIPT_DIR / ".paczka_download_tmp"
         self.tmp_root.mkdir(parents=True, exist_ok=True)
 
     def worker_cookies_path(self, worker_no: int) -> str | None:
@@ -2669,13 +2674,15 @@ def parse_args() -> argparse.Namespace:
         ),
         epilog=(
             "Przyklady:\n"
-            "  # pierwszy przebieg (wymagany --url); output domyslnie ../sources\n"
+            "  # pierwszy przebieg (wymagany --url); output domyslnie ../00_SOURCES\n"
             "  python download_drive_dashboard_sqlite.py \\\n"
             "      --url 'https://drive.google.com/drive/folders/ID' --workers 4\n\n"
-            "  # z uwierzytelnieniem (pliki native / silny throttling)\n"
+            "  # z uwierzytelnieniem (pliki native / silny throttling); jesli\n"
+            "  # cookies/cookies.txt istnieje obok skryptu, jest brany "
+            "automatycznie\n"
             "  python download_drive_dashboard_sqlite.py \\\n"
             "      --url 'https://drive.google.com/drive/folders/ID' \\\n"
-            "      --workers 2 --cookies cookies.txt\n\n"
+            "      --workers 2 --cookies cookies/cookies.txt\n\n"
             "  # ponow permanentne faile\n"
             "  python download_drive_dashboard_sqlite.py --url '...' --retry-failed\n\n"
             "  # przeliste foldery blednie zapisane jako puste\n"
@@ -2695,7 +2702,7 @@ def parse_args() -> argparse.Namespace:
         "--output",
         default=DEFAULT_OUTPUT,
         help=(
-            "Local output directory (domyslnie: folder 'sources' o poziom "
+            "Local output directory (domyslnie: folder '00_SOURCES' o poziom "
             "wyzej niz skrypt, tworzony jesli nie istnieje)."
         ),
     )
@@ -2745,7 +2752,8 @@ def parse_args() -> argparse.Namespace:
             "into Google. Using authenticated cookies raises Drive's rate "
             "limits a lot and usually clears the anonymous 'Cannot retrieve "
             "file url / many accesses' throttle. Applies to both folder "
-            "listing and file downloads."
+            "listing and file downloads. Default (when omitted): auto-used "
+            "if present at 'cookies/cookies.txt' next to this script."
         ),
     )
     parser.add_argument(
@@ -2781,7 +2789,7 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help=(
             "SQLite checkpoint path. Default: "
-            "<parent-of-output>/download_state.sqlite"
+            "<script-dir>/state/download_state.sqlite"
         ),
     )
     parser.add_argument(
@@ -2858,6 +2866,10 @@ def main() -> int:
                 f"--cookies: plik nie istnieje: {cookies_path}"
             )
         args.cookies = str(cookies_path)
+    elif DEFAULT_COOKIES_PATH.is_file():
+        # Auto-detect cookies/cookies.txt next to the script when --cookies
+        # wasn't given explicitly. Silent no-op if the file isn't there yet.
+        args.cookies = str(DEFAULT_COOKIES_PATH)
 
     output = Path(args.output).expanduser().resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -2867,7 +2879,7 @@ def main() -> int:
     state_db = (
         Path(args.state_db).expanduser().resolve()
         if args.state_db
-        else output.parent / "download_state.sqlite"
+        else DEFAULT_STATE_DB
     )
 
     if args.reset_state:
@@ -2898,7 +2910,7 @@ def main() -> int:
         relisted_empty = db.relist_empty_folders()
 
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_log_dir = output.parent / "_download_logs" / stamp
+    run_log_dir = SCRIPT_DIR / "_download_logs" / stamp
 
     state = RuntimeState(
         db=db,
