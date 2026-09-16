@@ -37,11 +37,11 @@ from gdown.exceptions import DownloadError
 from gdown.parse_url import _parse_google_drive_folder_id
 
 
-DEFAULT_URL = (
-    "https://drive.google.com/drive/folders/"
-    "18mN48s232REZ1NAcQC9Lkm4uEBQ5yKK3"
-)
-DEFAULT_OUTPUT = "/home/billy/dev/paczka/PaczkaMerge/00_SOURCES"
+# No hardcoded source/target. --url is required and the default output is a
+# "sources" directory created one level ABOVE this script, e.g. with the
+# script in <root>/scripts/ the downloads land in <root>/sources/.
+SCRIPT_DIR = Path(__file__).resolve().parent
+DEFAULT_OUTPUT = str(SCRIPT_DIR.parent / "sources")
 
 SCHEMA_VERSION = "2"
 
@@ -2662,21 +2662,42 @@ def show_summary(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         description=(
             "Parallel Google Drive public-folder downloader with SQLite "
             "checkpoint/resume. Preserves the nested Drive structure."
-        )
+        ),
+        epilog=(
+            "Przyklady:\n"
+            "  # pierwszy przebieg (wymagany --url); output domyslnie ../sources\n"
+            "  python download_drive_dashboard_sqlite.py \\\n"
+            "      --url 'https://drive.google.com/drive/folders/ID' --workers 4\n\n"
+            "  # z uwierzytelnieniem (pliki native / silny throttling)\n"
+            "  python download_drive_dashboard_sqlite.py \\\n"
+            "      --url 'https://drive.google.com/drive/folders/ID' \\\n"
+            "      --workers 2 --cookies cookies.txt\n\n"
+            "  # ponow permanentne faile\n"
+            "  python download_drive_dashboard_sqlite.py --url '...' --retry-failed\n\n"
+            "  # przeliste foldery blednie zapisane jako puste\n"
+            "  python download_drive_dashboard_sqlite.py --url '...' --relist-empty\n"
+        ),
     )
 
     parser.add_argument(
         "--url",
-        default=DEFAULT_URL,
-        help="Google Drive folder URL or folder ID",
+        required=True,
+        help=(
+            "Google Drive folder URL or folder ID (WYMAGANE). "
+            "Np. https://drive.google.com/drive/folders/<ID>"
+        ),
     )
     parser.add_argument(
         "--output",
         default=DEFAULT_OUTPUT,
-        help="Local output directory",
+        help=(
+            "Local output directory (domyslnie: folder 'sources' o poziom "
+            "wyzej niz skrypt, tworzony jesli nie istnieje)."
+        ),
     )
     parser.add_argument(
         "--workers",
