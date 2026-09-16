@@ -57,6 +57,29 @@ GOOGLE_NATIVE_EXT = {
     _GoogleDriveFile.TYPE_PRESENTATION: ".pptx",
 }
 
+# Direct export endpoints for Google-native files. Hitting these is far more
+# reliable than gdown's uc?id -> open?id -> detect /document/ -> export dance,
+# which fails ("Cannot retrieve file url") when uc?id returns an empty 500 and
+# gdown can't follow the redirect to the editor. We already know the type, so
+# we go straight to the canonical export URL (a plain Content-Disposition
+# download that gdown just fetches).
+GOOGLE_EXPORT = {
+    _GoogleDriveFile.TYPE_DOCUMENT: ("document", "docx"),
+    _GoogleDriveFile.TYPE_SPREADSHEET: ("spreadsheets", "xlsx"),
+    _GoogleDriveFile.TYPE_PRESENTATION: ("presentation", "pptx"),
+}
+
+
+def google_export_url(child_type: str, file_id: str) -> str | None:
+    entry = GOOGLE_EXPORT.get(child_type)
+    if entry is None:
+        return None
+    kind, fmt = entry
+    return (
+        f"https://docs.google.com/{kind}/d/{file_id}/export?format={fmt}"
+    )
+
+
 TERMINAL_FILE_STATUSES = {"done", "skipped", "failed"}
 
 
@@ -515,6 +538,31 @@ class Database:
             )
 
         return retried_folders, retried_files
+
+    def relist_empty_folders(self) -> int:
+        """
+        Re-open folders that were listed as EMPTY (child_count = 0) so they are
+        traversed again. During earlier throttling the embeddedfolderview
+        endpoint could return a 200 page with no items, which was persisted as
+        a genuinely empty folder and marked done. Re-listing (now with cookies
+        and no throttle) recovers their real contents; truly empty folders just
+        list as empty again, which is harmless.
+        """
+        conn = self._conn()
+        stamp = now_iso()
+        with self.transaction() as tx:
+            cur = tx.execute(
+                """
+                UPDATE folders
+                SET status='pending', child_count=NULL, last_error=NULL,
+                    updated_at=?
+                WHERE status IN ('done', 'listed', 'processing')
+                  AND child_count IS NOT NULL
+                  AND child_count = 0
+                """,
+                (stamp,),
+            )
+        return cur.rowcount
 
     def reconcile_local_files(self) -> int:
         """
@@ -1636,8 +1684,13 @@ def download_file_with_retry(
                 temp_dir = state.tmp_root / file_id
                 temp_dir.mkdir(parents=True, exist_ok=True)
 
+                # For known native types go straight to the export endpoint
+                # (reliable). Unknown native types (drawings, forms, ...) fall
+                # back to gdown's own uc?id handling.
+                native_url = google_export_url(child_type, file_id) or url
+
                 result = gdown.download(
-                    url=url,
+                    url=native_url,
                     output=str(temp_dir) + os.sep,
                     quiet=True,
                     use_cookies=state.use_cookies,
@@ -1971,11 +2024,16 @@ def worker_main(
 ) -> None:
     threading.current_thread().name = f"drive-worker-{worker_no}"
 
+    # IMPORTANT: folder listing (embeddedfolderview) must stay ANONYMOUS.
+    # For a public folder that endpoint works without cookies, but if it
+    # receives auth cookies Google tries to validate the session and bounces
+    # the request to accounts.google.com/ServiceLogin -> an empty page, which
+    # then gets recorded as an empty folder. Cookies are only for downloads.
     sess, _ = _get_session(
         proxy=None,
-        use_cookies=state.use_cookies,
+        use_cookies=False,
         user_agent=FOLDER_UA,
-        cookies_file=state.cookies_file,
+        cookies_file=None,
     )
 
     try:
@@ -2713,6 +2771,15 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--relist-empty",
+        action="store_true",
+        help=(
+            "Re-list folders that were recorded as empty (0 children). Use "
+            "this to recover folders wrongly saved as empty during earlier "
+            "throttling — they will be traversed again."
+        ),
+    )
+    parser.add_argument(
         "--reset-state",
         action="store_true",
         help=(
@@ -2805,6 +2872,10 @@ def main() -> int:
     if args.retry_failed:
         retried_folders, retried_files = db.retry_failed()
 
+    relisted_empty = 0
+    if args.relist_empty:
+        relisted_empty = db.relist_empty_folders()
+
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_log_dir = output.parent / "_download_logs" / stamp
 
@@ -2851,6 +2922,12 @@ def main() -> int:
         state.console.print(
             "[yellow]Retry failed:[/] "
             f"{retried_folders} folderów, {retried_files} plików."
+        )
+
+    if args.relist_empty:
+        state.console.print(
+            f"[yellow]Relist empty:[/] {relisted_empty} pustych folderów "
+            "wróciło do ponownego listowania."
         )
 
     if not resumed_ids:
