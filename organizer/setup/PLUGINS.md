@@ -16,7 +16,8 @@ Fable koordynuje, Haiku/Sonnet/Opus wykonują. Wszystko poniżej stawia `setup/i
 | **venv organizera** | `setup/requirements.txt` | `organizer/.venv` | biblioteki pipeline'u |
 
 Konfiguracja projektu (commitowana): `organizer/.claude/settings.json` (env muxera, `enabledPlugins`,
-`additionalDirectories`, deny, hook `guard-sources.py`), `organizer/.claude/agents/`, `organizer/.claude/skills/`.
+`additionalDirectories`, deny, hook `guard-sources.py`), `organizer/.claude/agents/`,
+`organizer/.claude/skills/`, `.codex/config.toml` i `.codex/agents/*.toml`.
 Konfiguracja maszyny (generowana, poza gitem): `paczka-tools/.claude/settings.local.json` z bezwzględnymi
 ścieżkami `additionalDirectories` i `Edit(//…/00_SOURCES/**)` w deny.
 
@@ -24,6 +25,24 @@ Zmienne muxera ustawione w `settings.json → env`:
 `MUXER_GUARD=on`, `MUXER_BUILTIN_AGENT_MODEL=sonnet` (wbudowane Explore/Plan/general-purpose bez modelu
 dostają Sonnet, nie Fable), `MUXER_REPORT=always`, `MUXER_REPORT_MIN_USD=0` (raport po każdej turze),
 `CLAUDE_CODE_SUBAGENT_MODEL=sonnet` (to samo dla subagentów spoza muxera).
+
+## Odpowiedniki w Codexie
+
+Codex nie ładuje pluginu muxer ani markdownowych agentów Claude. Projekt ma
+więc natywne role w `.codex/agents/`:
+
+| Zadanie | Claude | Codex | Sandbox Codexa |
+|---|---|---|---|
+| eksploracja | `muxer:scout` | `explorer` | read-only |
+| komendy i testy | `muxer:runner` | `runner` | workspace-write |
+| review | `muxer:reviewer` | `reviewer` | read-only |
+| Python / SQL / testy | agenci VoltAgent | `python_pro`, `sql_pro`, `test_automator` | workspace-write |
+| docs / README | agenci VoltAgent | `documentation_engineer`, `readme_generator` | workspace-write |
+
+Model subagentów Codexa jest przypięty centralnie w `.codex/config.toml`, a
+reasoning i sandbox per rola. Agenci Claude `codex` i `agy` pozostają
+Claude-specyficznymi delegatorami zewnętrznych CLI i celowo nie mają
+rekurencyjnych odpowiedników po stronie Codexa.
 
 ## Świadomie pomijamy
 
@@ -37,6 +56,6 @@ dostają Sonnet, nie Fable), `MUXER_REPORT=always`, `MUXER_REPORT_MIN_USD=0` (ra
 | oficjalne pluginy Anthropic (`code-review`, `commit-commands` itd.) | nic z tego nie jest potrzebne do pipeline'u; dokładać punktowo, gdy pojawi się potrzeba |
 
 ## Po instalacji — test kosztowy (z `docs/CLAUDE_CODE_SETUP.md`)
-1. `cd paczka-tools/organizer && claude` → `/mux` pokazuje tabelę routingu.
+1. `cd paczka-tools/organizer && just claude` → `/mux` pokazuje tabelę routingu.
 2. Małe zadanie: „zaprojektuj `CREATE TABLE` dla `files` + `content` wg ARCHITEKTURA §4, zleć sql-pro”.
 3. Raport muxera po turze ma pokazać: Fable = koordynacja (mało tokenów), Sonnet = praca.

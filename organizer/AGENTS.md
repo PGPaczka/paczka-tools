@@ -1,18 +1,201 @@
-# AGENTS.md — zasady dla agenta (model-agnostyczne)
+# AGENTS.md — wspólne zasady Paczka Organizer
 
-Pełne zasady: `CLAUDE.md`. Skrót obowiązujący każdy model (Claude / Codex / Gemini via `agy`;
-`GEMINI.md` tylko odsyła tutaj):
+To jest **kanoniczne, model-agnostyczne źródło instrukcji** dla Claude Code,
+OpenAI Codex, Gemini/Antigravity i kolejnych agentów. Adaptery konkretnego
+narzędzia (`CLAUDE.md`, `GEMINI.md`, `.claude/`, `.codex/`) mogą dodawać
+ustawienia techniczne, ale nie mogą osłabiać reguł z tego pliku.
 
-1. Never modify or delete anything under `00_SOURCES` — read-only archive.
-2. `paczka/` is the canonical package being constructed.
-3. The agent NEVER touches the filesystem. Its only output is `plan.jsonl`.
-4. Prefer deterministic script decisions; handle only `unresolved` items.
-5. Exact duplicates are decided by hash (file: sha256, folder: tree_hash), never by you.
-6. Never treat similar files as duplicates — emit a relation, keep both.
-7. Process ONE subject at a time. Subject identity = (semester, skrót); the skrót
-   is NOT unique — use the semester to resolve collisions (AK, PO, SI, SK, ASK...).
-8. Every planned copy must carry provenance (source_sha256, source_paths).
-9. If confidence < threshold, set needs_review=true or action=quarantine. Do not guess.
-10. `outdated/` is a semantic decision made in review, never automatic from similarity.
-11. Large media never enter the package — route to `90_MEDIA/` + `inne/nagrania.txt`.
-12. Output only valid JSONL matching schema_version. No filesystem changes before apply.
+Projekt żyje w `paczka-tools/organizer/` i **z tego katalogu uruchamiaj sesje**.
+Mapa repozytoriów: `docs/ORGANIZACJA.md`. Architektura:
+`docs/ARCHITEKTURA_FINALv1.md`. Stan pracy: `TODO.md` i `reports/HANDOFF.md`.
+
+## Role agentów — nie mieszaj ich
+
+1. **Coding agent / koordynator** może zmieniać kod, config, testy, dokumentację
+   i tekstowe raporty w tym repo. Uruchamia skrypty i testy, ale nie kopiuje
+   ręcznie materiałów do paczki.
+2. **Classification agent** jest czystą funkcją
+   `manifest_slice.jsonl → plan.jsonl`. Nie chodzi po filesystemie i nie
+   modyfikuje plików poza wskazanym tekstowym wynikiem.
+3. **Skrypty pipeline'u** jako jedyne czytają masowo źródła, zapisują
+   `20_WORK`, a po akceptacji wykonują `apply` do repo docelowego.
+4. **Człowiek** zatwierdza plan przed `apply` i merguje PR. Agent nigdy nie
+   interpretuje milczenia jako zgody.
+
+Zdanie „agent nie dotyka filesystemu” dotyczy classification agenta, nie coding
+agenta pracującego nad implementacją organizera.
+
+## Workspace — ścieżki tylko z configu
+
+Wszystkie ścieżki poza repo pobieraj wyłącznie z `config/paths.yaml`:
+
+| Klucz | Rola | Zapis |
+|---|---|---|
+| `sources` | archiwum starych paczek (`00_SOURCES`) | **nigdy** |
+| `target_repo` + `target_paczka_subdir` | kanoniczna paczka docelowa | tylko `apply`, branch `subject/{SKROT}` |
+| `work` | SQLite, extracted text, thumbnails, cache | przez skrypty |
+| `media` | duże audio/wideo poza repo | przez `apply`/media stage |
+
+Nie hardkoduj `../../…` w Pythonie, promptach, skillach ani testach.
+
+## Reguły twarde
+
+1. **`00_SOURCES` jest READ-ONLY.** Nigdy nie modyfikuj, przenoś, kasuj,
+   rozpakowuj ani zmieniaj uprawnień plików źródłowych.
+2. **`paczka/` w `target_repo` jest kanoniczna.** Ręcznie ułożone materiały to
+   ground truth; nie zmieniaj ich nazw ani lokalizacji bez instrukcji.
+3. **Deterministycznie najpierw, AI na końcu.** AI obsługuje tylko
+   `unresolved`.
+4. **Dokładne duplikaty tylko po hashu:** plik `sha256`, folder `tree_hash`.
+5. **Podobieństwo nie oznacza duplikatu.** Zapisz relację i zachowaj oba pliki.
+6. **Nigdy nie kasuj automatycznie.** Dedup jest logiczny w bazie/planie.
+7. **Jeden przedmiot na raz.** Tożsamość to co najmniej `(semestr, skrót)`;
+   gdy istnieje kolizja, użyj także `grupa` z `config/subjects.yaml`.
+8. **Każda kopia zachowuje provenance:** `source_sha256` i `source_paths`.
+9. **Nie zgaduj.** Niska pewność oznacza `needs_review=true` albo
+   `action=quarantine`; progi są w `config/thresholds.yaml`.
+10. **`outdated/` jest decyzją człowieka.** Starsza wersja może dostać relację
+    `older_version`, ale nie automatyczne `outdated`.
+11. **Duże media nie trafiają do paczki.** Kieruj je do `90_MEDIA` i dodaj wpis
+    w `inne/nagrania.txt`.
+12. **Plan przed zmianami materiałów.** `apply` wolno uruchomić tylko po
+    walidacji planu i jawnej akceptacji użytkownika.
+13. **Bez destrukcyjnego gita.** Nigdy `git push --force`, samodzielnego merge
+    własnego PR, `git clean` ani resetowania cudzych zmian.
+14. **Nie obchodź sandboxu i hooków.** Nie używaj flag wyłączających ochronę,
+    jeśli użytkownik nie zażądał tego wprost.
+
+Wspólny guard źródeł: `.agents/hooks/guard-sources.py`. Claude wywołuje go z
+`.claude/settings.json`, a Codex z repozytoryjnego `.codex/hooks.json`.
+
+## Model operacyjny
+
+Pracuj w pętli **jeden przedmiot = jedno zadanie**, z jedną bramką człowieka:
+
+1. przygotuj wycinek manifestu;
+2. extract → classify deterministyczny;
+3. AI tylko dla `unresolved`;
+4. build plan → validate → dry-run diff;
+5. przygotuj review i **zatrzymaj się**;
+6. po jawnej akceptacji: snapshot → apply → verify;
+7. provenance, commity semantyczne, PR; merge robi użytkownik.
+
+Wzorzec pracy nad kodem:
+**Research → Plan → Execute → Review → Ship**. Najpierw znajdź istniejący
+wzorzec, potem minimalna implementacja, testy specyficzne, szersza walidacja,
+aktualizacja `TODO.md` i handoff.
+
+## Kontrakt AI
+
+- Wejście: manifest jednego przedmiotu, nazwy/ścieżki, głowa tekstu do limitu,
+  struktura docelowa i reguły.
+- Wyjście: JSON/JSONL zgodny ze schematem, jedna decyzja na `sha256`.
+- Modele są za `scripts/orglib/llm_client.py`; kod pipeline'u nie zależy od
+  providera.
+- Backend wybiera `config/thresholds.yaml: llm` lub jawna opcja zadania.
+- Zewnętrzne CLI dla klasyfikacji działają read-only, ze schematem wyniku i
+  cache po hash promptu.
+
+## Minimalizacja kontekstu i kosztu
+
+- dedup przed extract przed classify;
+- nigdy nie wysyłaj binariów do modelu;
+- używaj `text_head`, raportów i zapytań do SQLite zamiast surowych drzew;
+- poddrzewa `duplicate_of` pomijają extract/OCR/AI;
+- cache decyzji po `sha256`;
+- delegowany agent zwraca podsumowanie do 30 linii, nie pełne listingi;
+- trudniejszy model tylko do decyzji semantycznych i review.
+
+## Wspólne uruchamianie agentów
+
+Nie uruchamiaj narzędzi „gołą” komendą, jeśli dostępny jest launcher projektu:
+
+```bash
+just claude          # Claude Code + .claude setup
+just codex           # Codex/OpenAI, dev: organizer + 20_WORK writable
+just codex-read      # Codex read-only
+just codex-ship      # Codex z target_repo/media writable, tylko po akceptacji
+just agent-doctor
+```
+
+`just codex` wymaga profilu `paczka-openai`, tworzonego przez
+`just agent-setup`. Launcher odmawia startu, jeśli profil nie wskazuje
+`model_provider = "openai"`. Dzięki temu globalny `claude-code-router` może
+pozostać aktywny dla delegacji z Claude, ale interaktywny Codex używa OpenAI.
+
+Nigdy nie dodawaj `sources` jako writable root Codexa. Tryb `codex-ship` dodaje
+wyłącznie `work`, `target_repo` i `media`.
+
+Launchery ustawiają też backend trudnego zadania `relate`:
+
+- `just claude` → `PACZKA_LLM_RELATE_BACKEND=claude_cli`;
+- `just codex` → `PACZKA_LLM_RELATE_BACKEND=codex_cli`.
+
+To jawny override procesu, nie automatyczny fallback. Użytkownik może go
+nadpisać własną zmienną `PACZKA_LLM_<TASK>_BACKEND` lub
+`PACZKA_LLM_<TASK>_MODEL`.
+
+## Skille i procedury
+
+Kanoniczne procedury organizera pozostają w `.claude/skills/organizer-*`.
+Codex widzi te same katalogi przez `.agents/skills/` — nie utrzymuj dwóch kopii.
+Treść skillu musi opisywać workflow i komendy projektu, a integracje konkretnego
+hosta traktować jako opcjonalne adaptery.
+
+Jeśli host nie obsługuje skillu lub subagenta, wykonaj tę samą procedurę przez
+`just` i skrypty. Poprawność pipeline'u nie może zależeć od slash command.
+
+## Subagenci
+
+Role Codexa są w repozytoryjnym `.codex/agents/*.toml`. Model dziedziczą z
+centralnego `.codex/config.toml`, natomiast reasoning i sandbox są przypisane
+per rola:
+
+- `explorer`, `reviewer` — `read-only`;
+- `runner`, `python_pro`, `sql_pro`, `test_automator`,
+  `documentation_engineer`, `readme_generator` — `workspace-write`.
+
+Subagent z `workspace-write` nadal podlega wszystkim regułom tego pliku,
+hookowi i sandboxowi sesji nadrzędnej. Nie dostaje zgody na `apply`, commit,
+zapis do `00_SOURCES` ani zmianę materiałów tylko dlatego, że może pisać kod.
+
+Claude ma równoległe role w `.claude/agents/` oraz pluginie muxer. Delegatory
+Claude `codex` i `agy` nie są kopiowane jako role Codexa: ich zadaniem jest
+uruchomienie zewnętrznego CLI z sesji Claude, a wewnątrz Codexa tworzyłyby
+zbędną rekurencyjną delegację.
+
+## Git, stan i handoff
+
+- `20_WORK/organizer.sqlite` jest operacyjnym źródłem prawdy poza gitem.
+- Do gita trafiają kod, config, prompty, tekstowe plany, ręczne decyzje,
+  provenance i raporty przeznaczone do wersjonowania.
+- Kod/config/docs/testy: małe logiczne zmiany; nie commituj, jeśli użytkownik
+  tego nie zlecił w bieżącej sesji.
+- Materiały przedmiotu: commit dopiero po `verify`, na branchu przedmiotu.
+- Nie cofaj ani nie nadpisuj niepowiązanych zmian użytkownika.
+
+Na starcie:
+
+1. przeczytaj `TODO.md`;
+2. przeczytaj `reports/HANDOFF.md`, jeśli istnieje;
+3. sprawdź `git status --short` i ostatnie commity;
+4. zweryfikuj, czy poprzedni agent nie zostawił pracy częściowej.
+
+Po każdym większym, spójnym kroku:
+
+1. odhacz/dopisz `TODO.md` z datą;
+2. uruchom `just handoff`;
+3. uzupełnij ręczną część `reports/HANDOFF.md`: cel, testy, następna czynność,
+   blokery i stan akceptacji;
+4. nie zapisuj „plan zaakceptowany”, jeśli nie ma jawnej zgody użytkownika.
+
+`reports/HANDOFF.md` jest kontraktem przekazania stanu między Claude, Codex i
+człowiekiem. Historia czatu nie jest źródłem prawdy.
+
+## Walidacja i zakończenie
+
+- Zaczynaj od testów najbliższych zmienionemu kodowi, potem szerszy zestaw.
+- Nie naprawiaj niepowiązanych błędów; zgłoś je oddzielnie.
+- Nie deklaruj powodzenia bez rzeczywiście uruchomionych kontroli.
+- Końcowy raport zawiera: zmienione pliki, wynik testów, nierozwiązane ryzyka
+  i dokładny następny krok.

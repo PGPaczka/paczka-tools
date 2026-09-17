@@ -65,14 +65,17 @@ Legenda: `[ ]` do zrobienia · `[x]` zrobione · `[~]` w toku · ~~przekreślone
 
 ## C. Narzędzia i integracje
 
-- [ ] C1. `justfile`: `subject-start / plan / apply / pr` (gh issue + branch w `target_repo`, commity `plan(SKROT)`→`apply(SKROT)`→`docs(SKROT)`)
+- [~] C1. `justfile`: wspólne launchery agentów, first-pass i stabilne nazwy etapów subject gotowe; `subject-start`/`subject-pr` oraz pełne spięcie plan/apply czekają na B1–B14
 - [ ] C2. Generator issues z `subjects.yaml` (`gh issue create`, labels semester/subject/status)
 - [ ] C3. `synapse` — graf relacji (notatki `.md` z wikilinkami); **po pilotażu**, na realnych danych
 - [ ] C4. Pełny diff-viewer near-dupe — **po pilotażu**
-- [ ] C5. Skille `.claude/skills/organizer-*` — dopasować do realnych nazw skryptów po B1–B14
+- [ ] C5. Skille `organizer-*` współdzielone przez `.claude/skills` i `.agents/skills`; dopasować komendy do realnych nazw skryptów po B1–B14
 - [x] C7. Delegacja multi-model: agenci projektu `codex` (`codex exec`, bez `--full-auto`) i `agy` (Antigravity CLI = Gemini; `muxer:gemini` szuka nieobecnej binarki `gemini`), `GEMINI.md` → `AGENTS.md`, `thresholds.yaml: llm` per zadanie (`classify` → `agy_cli`, `relate` → `claude_cli`), tabela koordynatora i biling (Pro, nie Max) w `CLAUDE.md`, permissions `codex exec`/`agy -p`/`claude -p` w `settings.json` (2026-09-17)
-- [x] C8. Smoke test delegacji `codex` i `agy` — **oba agenty poprawione po testach**: (a) `codex exec` bez `--ignore-user-config` szedł przez `claude-code-router` (proxy `127.0.0.1:3456`) na `Claude Code API/claude-sonnet-5`, czyli delegacja „za darmo" zjadała limit Anthropic; z flagą CLI raportuje `provider: openai` (`gpt-6-astra`), zadanie read-only wykonane, `git status` bez zmian; (b) `agy -p --sandbox` w headless auto-odrzuca KAŻDE uprawnienie narzędzia (`read_file`, `command` → `jetski: no output produced`), więc Gemini nie przeczyta pliku sam — działa natomiast wklejenie treści do promptu (zweryfikowane na `AGENTS.md`: poprawne streszczenie, `--sandbox` zachowany, zero narzędzi). Oba ustalenia zapisane w `.claude/agents/{codex,agy}.md` i w `CLAUDE.md` (sekcja „Pułapka bilingowa"). (2026-09-17)
-- [ ] C9. Decyzja użytkownika: czy zdjąć przejęcie `codex` przez `claude-code-router` (`~/.claude-code-router/global-profile-takeover.json`, profil `default-codex`), żeby `codex` szedł na OpenAI bez `--ignore-user-config`. Dziś obchodzimy to flagą — działa, ale każdy inny agent/skrypt wołający `codex` bez niej nadal płaci limitem Anthropic.
+- [x] C8. Smoke test delegacji `codex` i `agy` — **oba agenty poprawione po testach**: (a) `codex exec` bez `--ignore-user-config` szedł przez `claude-code-router` (proxy `127.0.0.1:3456`) na `Claude Code API/claude-sonnet-5`, czyli delegacja „za darmo" zjadała limit Anthropic; z flagą CLI raportuje `provider: openai` (`gpt-6-astra`), zadanie read-only wykonane, `git status` bez zmian; (b) `agy -p --sandbox` w headless auto-odrzuca KAŻDE uprawnienie narzędzia (`read_file`, `command` → `jetski: no output produced`), więc Gemini nie przeczyta pliku sam — działa natomiast wklejenie treści do promptu (zweryfikowane na `AGENTS.md`: poprawne streszczenie, `--sandbox` zachowany, zero narzędzi). Ustalenia są w `.claude/agents/{codex,agy}.md` i adapterze `CLAUDE.md`. (2026-09-17)
+- [x] C9. Decyzja: zostawić przejęcie bazowego `codex` przez `claude-code-router` dla delegacji z Claude; interaktywny GPT uruchamiać przez `just codex` i osobny profil `~/.codex/paczka-openai.config.toml`. Launcher sprawdza `model_provider = "openai"`; `codex exec` w `llm_client` nadal używa `--ignore-user-config`. (2026-09-17)
+- [x] C10. Warstwa agent-agnostic: kanoniczne `AGENTS.md`, cienkie adaptery `CLAUDE.md`/`GEMINI.md`, wspólny guard źródeł dla Claude i Codexa, współdzielone skills przez symlinki, launchery `just claude|codex|codex-read|codex-ship`, agent doctor. (2026-09-17)
+- [x] C11. Backend AI per host bez edycji YAML: `just claude` ustawia `PACZKA_LLM_RELATE_BACKEND=claude_cli`, `just codex` ustawia `codex_cli`; `LLMConfig.task()` respektuje jawne `PACZKA_LLM_<TASK>_{BACKEND,MODEL}` i nie przenosi modelu między providerami. (2026-09-17)
+- [x] C12. Natywne subagenty Codexa: `.codex/config.toml` + 8 ról w `.codex/agents/` (`explorer`, `runner`, `reviewer`, Python, SQL, testy, docs, README), z centralnym modelem i per-rola reasoning/sandbox; kontrakt chroniony testami TOML. (2026-09-17)
 - [x] C6. `setup/install.sh` — sprawdzone: apt stawia rmlint/ncdu/tesseract(+pol)/poppler/jq/rclone (rclone dopisany), `just` z just.systems, venv z requirements; `gh` tylko wykrywany (instalacja ręczna wg README) (2026-09-17)
 
 ## D. Pilotaż i przedmioty
@@ -86,3 +89,4 @@ Legenda: `[ ]` do zrobienia · `[x]` zrobione · `[~]` w toku · ~~przekreślone
 - [x] E1. README: sekcja „Skrypty” z realnymi nazwami i kolejnością po A3–A6 (2026-09-17)
 - [x] E2. `docs/SOURCES_TREE.md` (generowany przez `scan.py`; pierwszy snapshot: 14 paczek, 9 540 katalogów, 48 049 plików, 37,0 GiB) (2026-09-17)
 - [ ] E3. `STATUS.md` (generowany: przedmioty × etapy + liczby)
+- [x] E4. `reports/HANDOFF.md` + `just handoff`: wspólny checkpoint sesji dla Claude, Codexa i człowieka. (2026-09-17)

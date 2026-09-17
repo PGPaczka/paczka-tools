@@ -1,5 +1,13 @@
-# GEMINI.md — dla Gemini / Antigravity CLI (`agy`)
+# GEMINI.md — adapter Gemini / Antigravity
 
-Zasady dla agenta są w `AGENTS.md` (model-agnostyczne, 12 reguł) — przeczytaj je najpierw
-i trzymaj się ich bez wyjątków. Pełne zasady projektu: `CLAUDE.md`. Ścieżki do katalogów
-poza repo tylko z `config/paths.yaml`; katalog źródeł jest READ-ONLY.
+Najpierw przeczytaj `AGENTS.md` i trzymaj się go bez wyjątków. To kanoniczne,
+model-agnostyczne źródło zasad projektu.
+
+Gemini jest tu używany głównie przez `agy -p` i
+`scripts/orglib/llm_client.py` do masowego przetwarzania tekstu. W trybie
+headless z sandboxem nie zakładaj dostępu do narzędzi: wejście powinno być
+samowystarczalne i zawierać wymagane fragmenty tekstu, a wyjście musi odpowiadać
+żądanemu schematowi.
+
+Nie modyfikuj filesystemu ani `00_SOURCES`; dla pracy programistycznej użyj
+Claude Code lub Codexa.

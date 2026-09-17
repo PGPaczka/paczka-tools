@@ -100,12 +100,13 @@ PaczkaMerge/                  # workspace (nie repo)
 ├── 20_WORK/                  # organizer.sqlite, extracted_text/, thumbnails/ (odtwarzalne)
 ├── 90_MEDIA/                 # duże media wyjęte z paczki
 └── paczka-tools/             # klon PGPaczka/paczka-tools
-    ├── organizer/            # TEN projekt — tu odpalasz `claude`
+    ├── organizer/            # TEN projekt — tu odpalasz `just claude` / `just codex`
     └── multi-folder-downloader/  # pobieranie paczek z Drive → 00_SOURCES
 ```
 
 - `00_SOURCES/` — stare paczki, **READ-ONLY**, backup na Google Drive. Nigdy nie
-  modyfikować/kasować (`.claude/hooks/guard-sources.py` + opcjonalnie `chmod -R a-w`).
+  modyfikować/kasować (`.agents/hooks/guard-sources.py` dla Claude/Codex +
+  opcjonalnie `chmod -R a-w`).
 - `20_WORK/` — `organizer.sqlite` (operacyjne źródło prawdy), extracted_text,
   thumbnails. Odtwarzalne, poza gitem.
 - `90_MEDIA/` — duże wideo/audio wyjęte z paczki (> próg z `config/`). Nie wchodzą

@@ -11,7 +11,8 @@ oficjalnej strony przedmiotów) — organizer robi to samo, tylko ze starych pac
 
 - Architektura: [`docs/ARCHITEKTURA_FINALv1.md`](docs/ARCHITEKTURA_FINALv1.md)
 - Struktura repo i organizacji: [`docs/ORGANIZACJA.md`](docs/ORGANIZACJA.md)
-- Zasady pracy AI: [`CLAUDE.md`](CLAUDE.md) / [`AGENTS.md`](AGENTS.md)
+- Zasady wspólne agentów: [`AGENTS.md`](AGENTS.md); adapter Claude:
+  [`CLAUDE.md`](CLAUDE.md)
 - Setup Claude Code (muxer, agenty, skille, status line): [`setup/PLUGINS.md`](setup/PLUGINS.md),
   ocena źródeł: [`docs/CLAUDE_CODE_SETUP.md`](docs/CLAUDE_CODE_SETUP.md)
 
@@ -63,8 +64,8 @@ Uwagi:
 
 - Wszystkie ścieżki (`00_SOURCES`, `target_repo`, `20_WORK`, `90_MEDIA`) tylko
   z `config/paths.yaml` — nic nie jest hardkodowane w skryptach.
-- Źródła (`00_SOURCES/`) są read-only; hook `.claude/hooks/guard-sources.py`
-  blokuje tam zapis.
+- Źródła (`00_SOURCES/`) są read-only; wspólny hook
+  `.agents/hooks/guard-sources.py` blokuje tam zapis w Claude i Codex.
 - Nic nie jest fizycznie kasowane. Dedup jest logiczny, w bazie
   (`folders.duplicate_of`) — oba foldery/pliki zostają na dysku.
 - Kody wyjścia `scan.py`: `0` pełny skan, `3` skan częściowy (coś pominięto —
@@ -85,8 +86,10 @@ smoke test backendów, nieużywany w automatycznym cyklu per-przedmiot.
 ## Układ
 
 ```
-paczka-tools/organizer/          # ← tu odpalasz `claude`
-├── CLAUDE.md  AGENTS.md         # zasady pracy AI + polityka koordynatora (muxer)
+paczka-tools/organizer/          # ← tu odpalasz `just claude` lub `just codex`
+├── AGENTS.md  CLAUDE.md         # zasady wspólne + adapter Claude/muxer
+├── .agents/                     # wspólne hooki + symlinki skills dla Codexa
+├── ../.codex/                   # hook, ustawienia multi-agent i role Codexa
 ├── README.md  SKILLS.md
 ├── .claude/                     # commitowane: settings.json, hooks/guard-sources.py,
 │                                #   agents/ (5 z VoltAgent), skills/ (organizer-*)
@@ -97,6 +100,36 @@ paczka-tools/organizer/          # ← tu odpalasz `claude`
 ├── reports/                     # eksporty: inventory, plany, provenance-operacyjne (w gicie)
 └── setup/                       # install.sh, PLUGINS.md, requirements.txt, statusline.sh
 ```
+
+## Agenci interaktywni
+
+Claude pozostaje domyślnym koordynatorem, ale stan projektu i procedury nie są
+zależne od hosta:
+
+```bash
+just agent-setup     # tworzy ~/.codex/paczka-openai.config.toml; nie rusza bazowego config.toml
+just agent-doctor
+just claude          # Claude Code + muxer + .claude/settings.json
+just codex           # Codex/OpenAI, organizer + 20_WORK writable
+just codex-read      # Codex read-only
+just codex-ship      # target_repo i 90_MEDIA writable; tylko po akceptacji planu
+just handoff         # odświeża automatyczną część reports/HANDOFF.md
+```
+
+Wspólne zasady są w `AGENTS.md`, wspólny kontrakt przekazania stanu w
+`reports/HANDOFF.md`, a deterministyczne operacje w `justfile` i `scripts/`.
+Globalny `claude-code-router` może pozostać aktywny: launcher Codexa wymaga
+osobnego profilu `paczka-openai` z `model_provider = "openai"`.
+Launchery ustawiają także backend `relate` per host (`claude_cli` dla Claude,
+`codex_cli` dla Codexa), więc przełączenie sesji nie wymaga edycji
+`config/thresholds.yaml`.
+
+Codex ma projektowe subagenty w `../.codex/agents/`: `explorer`, `runner`,
+`reviewer`, `python_pro`, `sql_pro`, `test_automator`,
+`documentation_engineer` i `readme_generator`. `../.codex/config.toml`
+centralnie wybiera ich model i limit równoległości; każda rola ma osobno
+przypisany reasoning oraz sandbox. Role analityczne są read-only, a role
+implementacyjne zapisują wyłącznie w granicach sandboxu sesji nadrzędnej.
 
 Poza gitem — workspace `~/dev/paczka/PaczkaMerge/` (ścieżki w `config/paths.yaml`):
 ```

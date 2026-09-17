@@ -9,7 +9,8 @@ Zbiór narzędzi pomocniczych projektu Paczka. Każde narzędzie jest self-conta
 Scalanie starych „paczek" materiałów (`00_SOURCES`) w jedną uporządkowaną paczkę:
 pipeline `scan → hash → dedup → extract → classify → plan → apply → verify`, AI tylko
 dla niejednoznacznych resztek, człowiek zatwierdza plan per przedmiot. Zawiera
-konfigurację Claude Code (agenty, skille, hooki) — sesję odpalasz w `organizer/`.
+wspólną konfigurację agentów oraz adaptery Claude Code i Codexa — sesję odpalasz
+w `organizer/` przez `just claude` albo `just codex`.
 Start: [`organizer/README.md`](organizer/README.md), setup: `bash organizer/setup/install.sh`.
 
 ### multi-folder-downloader

@@ -31,7 +31,7 @@ uporządkowaną paczkę, tak by:
 - minimalizować tokeny, dało się wznawiać, było bezpiecznie i powtarzalnie,
 - zachować provenance i łatwo dorzucać materiały za kilka lat.
 
-Reguły twarde (pełne w `CLAUDE.md`): `00_SOURCES` read-only; `paczka/` kanoniczna;
+Reguły twarde (pełne w `AGENTS.md`): `00_SOURCES` read-only; `paczka/` kanoniczna;
 deterministyka najpierw, AI na końcu; dokładne duplikaty tylko po hashu; nic nie
 kasujemy automatycznie; jeden przedmiot na raz; provenance zawsze; plan przed
 zmianami; AI nie dotyka dysku (jego wyjście to `plan.jsonl`); `outdated` tylko
@@ -108,7 +108,7 @@ flowchart LR
 
 ```
 paczka-tools/organizer/
-├── CLAUDE.md  AGENTS.md              # zasady pracy AI (scoped do projektu)
+├── AGENTS.md  CLAUDE.md              # zasady wspólne + adapter Claude Code
 ├── README.md  SKILLS.md
 ├── docs/
 │   ├── ARCHITEKTURA_FINALv1.md       # ten dokument
