@@ -78,6 +78,11 @@ pary ``(a, b)`` mieści się już w jakimś kandydacie pod ``a`` (albo pod ``b``
 tonie w parach z korzeniami paczek („gdzieś w tych 40 GB jest ten katalog”), które
 przez zawieranie zawsze mają ``ratio_min`` 1.0.
 
+Katalogi-duplikaty biorą udział w zliczaniu par i mogą być takim świadkiem, ale
+ŻADNA para z ich udziałem nie jest wypisywana: ich treść opisuje już
+``duplicate_of``. To rozróżnienie jest konieczne — gdyby duplikaty wypadały z
+liczenia, para z ich wielkim rodzicem przeżywałaby jako czysty szum.
+
 Uruchamianie: ``python scripts/fold_hash.py [opcje]``.
 """
 
@@ -504,14 +509,20 @@ def _overlap_candidates(
     computed: dict[str, tuple[Optional[str], Optional[str]]],
     duplicates: Mapping[str, str],
 ) -> dict[str, set[str]]:
-    """Katalogi brane pod uwagę w raporcie: mają tree_hash, nie są duplikatem, >= 2 treści.
+    """Katalogi brane pod uwagę przy liczeniu pokrycia: mają tree_hash i >= 2 treści.
+
+    Katalogi-duplikaty ZOSTAJĄ w tym zbiorze, choć żadna ich para nie trafi do
+    raportu (odsiewa je :func:`_emittable`). Są potrzebne jako świadkowie reguły
+    „najbardziej szczegółowej pary”: bez nich para z wielkim katalogiem-rodzicem
+    przeżywała, mimo że całe jej pokrycie siedziało w leżącym niżej duplikacie,
+    czyli w informacji, którą niesie już ``duplicate_of``.
 
     Klucze idą w porządku leksykograficznym — dzięki temu listy indeksu odwrotnego
     są posortowane i pary powstają od razu w kolejności ``folder_a < folder_b``.
     """
     candidates: dict[str, set[str]] = {}
     for folder_path in sorted(folders):
-        if computed[folder_path][0] is None or folder_path in duplicates:
+        if computed[folder_path][0] is None:
             continue
         shas = {sha for _, sha in subtrees[folder_path].pairs}
         if len(shas) >= 2:
@@ -560,6 +571,16 @@ def _candidate_ancestors(candidates: Mapping[str, set[str]]) -> dict[str, list[s
             if prefix in candidates
         ]
     return ancestors
+
+
+def _emittable(pair: OverlapPair, duplicates: Mapping[str, str]) -> bool:
+    """Czy parę wolno wypisać: żaden z katalogów nie jest dokładnym duplikatem.
+
+    Duplikat ma już swoje ``duplicate_of`` i całą treść w katalogu kanonicznym,
+    więc para z jego udziałem powtarzałaby to samo — a przy okazji rozmnażała się
+    razy liczba kopii.
+    """
+    return pair.folder_a not in duplicates and pair.folder_b not in duplicates
 
 
 def _keep_most_specific(
@@ -642,7 +663,11 @@ def overlap_pairs(
             files_b=folders[second].file_count,
         )
 
-    survivors = _keep_most_specific(kept, candidates)
+    survivors = [
+        pair
+        for pair in _keep_most_specific(kept, candidates)
+        if _emittable(pair, duplicates)
+    ]
     survivors.sort(
         key=lambda pair: (
             -round(pair.ratio_min, 4),

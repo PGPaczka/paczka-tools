@@ -637,6 +637,43 @@ def test_overlap_drops_whole_package_root_in_favour_of_the_subfolder(
     assert all("Paczka II" != key[0] and "Paczka II" != key[1] for key in keys)
 
 
+def test_overlap_drops_parent_pair_when_the_witness_is_a_duplicate_folder(
+    conn: sqlite3.Connection,
+) -> None:
+    # 'Big/2 SEM/StarePaczki/UC kopia' jest dokładnym duplikatem
+    # 'Big/00 archiwum/UC kopia'. Para z jego RODZICEM (StarePaczki) to czysty szum:
+    # całe pokrycie siedzi w duplikacie, o którym mówi już duplicate_of. Duplikat
+    # musi więc liczyć się jako świadek, ale nie wolno go wypisać.
+    _seed_package(conn, "Src", {"UC/wyklad1.pdf": "s1", "UC/wyklad2.pdf": "s2"})
+    _seed_package(
+        conn,
+        "Big",
+        {
+            "00 archiwum/UC kopia/w1.pdf": "s1",
+            "00 archiwum/UC kopia/w2.pdf": "s2",
+            "2 SEM/StarePaczki/UC kopia/w1.pdf": "s1",
+            "2 SEM/StarePaczki/UC kopia/w2.pdf": "s2",
+            "2 SEM/StarePaczki/inne/z.pdf": "s9",
+        },
+    )
+    result = _process(conn)
+    assert result["duplicates"] == {
+        "Big/2 SEM/StarePaczki/UC kopia": "Big/00 archiwum/UC kopia"
+    }
+
+    pairs = fold_hash.overlap_pairs(
+        result["folders"], result["subtrees"], result["computed"], result["duplicates"], 0.50
+    ).pairs
+
+    keys = _pair_keys(pairs)
+    # Zostaje jedno trafienie — przeciwko KANONICZNEJ kopii, z identycznym zbiorem
+    # treści pod innymi nazwami (common == unique_a == unique_b to sensowny wynik).
+    assert keys == [("Big/00 archiwum/UC kopia", "Src/UC")]
+    assert pairs[0].common == 2 and pairs[0].unique_a == 2 and pairs[0].unique_b == 2
+    assert ("Big/2 SEM/StarePaczki", "Src/UC") not in keys
+    assert all("Big/2 SEM/StarePaczki/UC kopia" not in key for key in keys)
+
+
 def test_overlap_csv_is_sorted_and_formatted(tmp_path: Path, overlap_conn: sqlite3.Connection) -> None:
     result = _process(overlap_conn)
     pairs = fold_hash.overlap_pairs(
