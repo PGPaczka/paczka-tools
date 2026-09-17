@@ -18,7 +18,8 @@ Legenda: `[ ]` do zrobienia · `[x]` zrobione · `[~]` w toku · ~~przekreślone
 - [x] A5. `scripts/fold_hash.py` — `tree_hash` / `content_set_hash` → `folders.duplicate_of` (dwa przejścia, FK) + `reports/folder_overlap.csv` (próg z `thresholds.yaml`) (2026-09-17)
 - [x] A6. `scripts/dedup_report.py` — unique vs duplicate (liczby, bajty, per paczka) → `reports/dedup_summary.md`, `reports/inventory.jsonl` (2026-09-17)
 - [x] A7. `scripts/scan_target.py` — skan istniejącej `paczka/` w `target_repo` = ground truth (lock; hash + ścieżka docelowa → `applied`/klasyfikacja `manual`, conf=1.0) (2026-09-17)
-- [ ] A9. **Decyzja użytkownika:** istniejąca `paczka/` w `target_repo` używa `SEM3/AKO_Architektura_Komputerów` (bez nawiasów, alias AKO), `paczka/SEM1/sources/`, `paczka/ogolne/`, `Magisterskie_SEM2/<Nazwa bez skrótu>` — a `syntax.yaml`/`config.TARGET_PATH_TEMPLATE` zakłada `({SKROT})_{Nazwa}`. Ground truth ma pierwszeństwo (reguła 2): albo zmienić szablon w configu na `{SKROT}_{Nazwa}`, albo świadomie przemianować w repo docelowym. Do rozstrzygnięcia przed B3/B7 (classify/plan). Wykryte 2026-09-17 przy A7.
+- [ ] A9. **Decyzja użytkownika:** istniejąca `paczka/` w `target_repo` używa `SEM3/AKO_Architektura_Komputerów` (bez nawiasów, alias AKO), `paczka/SEM1/sources/`, `paczka/ogolne/`, `Magisterskie_SEM2/<Nazwa bez skrótu>`, a w SEM5–SEM7 dodatkowy poziom strumienia/profilu (`SEM5/Systemy/…`, `SEM6/Wspolne/…`, `SEM6/Aplikacje/…`, `SEM7/KAIMS_…/…`, łącznie ~520 plików) — a `syntax.yaml`/`config.TARGET_PATH_TEMPLATE` zakłada `({SKROT})_{Nazwa}`. Ground truth ma pierwszeństwo (reguła 2): albo zmienić szablon w configu na `{SKROT}_{Nazwa}`, albo świadomie przemianować w repo docelowym. Do rozstrzygnięcia przed B3/B7 (classify/plan). Wykryte 2026-09-17 przy A7.
+- [ ] A10. `config/subjects.yaml` — braki wykryte przez `scan_target.py` na ground truth (foldery bez dopasowania): sem6 `Systemy/ZAKO_Zaawansowane_Architektury_Komputerów`, sem6 `Wspolne/TRP_Technika_Radia_Programowalnego`, sem7 `KAIMS_Algorytmy_I_Modelowanie_Systemów` (profil bez podfolderu przedmiotu), sem1 `HDMI_…/{Prawo_Patentowe,Twórczość_Inżynierska,Wiedza_O_Kulturze}` (podprzedmioty), magisterskie `Inżynieria_systemów_informacyjnych/ZBI_…` (por. D3). Po uzupełnieniu: ponowny `scan_target.py` (klasyfikacja liczona od nowa przy każdym uruchomieniu).
 - [x] ~~A8. `config/taxonomy.yaml`~~ — zbędny: `syntax.yaml` (kategorie, foldery, formy, media) JEST taksonomią; architektura §3/§13 poprawiona (2026-09-17)
 
 ## B. Skrypty cyklu per-przedmiot
@@ -45,7 +46,7 @@ Legenda: `[ ]` do zrobienia · `[x]` zrobione · `[~]` w toku · ~~przekreślone
 - [ ] C3. `synapse` — graf relacji (notatki `.md` z wikilinkami); **po pilotażu**, na realnych danych
 - [ ] C4. Pełny diff-viewer near-dupe — **po pilotażu**
 - [ ] C5. Skille `.claude/skills/organizer-*` — dopasować do realnych nazw skryptów po B1–B14
-- [ ] C6. `setup/install.sh` — sprawdzić, że instaluje rmlint/ncdu/tesseract(+pol)/poppler/gh/just
+- [x] C6. `setup/install.sh` — sprawdzone: apt stawia rmlint/ncdu/tesseract(+pol)/poppler/jq/rclone (rclone dopisany), `just` z just.systems, venv z requirements; `gh` tylko wykrywany (instalacja ręczna wg README) (2026-09-17)
 
 ## D. Pilotaż i przedmioty
 
