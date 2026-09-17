@@ -13,6 +13,7 @@ pytesseract        # OCR (backend tesseract)
 sqlite-utils       # wygodna praca z SQLite
 typer              # CLI
 PyYAML             # config
+jsonschema         # walidacja linii planu wg prompts/plan_line.schema.json (validate_plan.py)
 anthropic          # backend AI (Claude) — dla llm_client
 openai             # backend AI (Codex) — dla llm_client
 pytest             # testy

@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://paczka-organizer/plan_line.schema.json",
+  "title": "plan.jsonl — jedna linia",
+  "description": "Jedna decyzja planu (jedna linia reports/plan.{SKROT}.{SEMESTR}.jsonl albo plan.{SKROT}.{SEMESTR}.ai.jsonl). Patrz CLAUDE.md §9 (plan przed zmianami) i .claude/skills/organizer-ai-resolve/SKILL.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "description": "Wersja tego schematu — dziś zawsze 1."
+    },
+    "source_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "sha256 treści (content.sha256) — jedna decyzja na jedną treść."
+    },
+    "action": {
+      "type": "string",
+      "enum": ["copy", "quarantine", "skip", "media"],
+      "description": "copy = kopiuj do target_rel; quarantine = niska pewność, do review; skip = celowo pomiń; media = duży plik -> 90_MEDIA/ + wpis w inne/nagrania.txt."
+    },
+    "target_rel": {
+      "type": "string",
+      "description": "Ścieżka docelowa względna wobec paczka/ (albo 90_MEDIA/{skrot}/... dla action=media)."
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "wyklad",
+        "kolokwia",
+        "opracowania",
+        "laboratoria",
+        "cwiczenia",
+        "projekt",
+        "ksiazki",
+        "inne"
+      ],
+      "description": "Kategoria wg config/syntax.yaml — musi być dozwolona przez forms przedmiotu."
+    },
+    "year": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9]{4}$",
+      "description": "Rok akademicki materiału (4 cyfry) albo null, gdy nieznany/nie dotyczy."
+    },
+    "related_to": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "sha256 innej treści, z którą ta pozostaje w relacji (relation), albo null."
+    },
+    "relation": {
+      "type": ["string", "null"],
+      "description": "Rodzaj relacji do related_to, np. near_duplicate|older_version|original_exam|processed_version, albo null. Nigdy nie oznacza fizycznego duplikatu (te idą po hashu, nie tędy)."
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Pewność decyzji. Progi w config/thresholds.yaml: >=0.90 auto, 0.70-0.90 review, <0.70 unresolved/quarantine."
+    },
+    "method": {
+      "type": "string",
+      "description": "Jak podjęto decyzję, np. deterministic|heuristic|llm|manual."
+    },
+    "model": {
+      "type": "string",
+      "description": "Model/backend, który podjął decyzję (np. 'deterministic', 'haiku', 'gemini-3.8-flash-medium')."
+    },
+    "reason": {
+      "type": "string",
+      "maxLength": 240,
+      "description": "Krótkie uzasadnienie po polsku (≤120 znaków w praktyce, twardy limit wyżej)."
+    },
+    "needs_review": {
+      "type": "boolean",
+      "description": "true => pozycja wymaga ręcznego review (niska pewność albo action=quarantine)."
+    }
+  },
+  "required": [
+    "schema_version",
+    "source_sha256",
+    "action",
+    "target_rel",
+    "category",
+    "confidence",
+    "method",
+    "model",
+    "reason",
+    "needs_review"
+  ]
+}
