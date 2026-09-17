@@ -63,8 +63,17 @@ if [ "$WITH_APT" = 1 ]; then
   sudo apt-get update -qq && sudo apt-get install -y -qq "${APT_PKGS[@]}" && ok "apt: ${APT_PKGS[*]}"
 else
   missing=(); for p in jq rmlint ncdu tesseract pdftotext; do command -v "$p" >/dev/null || missing+=("$p"); done
-  [ "${#missing[@]}" = 0 ] && ok "wszystko jest" || warn "brakuje: ${missing[*]} → uruchom z --with-apt (jq jest WYMAGANE przez hooki muxera)"
+  [ "${#missing[@]}" = 0 ] && ok "wszystko jest" || warn "brakuje: ${missing[*]} → uruchom z --with-apt"
 fi
+# jq jest WYMAGANE przez hooki muxera i status line — bez sudo bierzemy statyczną binarkę
+if ! command -v jq >/dev/null; then
+  mkdir -p "$HOME/.local/bin"
+  arch="$(uname -m)"; case "$arch" in x86_64) jqa=amd64 ;; aarch64|arm64) jqa=arm64 ;; *) jqa="" ;; esac
+  if [ -n "$jqa" ] && curl -fsSL "https://github.com/jqlang/jq/releases/latest/download/jq-linux-$jqa" -o "$HOME/.local/bin/jq"; then
+    chmod +x "$HOME/.local/bin/jq" && ok "jq → ~/.local/bin/jq ($("$HOME/.local/bin/jq" --version))"
+  else warn "nie udało się pobrać jq — zainstaluj ręcznie (apt install jq)"; fi
+fi
+case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) warn "~/.local/bin nie jest w PATH — dodaj do ~/.zshrc: export PATH=\"\$HOME/.local/bin:\$PATH\"" ;; esac
 # just (runner) — binarka, bez sudo
 if command -v just >/dev/null; then ok "just $(just --version | awk '{print $2}')"; else
   mkdir -p "$HOME/.local/bin"

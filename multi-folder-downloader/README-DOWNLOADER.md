@@ -4,7 +4,7 @@ Narzędzie do rekurencyjnego pobierania dużego, publicznie dostępnego drzewa G
 
 Przeznaczone dla WSL / Linux i Pythona 3.
 
-Wszystko — skrypty, konfiguracja, docsy i dane SQLite — mieszka w tym katalogu (`multi-folder-downloader/`), obok repo. Jedyny wyjątek to sam output pobierania (`00_SOURCES/`), który celowo zostaje katalog wyżej — patrz [Struktura projektu](#struktura-projektu).
+Wszystko — skrypty, konfiguracja, docsy i dane SQLite — mieszka w tym katalogu (`paczka-tools/multi-folder-downloader/`). Jedyny wyjątek to sam output pobierania (`00_SOURCES/`), który celowo ląduje **dwa poziomy wyżej**, w roocie workspace obok klona `paczka-tools` — patrz [Struktura projektu](#struktura-projektu). To ten sam katalog, który organizer czyta jako `sources` (`organizer/config/paths.yaml`).
 
 Główne pliki:
 
@@ -56,7 +56,7 @@ sudo apt install -y sqlite3
 
 ## Szybki start
 
-Adres źródłowego folderu jest **wymagany** (`--url`). Domyślny katalog wyjściowy to `00_SOURCES/` utworzony o poziom **wyżej** niż skrypt (tworzony automatycznie).
+Adres źródłowego folderu jest **wymagany** (`--url`). Domyślny katalog wyjściowy to `00_SOURCES/` utworzony **dwa poziomy wyżej** niż skrypt, czyli w roocie workspace (tworzony automatycznie).
 
 ```bash
 source ~/.venvs/gdown/bin/activate
@@ -201,7 +201,7 @@ Pełna pomoc: `python download_drive_dashboard_sqlite.py --help`.
 
 ```text
 --url URL              (WYMAGANE) URL lub ID root folderu Google Drive.
---output PATH          Katalog wyjściowy. Domyślnie: ../00_SOURCES względem skryptu.
+--output PATH          Katalog wyjściowy. Domyślnie: ../../00_SOURCES względem skryptu (root workspace).
 --workers N            Liczba równoległych workerów (domyślnie 4).
 --retries N            Maks. prób na listing folderu lub pobranie pliku (6).
 --backoff SECONDS      Bazowe opóźnienie exponential backoff (2.0).
@@ -224,10 +224,10 @@ Pełna pomoc: `python download_drive_dashboard_sqlite.py --help`.
 ## Struktura projektu
 
 ```text
-<root>/                              # np. PaczkaMerge/
-├── .gitignore                       # tylko uniwersalne rzeczy (Python/edytor/system) + 00_SOURCES/
-├── 00_SOURCES/                      # pobrane materiały (domyślny output, katalog wyżej niż skrypty)
-└── multi-folder-downloader/         # skrypty, konfiguracja, docsy i dane SQLite — wszystko razem
+<workspace>/                         # np. ~/dev/paczka/PaczkaMerge/ (katalog roboczy, nie repo)
+├── 00_SOURCES/                      # pobrane materiały (domyślny output; organizer czyta je read-only)
+└── paczka-tools/                    # klon PGPaczka/paczka-tools
+    └── multi-folder-downloader/     # skrypty, konfiguracja, docsy i dane SQLite — wszystko razem
     ├── download_drive_dashboard_sqlite.py
     ├── diag_drive.py
     ├── README-DOWNLOADER.md
@@ -246,15 +246,15 @@ Pełna pomoc: `python download_drive_dashboard_sqlite.py --help`.
             └── summary.json
 ```
 
-`00_SOURCES/` powstaje o poziom wyżej niż skrypty (czyli w `<root>/`), bo to duży zbiór pobranych materiałów, osobny od narzędzia, które go tworzy. Wszystko inne — konfiguracja, cookies, checkpoint SQLite, logi, tymczasowe pliki — zostaje w `multi-folder-downloader/`, każde w swoim podkatalogu. Jeśli chcesz inny układ, wskaż `--output`, `--cookies` i/lub `--state-db` jawnie.
+`00_SOURCES/` powstaje dwa poziomy wyżej niż skrypty (czyli w `<workspace>/`, obok klona `paczka-tools`), bo to duży zbiór pobranych materiałów, osobny od narzędzia, które go tworzy, i nie może wylądować wewnątrz repo. Wszystko inne — konfiguracja, cookies, checkpoint SQLite, logi, tymczasowe pliki — zostaje w `multi-folder-downloader/`, każde w swoim podkatalogu. Jeśli chcesz inny układ, wskaż `--output`, `--cookies` i/lub `--state-db` jawnie.
 
 ---
 
 ## Bezpieczeństwo i git
 
-Repo ma dwa poziomy `.gitignore`:
+`.gitignore`:
 
-- `<root>/.gitignore` — tylko uniwersalne, generyczne wzorce (śmieci Pythona, edytora, systemu) plus `00_SOURCES/`, bo ten katalog fizycznie siedzi w rootcie i musi być tam zignorowany.
+- `00_SOURCES/` leży poza repo (w roocie workspace), więc nie trzeba go ignorować; `paczka-tools/.gitignore` trzyma tylko uniwersalne wzorce.
 - `multi-folder-downloader/.gitignore` — pełna, samodzielna kopia ignorująca wszystko specyficzne dla tego narzędzia: `cookies/cookies.txt`, `cookies/header.txt`, `credentials.json`, `token.json`, `state/download_state.sqlite*`, `_download_logs/`, `.paczka_download_tmp/` oraz też śmieci Pythona/edytora (żeby ten katalog działał samodzielnie, nawet gdybyś przeniósł go do innego repo).
 
 Nigdy nie commituj cookies ani pobranych materiałów.

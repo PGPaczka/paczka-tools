@@ -38,13 +38,15 @@ from gdown.parse_url import _parse_google_drive_folder_id
 
 
 # No hardcoded source/target for --url. The default output is a "00_SOURCES"
-# directory created one level ABOVE this script, e.g. with the script in
-# <root>/multi-folder-downloader/ the downloads land in <root>/00_SOURCES/.
+# directory created TWO levels ABOVE this script, e.g. with the script in
+# <workspace>/paczka-tools/multi-folder-downloader/ the downloads land in
+# <workspace>/00_SOURCES/ (the workspace root, next to the paczka-tools clone).
+# This matches organizer/config/paths.yaml (`sources: ../../00_SOURCES`).
 # The SQLite checkpoint, run logs, cookies and the download tmp dir default
 # to living next to this script instead, each in its own subfolder (see
 # DEFAULT_STATE_DB / DEFAULT_COOKIES_PATH / run_log_dir / tmp_root below).
 SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_OUTPUT = str(SCRIPT_DIR.parent / "00_SOURCES")
+DEFAULT_OUTPUT = str(SCRIPT_DIR.parent.parent / "00_SOURCES")
 DEFAULT_STATE_DB = SCRIPT_DIR / "state" / "download_state.sqlite"
 DEFAULT_COOKIES_PATH = SCRIPT_DIR / "cookies" / "cookies.txt"
 
@@ -2674,7 +2676,7 @@ def parse_args() -> argparse.Namespace:
         ),
         epilog=(
             "Przyklady:\n"
-            "  # pierwszy przebieg (wymagany --url); output domyslnie ../00_SOURCES\n"
+            "  # pierwszy przebieg (wymagany --url); output domyslnie ../../00_SOURCES\n"
             "  python download_drive_dashboard_sqlite.py \\\n"
             "      --url 'https://drive.google.com/drive/folders/ID' --workers 4\n\n"
             "  # z uwierzytelnieniem (pliki native / silny throttling); jesli\n"
@@ -2702,8 +2704,9 @@ def parse_args() -> argparse.Namespace:
         "--output",
         default=DEFAULT_OUTPUT,
         help=(
-            "Local output directory (domyslnie: folder '00_SOURCES' o poziom "
-            "wyzej niz skrypt, tworzony jesli nie istnieje)."
+            "Local output directory (domyslnie: folder '00_SOURCES' dwa poziomy "
+            "wyzej niz skrypt, czyli w roocie workspace obok klona paczka-tools; "
+            "tworzony jesli nie istnieje)."
         ),
     )
     parser.add_argument(
