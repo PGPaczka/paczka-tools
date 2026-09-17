@@ -17,7 +17,7 @@ Legenda: `[ ]` do zrobienia · `[x]` zrobione · `[~]` w toku · ~~przekreślone
 - [x] A4. `scripts/hash_files.py` — sha256 → `files.sha256`, `content` (content_kind z `orglib/kinds.py`), status `hashed`; wznawialny, `--retry-errors`, containment ścieżek (2026-09-17)
 - [x] A5. `scripts/fold_hash.py` — `tree_hash` / `content_set_hash` → `folders.duplicate_of` (dwa przejścia, FK) + `reports/folder_overlap.csv` (próg z `thresholds.yaml`) (2026-09-17)
 - [x] A6. `scripts/dedup_report.py` — unique vs duplicate (liczby, bajty, per paczka) → `reports/dedup_summary.md`, `reports/inventory.jsonl` (2026-09-17)
-- [ ] A7. Skan istniejącej `paczka/` w `target_repo` = ground truth (lock; hash + ścieżka docelowa → `applied`/klasyfikacja `manual`, conf=1.0)
+- [x] A7. `scripts/scan_target.py` — skan istniejącej `paczka/` w `target_repo` = ground truth (lock; hash + ścieżka docelowa → `applied`/klasyfikacja `manual`, conf=1.0) (2026-09-17)
 - [ ] A9. **Decyzja użytkownika:** istniejąca `paczka/` w `target_repo` używa `SEM3/AKO_Architektura_Komputerów` (bez nawiasów, alias AKO), `paczka/SEM1/sources/`, `paczka/ogolne/`, `Magisterskie_SEM2/<Nazwa bez skrótu>` — a `syntax.yaml`/`config.TARGET_PATH_TEMPLATE` zakłada `({SKROT})_{Nazwa}`. Ground truth ma pierwszeństwo (reguła 2): albo zmienić szablon w configu na `{SKROT}_{Nazwa}`, albo świadomie przemianować w repo docelowym. Do rozstrzygnięcia przed B3/B7 (classify/plan). Wykryte 2026-09-17 przy A7.
 - [x] ~~A8. `config/taxonomy.yaml`~~ — zbędny: `syntax.yaml` (kategorie, foldery, formy, media) JEST taksonomią; architektura §3/§13 poprawiona (2026-09-17)
 
@@ -55,6 +55,6 @@ Legenda: `[ ]` do zrobienia · `[x]` zrobione · `[~]` w toku · ~~przekreślone
 
 ## E. Dokumentacja
 
-- [ ] E1. README: sekcja „Skrypty” z realnymi nazwami i kolejnością po A3–A6
+- [x] E1. README: sekcja „Skrypty” z realnymi nazwami i kolejnością po A3–A6 (2026-09-17)
 - [x] E2. `docs/SOURCES_TREE.md` (generowany przez `scan.py`; pierwszy snapshot: 14 paczek, 9 540 katalogów, 48 049 plików, 37,0 GiB) (2026-09-17)
 - [ ] E3. `STATUS.md` (generowany: przedmioty × etapy + liczby)
