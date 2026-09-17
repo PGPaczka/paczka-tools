@@ -1,10 +1,13 @@
 """Klient AI wymienny na backendy: chowa Claude/Codex/Gemini/API za jednym interfejsem.
 
-Kontrakt: ``docs/ARCHITEKTURA_FINALv1.md`` §12, ``CLAUDE.md`` sekcja „Kontrakt
-I/O”. Skrypty potoku (``ai_resolve.py`` i przyszłe) wołają wyłącznie
+Kontrakt: ``docs/ARCHITEKTURA_FINALv1.md`` §12 i ``AGENTS.md``. Skrypty potoku
+(``ai_resolve.py`` i przyszłe) wołają wyłącznie
 :class:`LLMClient` — nie wiedzą, który backend faktycznie odpowiedział. Wybór
 backendu per zadanie (``classify``/``relate``/...) pochodzi z
-``config/thresholds.yaml: llm`` (patrz :func:`load_llm_config`).
+``config/thresholds.yaml: llm`` (patrz :func:`load_llm_config`) i może zostać
+jawnie nadpisany przez ``PACZKA_LLM_<TASK>_BACKEND`` /
+``PACZKA_LLM_<TASK>_MODEL``. Launchery agentów używają tego mechanizmu, żeby
+Claude i Codex mogły mieć różne backendy bez edycji wersjonowanego YAML.
 
 Backendy
 --------
@@ -31,7 +34,7 @@ trywialny prompt ``Odpowiedz wyłącznie JSON: {"ok": true}``, sandboxy jak wyż
 działają, mieszczą się w limicie czasu, żadne nie wymaga potwierdzenia
 interaktywnego. Żadne wywołanie nie używa flag ``--dangerously*``/
 ``--allow-dangerously-skip-permissions`` — sandbox jest zawsze wymuszony i
-nie jest tu konfigurowalny (reguła 9 z ``CLAUDE.md``: AI nie dotyka dysku).
+nie jest tu konfigurowalny (reguły klasyfikatora z ``AGENTS.md``).
 
 Parsowanie JSON (:func:`extract_json`) jest odporne na płoty markdown
 (```` ```json ... ``` ````) i prozę wokół odpowiedzi — szuka pierwszego
@@ -46,6 +49,7 @@ from __future__ import annotations
 
 import hashlib
 import json as jsonlib
+import os
 import subprocess
 import tempfile
 import time
@@ -135,8 +139,16 @@ class LLMConfig:
     def task(self, name: str) -> TaskConfig:
         """Zwraca konfigurację zadania ``name``: dziedziczy backend/model, gdy brak własnych."""
         override = self.task_overrides.get(name, {})
-        backend = str(override.get("backend") or self.default_backend)
-        model = override.get("model")
+        env_prefix = f"PACZKA_LLM_{name.upper().replace('-', '_')}"
+        env_backend = os.environ.get(f"{env_prefix}_BACKEND") or None
+        env_model = os.environ.get(f"{env_prefix}_MODEL")
+        backend = env_backend or str(override.get("backend") or self.default_backend)
+        if env_model is not None:
+            model = env_model or None
+        elif env_backend is not None:
+            model = _DEFAULT_MODELS.get(backend, {}).get(name)
+        else:
+            model = override.get("model")
         if model is None:
             model = _DEFAULT_MODELS.get(backend, {}).get(name)
         timeout_s = int(override.get("timeout_s", self.timeout_s))

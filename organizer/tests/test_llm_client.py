@@ -134,6 +134,31 @@ def test_load_llm_config_codex_and_agy_have_no_default_model() -> None:
     assert cfg.task("relate").model is None
 
 
+def test_task_environment_override_switches_backend_and_model(monkeypatch) -> None:
+    cfg = load_llm_config(
+        {"llm": {"backend": "agy_cli", "relate": {"backend": "claude_cli", "model": "sonnet"}}}
+    )
+    monkeypatch.setenv("PACZKA_LLM_RELATE_BACKEND", "codex_cli")
+    monkeypatch.setenv("PACZKA_LLM_RELATE_MODEL", "gpt-test")
+
+    task = cfg.task("relate")
+
+    assert task.backend == "codex_cli"
+    assert task.model == "gpt-test"
+
+
+def test_task_environment_backend_override_drops_old_provider_model(monkeypatch) -> None:
+    cfg = load_llm_config(
+        {"llm": {"backend": "agy_cli", "relate": {"backend": "claude_cli", "model": "sonnet"}}}
+    )
+    monkeypatch.setenv("PACZKA_LLM_RELATE_BACKEND", "codex_cli")
+
+    task = cfg.task("relate")
+
+    assert task.backend == "codex_cli"
+    assert task.model is None
+
+
 def test_load_llm_config_reads_scalars() -> None:
     cfg = load_llm_config(
         {"llm": {"backend": "openai", "max_text_head_bytes": 512, "timeout_s": 60, "cache": False}}

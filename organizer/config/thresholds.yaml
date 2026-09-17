@@ -23,7 +23,12 @@ llm:
   #   claude_cli — `claude -p` (limit Claude Pro; Haiku/Sonnet/Opus; Fable = kredyty extra usage)
   #   codex_cli  — `codex exec -s read-only` (limit ChatGPT Plus; zero tokenów Anthropic)
   #   agy_cli    — `agy -p --sandbox` Antigravity CLI = Gemini (Google AI student pack; zero tokenów Anthropic)
-  # CLI zewnętrzne zawsze read-only + wymuszony schemat JSON (CLAUDE.md, reguła 9: AI nie dotyka dysku).
+  # CLI zewnętrzne zawsze read-only + wymuszony schemat JSON (AGENTS.md: kontrakt klasyfikatora).
+  # Jawny override bez edycji YAML:
+  #   PACZKA_LLM_CLASSIFY_BACKEND / PACZKA_LLM_CLASSIFY_MODEL
+  #   PACZKA_LLM_RELATE_BACKEND  / PACZKA_LLM_RELATE_MODEL
+  # Launcher `just codex` ustawia domyślnie RELATE_BACKEND=codex_cli,
+  # a `just claude` RELATE_BACKEND=claude_cli.
   backend: agy_cli           # domyślny backend, gdy zadanie nie ma własnego
   classify:                  # masowe classify_one — tanio, setki wywołań
     backend: agy_cli
