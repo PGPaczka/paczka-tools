@@ -123,9 +123,10 @@ semesters:
     - { skrot: BSK, nazwa: Bezpieczeństwo_Systemów_Komputerowych, forms: [W, P], strumien: Aplikacje }
 
   7:
-    # Przedmioty wspólne semestru 7:
-    - { skrot: PDII, nazwa: Projekt_Dyplomowy_Inżynierski_II, forms: [P], instancja: II }
-    - { skrot: P,    nazwa: Praktyka,                         forms: [] }
+    # Przedmioty wspólne semestru 7 (klucz `wspolne`, bo sem 7 ma obok listy klucz `profile`):
+    wspolne:
+      - { skrot: PDII, nazwa: Projekt_Dyplomowy_Inżynierski_II, forms: [P], instancja: II }
+      - { skrot: P,    nazwa: Praktyka,                         forms: [] }
     # UWAGA: poniższe profile występują IDENTYCZNIE pod strumieniem "Systemy" i "Aplikacje".
     #   Wybór strumienia nie zmienia zestawu przedmiotów w profilu — dlatego listujemy raz.
     #   Pole `profil` grupuje; `strumien` = [Systemy, Aplikacje] (oba).

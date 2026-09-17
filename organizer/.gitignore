@@ -1,0 +1,4 @@
+# Artefakty Pythona/pytest — nic z tego nie wchodzi do repo.
+__pycache__/
+*.pyc
+.pytest_cache/
