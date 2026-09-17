@@ -94,13 +94,19 @@ robotę wykonują tańsze modele z limitu Pro:
 |---|---|---|
 | eksploracja repo, czytanie/streszczanie logów, docs, raportów | `muxer:scout` | Haiku |
 | uruchamianie skryptów/testów, streszczanie ich outputu | `muxer:runner` | Haiku |
-| pisanie skryptów pipeline'u (scan/hash/dedup/extract/plan/apply/verify) | `python-pro` (proste) / `muxer:builder` (trudne) | Sonnet / Opus |
+| pisanie skryptów pipeline'u — proste (scan, hash, raporty, CLI, boilerplate, testy wg wzorca) | `python-pro` / `muxer:writer` | Sonnet (domyślnie) |
+| pisanie skryptów pipeline'u — trudne (dedup, classify, plan, validator, apply, llm_client) | `muxer:builder` | Opus |
 | schemat SQLite, zapytania raportowe | `sql-pro` | Sonnet |
 | testy hashy, dedupu, validatora | `test-automator` | Sonnet |
 | README/STATUS/provenance/docs | `documentation-engineer`, `readme-generator` | Haiku |
 | weryfikacja pracy subagentów, review planu | `muxer:reviewer` | Opus |
 | masowe `classify_one` (setki wywołań) | **poza sesją**: `scripts/ai_resolve.py` przez `llm_client` (API / `claude -p`) | Haiku |
 | trudne `relate_cluster`, decyzje `outdated`, architektura | koordynator / `muxer:arbiter` | Fable (krótko) |
+
+Biling: **tylko Fable bierze z kredytów extra usage** (główna pętla, `muxer:arbiter`,
+`muxer:oracle`). Opus/Sonnet/Haiku idą z pakietu Pro. Dlatego: proste buildy domyślnie
+na Sonnet, Opus tylko tam, gdzie jest logika z wieloma decyzjami; `arbiter`/`oracle`
+tylko na wyraźne życzenie użytkownika.
 
 Kontrakt delegacji:
 - Subagent zwraca **zwięzłe podsumowanie (≤30 linii)** — nigdy surowe pliki ani listingi.
@@ -122,4 +128,18 @@ Kontrakt delegacji:
 - Do gita: `config/`, `prompts/`, `plan.jsonl`, `manual_decisions.jsonl`,
   provenance, raporty. **Ręczne decyzje eksportuj do
   `reports/manual_decisions.jsonl`** — muszą przeżyć przebudowę bazy.
-- Commit per przedmiot, po `verify`. Nie commituj stanów pośrednich.
+- **Kod, config, docs, testy organizera (to repo): małe commity, bez pytania.** Każda
+  działająca, przetestowana sekcja (np. schemat, `scan.py`, `hash.py`) = osobny commit
+  od razu po zielonych testach/review. Nie zostawiaj działającej pracy niecommitowanej.
+- **Materiały przedmiotu (`target_repo`): commit per przedmiot, po `verify`.** Nie
+  commituj stanów pośrednich planu/apply.
+
+## TODO.md — lista zadań do odhaczania
+
+`TODO.md` w korzeniu projektu to plan pracy (skrypty, narzędzia, kolejne kroki).
+Obowiązki Claude Code:
+- Na starcie sesji przeczytaj `TODO.md`, żeby wiedzieć, gdzie jesteśmy.
+- Po ukończeniu pozycji **odhacz ją samodzielnie** (`- [x]`, z datą) i dopisz
+  nowe pozycje, które wynikły z pracy. Nie pytaj o zgodę na odhaczenie.
+- Zmiana `TODO.md` wchodzi do tego samego commita co ukończona praca.
+- Nie usuwaj pozycji; nieaktualne oznacz `~~tekst~~` z powodem.
