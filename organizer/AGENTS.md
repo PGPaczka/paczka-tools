@@ -1,6 +1,7 @@
 # AGENTS.md — zasady dla agenta (model-agnostyczne)
 
-Pełne zasady: `CLAUDE.md`. Skrót obowiązujący każdy model (Claude / Codex):
+Pełne zasady: `CLAUDE.md`. Skrót obowiązujący każdy model (Claude / Codex / Gemini via `agy`;
+`GEMINI.md` tylko odsyła tutaj):
 
 1. Never modify or delete anything under `00_SOURCES` — read-only archive.
 2. `paczka/` is the canonical package being constructed.

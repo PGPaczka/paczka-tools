@@ -17,7 +17,20 @@ media:
   threshold_bytes: 26214400  # 25 MiB — powyżej idzie do 90_MEDIA (spójne z syntax.yaml)
 
 llm:
-  backend: anthropic         # anthropic | openai | claude_cli | codex_cli
-  classify_model: ""         # mniejszy/tańszy model do classify_one (uzupełnić)
-  relate_model: ""           # mocniejszy model do relate_cluster (uzupełnić)
+  # Backend AI dla scripts/ai_resolve.py (przez scripts/orglib/llm_client.py). Wybór per zadanie.
+  #   anthropic  — API Anthropic (ANTHROPIC_API_KEY; płatne per token)
+  #   openai     — API OpenAI (OPENAI_API_KEY; płatne per token)
+  #   claude_cli — `claude -p` (limit Claude Pro; Haiku/Sonnet/Opus; Fable = kredyty extra usage)
+  #   codex_cli  — `codex exec -s read-only` (limit ChatGPT Plus; zero tokenów Anthropic)
+  #   agy_cli    — `agy -p --sandbox` Antigravity CLI = Gemini (Google AI student pack; zero tokenów Anthropic)
+  # CLI zewnętrzne zawsze read-only + wymuszony schemat JSON (CLAUDE.md, reguła 9: AI nie dotyka dysku).
+  backend: agy_cli           # domyślny backend, gdy zadanie nie ma własnego
+  classify:                  # masowe classify_one — tanio, setki wywołań
+    backend: agy_cli
+    model: gemini-3.8-flash-medium
+  relate:                    # relate_cluster / trudne resztki — mocniejszy model, mało wywołań
+    backend: claude_cli
+    model: sonnet
   max_text_head_bytes: 2048  # ile tekstu na plik wysyłamy do modelu
+  timeout_s: 300             # limit na jedno wywołanie CLI/API
+  cache: true                # cache decyzji po (sha256, zadanie, hash promptu) w work/ai_cache.sqlite

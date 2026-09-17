@@ -73,8 +73,9 @@ Nie wykonuj `apply`, dopóki plan nie przeszedł walidatora i akceptacji.
 - Wejście AI: wycinek manifestu przedmiotu (`manifest_slice.jsonl`) + wyciągnięty
   tekst (głowa ~1–2 KB/plik) + struktura docelowa + zasady.
 - Wyjście AI: `plan.jsonl` (jedna decyzja/linia) zgodny ze schematem.
-- Model chowamy za `llm_client.py` (backend: anthropic / openai / `claude -p` /
-  `codex exec` — wybór w `config/`). Skrypty nie wiedzą, jaki model odpowiada.
+- Model chowamy za `scripts/orglib/llm_client.py` (backend: anthropic / openai / `claude -p` /
+  `codex exec` / `agy -p` — wybór per zadanie w `config/thresholds.yaml: llm`). Skrypty nie
+  wiedzą, jaki model odpowiada.
 
 ## Minimalizacja tokenów
 
@@ -100,18 +101,30 @@ robotę wykonują tańsze modele z limitu Pro:
 | testy hashy, dedupu, validatora | `test-automator` | Sonnet |
 | README/STATUS/provenance/docs | `documentation-engineer`, `readme-generator` | Haiku |
 | weryfikacja pracy subagentów, review planu | `muxer:reviewer` | Opus |
-| masowe `classify_one` (setki wywołań) | **poza sesją**: `scripts/ai_resolve.py` przez `llm_client` (API / `claude -p`) | Haiku |
+| masowe `classify_one` (setki wywołań) | **poza sesją**: `scripts/ai_resolve.py` przez `llm_client`; backend z `thresholds.yaml: llm.classify` | Gemini flash (`agy_cli`, domyślnie); alternatywnie `codex_cli` / `claude_cli` Haiku |
+| proste skrypty/testy wg gotowego wzorca, gdy limit Pro się kończy; równoległe strumienie | `codex` (agent projektu, `codex exec`) | GPT / Codex (limit ChatGPT Plus) |
+| streszczanie dużych logów, raportów, drzew katalogów; masowe przetwarzanie tekstu | `agy` (agent projektu, `agy -p`) | Gemini flash (student pack) |
+| drugie zdanie o planie / skrypcie spoza Anthropic | `codex` lub `agy` | GPT / Gemini |
 | trudne `relate_cluster`, decyzje `outdated`, architektura | koordynator / `muxer:arbiter` | Fable (krótko) |
 
-Biling: **tylko Fable bierze z kredytów extra usage** (główna pętla, `muxer:arbiter`,
-`muxer:oracle`). Opus/Sonnet/Haiku idą z pakietu Pro. Dlatego: proste buildy domyślnie
-na Sonnet, Opus tylko tam, gdzie jest logika z wieloma decyzjami; `arbiter`/`oracle`
-tylko na wyraźne życzenie użytkownika.
+Biling: konto **Claude Pro** (nie Max) + kredyty extra usage. **Tylko Fable bierze z kredytów
+extra usage** (główna pętla, `muxer:arbiter`, `muxer:oracle`). Opus/Sonnet/Haiku idą z limitu
+Pro, który jest mały — dlatego wolumen zdejmują CLI spoza Anthropic: `codex exec` (ChatGPT Plus)
+i `agy -p` (Antigravity CLI = Gemini, Google AI student pack) — zero tokenów Anthropic za ich
+pracę. Zasady: proste buildy Sonnet albo `codex`; Opus tylko tam, gdzie jest logika z wieloma
+decyzjami; `muxer:reviewer` (Opus) weryfikuje także pracę `codex`/`agy` — weryfikator nigdy nie
+jest tańszy niż wykonawca; `arbiter`/`oracle` tylko na wyraźne życzenie użytkownika.
+Uwaga: `muxer:gemini` szuka binarki `gemini` (brak na tej maszynie) — używaj agenta `agy`;
+`muxer:codex` woła `--full-auto`, którego codex-cli ≥0.154 nie ma — używaj agenta `codex`.
 
 Kontrakt delegacji:
 - Subagent zwraca **zwięzłe podsumowanie (≤30 linii)** — nigdy surowe pliki ani listingi.
   Bulk treści nie może trafić do kontekstu koordynatora.
 - Koordynator **nie otwiera sam plików z `sources`** i nie czyta binariów. Pyta skrypty/bazę.
+- CLI zewnętrzne (`codex`, `agy`): brief zapisany narzędziem Write do pliku w `/tmp` (heredoc
+  w Bash z tekstem ścieżki źródeł blokuje hook `guard-sources`); sandbox read-only domyślnie,
+  `workspace-write` tylko w organizerze lub klonie `target_repo`, nigdy zapis do `sources`.
+  Agent AI w `ai_resolve.py` zawsze read-only + wymuszony schemat JSON (reguła 9).
 - Brief jest samowystarczalny: kontrakt z `docs/ARCHITEKTURA_FINALv1.md`, kryteria akceptacji,
   ścieżki z `config/paths.yaml`. Najpierw jeden wzorcowy skrypt (zreviewowany), potem replikacja.
 - Wzorzec: Research → Plan → Execute → Review → Ship = `scan…plan` → `validate` → **review

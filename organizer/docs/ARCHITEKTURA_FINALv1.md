@@ -16,7 +16,7 @@ Spis:
 9. Review i widoczność stanu
 10. Media
 11. Git: issue → PR → merge
-12. AI: Claude/Codex wymienne, minimalizacja tokenów
+12. AI: Claude/Codex/Gemini wymienne, minimalizacja tokenów
 13. **Plan działania (pierwszy przebieg + uniwersalny per-przedmiot)**
 14. Rozszerzalność na kolejne roczniki
 15. Stos technologiczny
@@ -64,7 +64,7 @@ flowchart TD
     CLASS -->|confidence ≥ próg| PLAN1["plan.jsonl — część pewna"]
     CLASS -->|confidence < próg| UNRES["unresolved (kolejka)"]
 
-    subgraph AI["AI — per PRZEDMIOT (Claude / Codex, wymienne)"]
+    subgraph AI["AI — per PRZEDMIOT (Claude / Codex / Gemini, wymienne)"]
         UNRES --> AGENT["ai-resolve-ambiguous + relate-cluster"]
         AGENT --> PLAN2["dopisane linie do plan.jsonl"]
     end
@@ -307,12 +307,16 @@ przedmiotów — nie klikane ręcznie.
 
 ---
 
-## 12. AI: Claude/Codex wymienne, tokeny
+## 12. AI: Claude/Codex/Gemini wymienne, tokeny
 
 Agent = czysta funkcja `manifest_slice.jsonl → plan.jsonl`, nie dotyka dysku.
-Za `llm_client.py` chowamy backend (anthropic / openai / `claude -p` / `codex
-exec`) — wybór w configu. Dwa tryby: masowe `classify_one` przez API/headless;
-trudne `relate_cluster` + orkiestracja interaktywnie.
+Za `scripts/orglib/llm_client.py` chowamy backend (anthropic / openai / `claude -p` /
+`codex exec` / `agy -p` = Antigravity CLI, Gemini) — wybór **per zadanie** w
+`config/thresholds.yaml: llm` (`classify` tanio i masowo, `relate` mocnym modelem).
+CLI zewnętrzne zawsze w sandboxie read-only z wymuszonym schematem JSON. Dwa tryby:
+masowe `classify_one` przez API/headless; trudne `relate_cluster` + orkiestracja
+interaktywnie. Koordynacja w sesji: Claude Code (Fable/Opus) deleguje do agentów
+projektu `codex` i `agy` (`.claude/agents/`) — zero tokenów Anthropic za ich pracę.
 
 Tokeny: dedup przed extract przed classify; nigdy binariów (tylko nazwa+ścieżka+
 głowa tekstu ~1–2 KB); cache decyzji po sha256; struktura raz na sesję; poddrzewa

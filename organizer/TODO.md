@@ -29,7 +29,7 @@ Legenda: `[ ]` do zrobienia · `[x]` zrobione · `[~]` w toku · ~~przekreślone
 - [ ] B1. `scripts/prepare_subject.py --semester N --skrot X` — wycinek manifestu przedmiotu (kandydaci po ścieżce/aliasach) → `reports/{SKROT}/manifest_slice.jsonl`
 - [ ] B2. `scripts/extract_text.py` — głowa tekstu (PDF/DOCX/PPTX, OCR awaryjnie) do `20_WORK/extracted_text/{sha256}.txt`, `normalized_text_hash`, `simhash`, `phash`; tylko unique, status `extracted`
 - [ ] B3. `scripts/classify.py` — deterministyczny + heurystyka (regex lab/kol/egzamin/rok/prowadzący); semestr rozstrzyga skrót; `forms` waliduje; status `classified` albo `unresolved`
-- [ ] B4. `scripts/llm_client.py` — backend anthropic / openai / `claude -p` / `codex exec` z `thresholds.yaml: llm`; cache decyzji po sha256
+- [ ] B4. `scripts/orglib/llm_client.py` — backend anthropic / openai / `claude -p` / `codex exec` / `agy -p` (Antigravity = Gemini) z `thresholds.yaml: llm` (per zadanie `classify`/`relate`); CLI read-only + schemat JSON; cache decyzji po sha256
 - [ ] B5. `prompts/classify_ambiguous.md`, `prompts/relate_cluster.md` + `scripts/ai_resolve.py` (poza sesją, masowo)
 - [ ] B6. `scripts/near_dupe.py` — simhash/MinHash/phash → `relations` (near_duplicate / older_version / related); nigdy nie kasuje
 - [ ] B7. `scripts/build_plan.py` → `reports/{SKROT}/plan.jsonl` (schema_version, `_meta`, plan_hash)
@@ -48,6 +48,8 @@ Legenda: `[ ]` do zrobienia · `[x]` zrobione · `[~]` w toku · ~~przekreślone
 - [ ] C3. `synapse` — graf relacji (notatki `.md` z wikilinkami); **po pilotażu**, na realnych danych
 - [ ] C4. Pełny diff-viewer near-dupe — **po pilotażu**
 - [ ] C5. Skille `.claude/skills/organizer-*` — dopasować do realnych nazw skryptów po B1–B14
+- [x] C7. Delegacja multi-model: agenci projektu `codex` (`codex exec`, bez `--full-auto`) i `agy` (Antigravity CLI = Gemini; `muxer:gemini` szuka nieobecnej binarki `gemini`), `GEMINI.md` → `AGENTS.md`, `thresholds.yaml: llm` per zadanie (`classify` → `agy_cli`, `relate` → `claude_cli`), tabela koordynatora i biling (Pro, nie Max) w `CLAUDE.md`, permissions `codex exec`/`agy -p`/`claude -p` w `settings.json` (2026-09-17)
+- [ ] C8. Smoke test delegacji: jedno wywołanie agenta `codex` i `agy` na trywialnym zadaniu read-only (sprawdzić flagi `-s read-only` / `--sandbox`, format wyjścia, czy `agy` czyta `AGENTS.md`/`GEMINI.md`)
 - [x] C6. `setup/install.sh` — sprawdzone: apt stawia rmlint/ncdu/tesseract(+pol)/poppler/jq/rclone (rclone dopisany), `just` z just.systems, venv z requirements; `gh` tylko wykrywany (instalacja ręczna wg README) (2026-09-17)
 
 ## D. Pilotaż i przedmioty

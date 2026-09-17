@@ -28,16 +28,19 @@ Jeśli para nie istnieje w `subjects.yaml` — STOP i zapytaj.
    (np. ME bez laboratoriów).
 4. **unresolved?** Jeśli kolejka pusta → krok 6. Jeśli nie:
 5. **AI dla resztek** — NIE w tym kontekście. Uruchom `scripts/ai_resolve.py --semester $semestr --skrot
-   $skrot` (backend z `config/thresholds.yaml: llm.backend`; cache po sha256). Jeśli backend to
-   `claude_cli`, skrypt woła `/organizer-ai-resolve` headless. Do kontekstu wraca: ile rozwiązane,
-   ile nadal `unresolved`, ile `needs_review`.
+   $skrot` (backend i model per zadanie z `config/thresholds.yaml: llm.classify` / `llm.relate`;
+   domyślnie `agy_cli` = Gemini flash przez `agy -p --sandbox`, zero tokenów Anthropic; cache po
+   sha256). Backend `claude_cli` woła `claude -p` z promptem z `prompts/` (odpowiednik
+   `/organizer-ai-resolve`). Do kontekstu wraca: ile rozwiązane, ile nadal `unresolved`, ile
+   `needs_review`.
 6. **build-move-plan**: `scripts/build_plan.py --semester $semestr --skrot $skrot` →
    `reports/plan.$skrot.$semestr.jsonl` (jedna decyzja/linia, po sha256, z `_meta`).
 7. **validate-plan**: `scripts/validate_plan.py reports/plan.$skrot.$semestr.jsonl --dry-run` — schemat,
    istnienie sha256, target pod `paczka/` i zgodny z `config/syntax.yaml`, brak kolizji, bramka
    confidence, relacje, **dry-run diff drzewa**. Exit≠0 → napraw przyczynę (wróć do 3), nie obchodź.
 
-Brakujący skrypt → najpierw zleć `python-pro` (brief: kontrakt z ARCHITEKTURA §6–8, `syntax.yaml`,
+Brakujący skrypt → najpierw zleć `python-pro` (Sonnet) albo, gdy limit Pro jest wyczerpany, agentowi
+`codex` (`codex exec -s workspace-write`; brief: kontrakt z ARCHITEKTURA §6–8, `syntax.yaml`,
 `thresholds.yaml`, ścieżki z `paths.yaml`), potem `muxer:reviewer`, potem wróć do kroku.
 
 ## Wyjście i STOP (👤 bramka raz na przedmiot)
