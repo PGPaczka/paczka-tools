@@ -1,0 +1,21 @@
+# paths.yaml — JEDYNE miejsce, w którym organizer zna ścieżki do katalogów poza repo.
+# Wszystkie ścieżki względne do katalogu organizer/ (paczka-tools/organizer/).
+# Skrypty i skille czytają TEN plik; nigdy nie hardkodują ścieżek.
+#
+# Układ workspace (~/dev/paczka/PaczkaMerge/):
+#   00_SOURCES/            stare paczki — READ-ONLY, nigdy nie modyfikować
+#   10_NEW/PaczkaInfaPG/   klon repo docelowego; apply pisze do <target_repo>/<target_paczka_subdir>
+#   20_WORK/               organizer.sqlite, extracted_text/, thumbnails/ (odtwarzalne, poza gitem)
+#   90_MEDIA/              duże wideo/audio wyjęte z paczki (poza gitem)
+#   paczka-tools/organizer TEN projekt
+
+sources: ../../00_SOURCES              # READ-ONLY
+work: ../../20_WORK
+media: ../../90_MEDIA
+target_repo: ../../10_NEW/PaczkaInfaPG # klon Billypl/PaczkaInfaPG; praca tylko na branchu subject/{SKROT}
+target_paczka_subdir: paczka           # katalog materiałów wewnątrz target_repo
+
+# Nazwy plików/katalogów w work:
+work_db: organizer.sqlite
+work_extracted_text: extracted_text
+work_thumbnails: thumbnails

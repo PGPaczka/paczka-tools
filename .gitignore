@@ -1,0 +1,22 @@
+# --- Python / system / edytor ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*:ZoneIdentifier
+
+# --- Claude Code: ustawienia maszyny (ścieżki bezwzględne generowane przez organizer/setup/install.sh) ---
+.claude/settings.local.json
+**/.claude/settings.local.json
+
+# --- organizer: artefakty lokalne (dane żyją w 20_WORK/90_MEDIA poza repo) ---
+organizer/reports/review/*.html
+organizer/reports/rmlint.json
+organizer/reports/ncdu.json
+organizer/reports/rmlint.sh

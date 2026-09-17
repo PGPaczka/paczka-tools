@@ -1,0 +1,173 @@
+# subjects.yaml — katalog przedmiotów (Paczka Organizer)
+# =====================================================================
+# ZASADA TOŻSAMOŚCI:
+#   Skrót przedmiotu NIE jest globalnie unikalny. Tożsamością przedmiotu
+#   jest para (semestr, skrot). Gdy ten sam skrót powtarza się w tym samym
+#   semestrze — dodatkowo różnicujemy nazwą. Klasyfikator MUSI znać semestr
+#   (z docelowej ścieżki paczka/SEM{n}/...), żeby rozstrzygnąć kolizje.
+#
+# KOLIZJE SKRÓTÓW (ten sam skrót = różne przedmioty):
+#   AK  : sem3 Architektura_Komputerów   vs  sem7 Animacja_Komputerowa
+#   PO  : sem2 Programowanie_Obiektowe    vs  sem7 Przetwarzanie_Obrazów
+#   SI  : sem4 Sztuczna_Inteligencja      vs  sem7 Sieci_IP
+#   SK  : sem4 Sieci_Komputerowe          vs  sem6 Sieci_Korporacyjne  (por. SK-L sem5)
+#   ASK : sem5 Administrowanie_Systemami  vs  sem7 Administrowanie_Sieciami
+#   PGI : sem5 Projekt_Grupowy_I          vs  sem6 Projekt_Grupowy_II
+#   PDII: sem6 vs sem7  ;  SDII: sem6 vs sem7 (wielokrotnie)
+#   JAI : sem1..sem5 (Język Angielski I–IV) — ta sama rodzina, różne instancje
+#   WFI : sem2, sem3
+#
+# forms (formy zajęć, sygnał dla klasyfikatora — jakie kategorie są w ogóle
+#   dozwolone dla przedmiotu):
+#   W=wykład  C=ćwiczenia  L=laboratoria  P=projekt  S=seminarium
+#
+# aliases: warianty pisowni spotykane w źródłach (00_SOURCES). Na starcie
+#   wypełnione tylko oczywistymi przypadkami; RESZTA DOPISYWANA AUTOMATYCZNIE
+#   podczas skanu (fuzzy-match nazw folderów) i zatwierdzana w review.
+#
+# target_path: paczka/SEM{n}/({SKROT})_{Nazwa}/...   (Magisterskie_SEM2 = "M2")
+# =====================================================================
+
+meta:
+  form_codes: { W: wykład, C: ćwiczenia, L: laboratoria, P: projekt, S: seminarium }
+  identity_key: "semester + skrot (+ nazwa gdy skrot powtarza się w semestrze)"
+  target_path_template: "paczka/SEM{semester}/({skrot})_{nazwa}"
+  aliases_note: "aliasy folderów źródłowych dopisywane automatycznie podczas skanu i zatwierdzane w review"
+
+semesters:
+
+  1:
+    - { skrot: WAI, nazwa: Wytwarzanie_Aplikacji_Internetowych, forms: [W, P] }
+    - { skrot: ME,  nazwa: Matematyka_Elementarna,              forms: [W, C] }
+    - { skrot: HIH, nazwa: Hipertekst_I_Hipermedia,             forms: [W, L, P] }
+    - { skrot: AM,  nazwa: Analiza_Matematyczna,                forms: [W, C] }
+    - { skrot: HDI, nazwa: Humanistyka_Dla_Inżynierów,          forms: [W] }
+    - { skrot: PP,  nazwa: Podstawy_Programowania,              forms: [W, L, P] }
+    - { skrot: AL,  nazwa: Algebra_Liniowa,                     forms: [W, C] }
+
+  2:
+    - { skrot: PEIM, nazwa: Podstawy_Elektroniki_I_Metrologii,  forms: [W, L] }
+    - { skrot: PF,   nazwa: Podstawy_Fizyki,                    forms: [W, C] }
+    - { skrot: JAI,  nazwa: Język_Angielski_I,                  forms: [C], instancja: I }
+    - { skrot: SO,   nazwa: Systemy_Operacyjne,                 forms: [W, L] }
+    - { skrot: MD,   nazwa: Matematyka_Dyskretna,               forms: [W, C] }
+    - { skrot: PO,   nazwa: Programowanie_Obiektowe,            forms: [W, L, P] }   # KOLIZJA z sem7 (Przetwarzanie_Obrazów)
+    - { skrot: AISD, nazwa: Algorytmy_I_Struktury_Danych,       forms: [W, L, P] }
+    - { skrot: UC,   nazwa: Układy_Cyfrowe,                     forms: [W, L, P] }
+    - { skrot: WFI,  nazwa: Wychowanie_Fizyczne_I,             forms: [C], instancja: I }
+
+  3:
+    - { skrot: AK,  nazwa: Architektura_Komputerów, forms: [W, C, L], aliases: [AKO, "AKO2020", "AKO2021"] }  # KOLIZJA z sem7 (Animacja_Komputerowa)
+    - { skrot: JAI, nazwa: Język_Angielski_II,      forms: [C], instancja: II }
+    - { skrot: JP,  nazwa: Języki_Programowania,    forms: [W, P] }
+    - { skrot: BD,  nazwa: Bazy_Danych,             forms: [W, L, P] }
+    - { skrot: GK,  nazwa: Grafika_Komputerowa,     forms: [W, L] }
+    - { skrot: MII, nazwa: Multimedia_I_Interfejsy, forms: [W, L] }
+    - { skrot: PAA, nazwa: Podstawy_Analizy_Algorytmów, forms: [W, C] }
+    - { skrot: FW,  nazwa: Fizyka_Współczesna,      forms: [W, L] }
+    - { skrot: WFI, nazwa: Wychowanie_Fizyczne_II,  forms: [C], instancja: II }
+
+  4:
+    - { skrot: PT,     nazwa: Platformy_Technologiczne,               forms: [W, L] }
+    - { skrot: SOMOXII, nazwa: System_Operacyjny_MAC_OS_X_I_IOS,      forms: [W, L] }
+    - { skrot: SI,     nazwa: Sztuczna_Inteligencja,                  forms: [W, L, P] }  # KOLIZJA z sem7 (Sieci_IP)
+    - { skrot: WDC,    nazwa: Wprowadzenie_Do_Cyberbezpieczeństwa,    forms: [W, P] }
+    - { skrot: MN,     nazwa: Metody_Numeryczne,                      forms: [W, L, P] }
+    - { skrot: PR,     nazwa: Przetwarzanie_Rozproszone,              forms: [W, L, P] }
+    - { skrot: SK,     nazwa: Sieci_Komputerowe,                      forms: [W] }        # KOLIZJA z sem6 (Sieci_Korporacyjne)
+    - { skrot: JAI,    nazwa: Język_Angielski_III,                    forms: [C], instancja: III }
+    - { skrot: SWIM,   nazwa: Systemy_Wbudowane_I_Mikroprocesory,     forms: [W, L] }
+    - { skrot: MPWI,   nazwa: Metody_Probabilistyczne_W_Informatyce,  forms: [W, C, L] }
+
+  5:
+    - { skrot: PGI,  nazwa: Projekt_Grupowy_I,             forms: [P], instancja: I }
+    - { skrot: IO,   nazwa: Inżynieria_Oprogramowania,     forms: [W, L] }
+    - { skrot: JAI,  nazwa: Język_Angielski_IV,            forms: [C], instancja: IV }
+    - { skrot: SK-L, nazwa: Sieci_Komputerowe_-_Laboratorium, forms: [L] }
+    - { skrot: SAI,  nazwa: Społeczne_Aspekty_Informatyki, forms: [W, P] }
+    # --- Strumień: Systemy ---
+    - { skrot: SBD, nazwa: Struktury_Baz_Danych,                    forms: [W, P], strumien: Systemy }
+    - { skrot: KSS, nazwa: Komputerowe_Systemy_Sterowania,          forms: [W, L], strumien: Systemy }
+    - { skrot: SA,  nazwa: Systemy_Agentowe,                        forms: [W, L], strumien: Systemy }
+    - { skrot: ASK, nazwa: Administrowanie_Systemami_Komputerowymi, forms: [W, L, P], strumien: Systemy }  # KOLIZJA z sem7 ASK (Sieciami)
+    - { skrot: OS,  nazwa: Oprogramowanie_Systemowe,                forms: [W, P], strumien: Systemy }
+    - { skrot: KK,  nazwa: Konstrukcja_Kompilatorów,               forms: [W, P], strumien: Systemy }
+    # --- Strumień: Aplikacje ---
+    - { skrot: BE,  nazwa: Biznes_Elektroniczny,                    forms: [W, P], strumien: Aplikacje }
+    - { skrot: WI,  nazwa: Wizualizacja_Informacji,                 forms: [W, P], strumien: Aplikacje }
+    - { skrot: ASW, nazwa: Aplikacje_Systemów_Wbudowanych,          forms: [W, L], strumien: Aplikacje }
+    - { skrot: HD,  nazwa: Hurtownie_Danych,                        forms: [W, L], strumien: Aplikacje }
+    - { skrot: AUI, nazwa: Architektury_Usług_Internetowych,        forms: [W, L], strumien: Aplikacje }
+    - { skrot: SIP, nazwa: Systemy_Informacji_Przestrzennej,        forms: [W, L], strumien: Aplikacje }
+
+  6:
+    - { skrot: PGI,  nazwa: Projekt_Grupowy_II,                 forms: [P], instancja: II }
+    - { skrot: ZBS,  nazwa: Zarządzanie_Bezpieczeństwem_Sieci,  forms: [W, L] }
+    - { skrot: RPI,  nazwa: Realizacja_Projektu_Informatycznego, forms: [W, P] }
+    - { skrot: ZFI,  nazwa: Zarządzanie_Firmą_Informatyczną,    forms: [W, P] }
+    - { skrot: PDII, nazwa: Projekt_Dyplomowy_Inżynierski_I,    forms: [P], instancja: I }
+    - { skrot: SDII, nazwa: Seminarium_Dyplomowe_Inżynierskie_I, forms: [S], instancja: I }
+    # --- Strumień: Systemy ---
+    - { skrot: ZAK, nazwa: Zaawansowane_Architektury_Komputerów, forms: [W, L], strumien: Systemy }
+    - { skrot: LSB, nazwa: Lokalne_Sieci_Bezprzewodowe,          forms: [W, L], strumien: Systemy }
+    - { skrot: MSO, nazwa: Mobilne_Systemy_Operacyjne,           forms: [W, L], strumien: Systemy }
+    - { skrot: ISP, nazwa: Inżynieria_Systemów_Programowalnych,  forms: [W, L], strumien: Systemy }
+    - { skrot: ST,  nazwa: Systemy_Telekomunikacyjne,            forms: [W, L], strumien: Systemy }
+    - { skrot: SK,  nazwa: Sieci_Korporacyjne,                   forms: [W, P], strumien: Systemy }  # KOLIZJA z sem4 SK (Sieci_Komputerowe)
+    # --- Strumień: Aplikacje ---
+    - { skrot: KSR, nazwa: Komponentowe_Systemy_Rozproszone,     forms: [W, L], strumien: Aplikacje }
+    - { skrot: ED,  nazwa: Eksploracja_Danych,                   forms: [W, L], strumien: Aplikacje }
+    - { skrot: WZR, nazwa: Wirtualne_Zespoły_Robocze,            forms: [W, L], strumien: Aplikacje }
+    - { skrot: JO,  nazwa: Jakość_Oprogramowania,                forms: [W, P], strumien: Aplikacje }
+    - { skrot: BW,  nazwa: Bazy_Wiedzy,                          forms: [W, L], strumien: Aplikacje }
+    - { skrot: BSK, nazwa: Bezpieczeństwo_Systemów_Komputerowych, forms: [W, P], strumien: Aplikacje }
+
+  7:
+    # Przedmioty wspólne semestru 7:
+    - { skrot: PDII, nazwa: Projekt_Dyplomowy_Inżynierski_II, forms: [P], instancja: II }
+    - { skrot: P,    nazwa: Praktyka,                         forms: [] }
+    # UWAGA: poniższe profile występują IDENTYCZNIE pod strumieniem "Systemy" i "Aplikacje".
+    #   Wybór strumienia nie zmienia zestawu przedmiotów w profilu — dlatego listujemy raz.
+    #   Pole `profil` grupuje; `strumien` = [Systemy, Aplikacje] (oba).
+    profile:
+      Architektura_systemów_komputerowych:
+        - { skrot: PAI,  nazwa: Projektowanie_Aplikacji_Internetowych, forms: [W, P] }
+        - { skrot: "SI.", nazwa: Serwisy_Internetowe_.NET,            forms: [W, P] }   # skrót z kropką — zachować dokładnie
+        - { skrot: NIAJ, nazwa: Narzędzia_I_Aplikacje_JEE,            forms: [W, L] }
+        - { skrot: SDII, nazwa: Seminarium_Dyplomowe_Inżynierskie_II, forms: [S], instancja: II }
+      Inteligentne_systemy_interaktywne:
+        - { skrot: PGK, nazwa: Projektowanie_Gier_Komputerowych, forms: [W, L] }
+        - { skrot: PO,  nazwa: Przetwarzanie_Obrazów,            forms: [W, L] }   # KOLIZJA z sem2 PO (Programowanie_Obiektowe)
+        - { skrot: DC,  nazwa: Dokumenty_Cyfrowe,                forms: [W, P] }
+        - { skrot: AK,  nazwa: Animacja_Komputerowa,             forms: [W, L] }   # KOLIZJA z sem3 AK (Architektura_Komputerów)
+        - { skrot: SDII, nazwa: Seminarium_Dyplomowe_Inżynierskie_II, forms: [S], instancja: II }
+      Bazy_danych:
+        - { skrot: ZSBD, nazwa: Zarządzanie_Systemami_Baz_Danych,  forms: [W, L] }
+        - { skrot: NBD,  nazwa: Nierelacyjne_Bazy_Danych,          forms: [W, L] }
+        - { skrot: PSSO, nazwa: Projektowanie_Skalowalnych_Systemów_Obiektowych, forms: [W, L, P] }
+        - { skrot: ABD,  nazwa: Aplikacje_Baz_Danych,             forms: [W, L] }
+        - { skrot: SDII, nazwa: Seminarium_Dyplomowe_Inżynierskie_II, forms: [S], instancja: II }
+      Algorytmy_i_modelowanie_systemów:
+        - { skrot: RAI,   nazwa: Realizacja_Aplikacji_Internetowych, forms: [W, L] }
+        - { skrot: PLA,   nazwa: Programowanie_Lokalnych_Aplikacji,  forms: [W, P] }
+        - { skrot: "JPNP.", nazwa: Języki_Programowania_Na_Platformie_.NET, forms: [W, L] }
+        - { skrot: WPAIT, nazwa: Wybrane_Problemy_Algorytmiczne_I_Technologiczne, forms: [W, S] }
+        - { skrot: ZTO,   nazwa: Zaawansowane_Techniki_Obiektowe,    forms: [W, L] }
+        - { skrot: SDII,  nazwa: Seminarium_Dyplomowe_Inżynierskie_II, forms: [S], instancja: II }
+      Teleinformatyka:
+        - { skrot: ZS,   nazwa: Zarządzanie_Sieciami,              forms: [W, P] }
+        - { skrot: UIAM, nazwa: Usługi_I_Aplikacje_Multimedialne,  forms: [W, P, S] }
+        - { skrot: ASK,  nazwa: Administrowanie_Sieciami_Komputerowymi, forms: [W, L] }  # KOLIZJA z sem5 ASK (Systemami)
+        - { skrot: SI,   nazwa: Sieci_IP,                          forms: [W, P] }        # KOLIZJA z sem4 SI (Sztuczna_Inteligencja)
+        - { skrot: SDII, nazwa: Seminarium_Dyplomowe_Inżynierskie_II, forms: [S], instancja: II }
+      Systemy_geoinformatyczne:
+        - { skrot: SNSGIG, nazwa: Systemy_Nawigacji_Satelitarnej_GPS_I_Galileo, forms: [W, L] }
+        - { skrot: TWDP,   nazwa: Trójwymiarowa_Wizualizacja_Danych_Przestrzennych, forms: [W, L] }
+        - { skrot: PDNPM,  nazwa: Przetwarzanie_Danych_Na_Platformach_Mobilnych, forms: [W, L] }
+        - { skrot: PKC,    nazwa: Podstawy_Kartografii_Cyfrowej,   forms: [W, L] }
+        - { skrot: SDII,   nazwa: Seminarium_Dyplomowe_Inżynierskie_II, forms: [S], instancja: II }
+
+# Semestry magisterskie (Magisterskie_SEM2 istnieje już w paczce jako osobny katalog).
+# Przedmioty magisterskie — DO UZUPEŁNIENIA gdy przejdziemy do materiałów magisterskich.
+magisterskie:
+  M2: []   # placeholder — uzupełnić listą przedmiotów magisterskich

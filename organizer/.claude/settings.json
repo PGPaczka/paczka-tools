@@ -1,0 +1,51 @@
+{
+  "$comment": "Ustawienia projektu organizer. Sesję odpalaj w paczka-tools/organizer/. Ścieżki bezwzględne (dodatkowe katalogi, deny) generuje setup/install.sh do paczka-tools/.claude/settings.local.json.",
+  "env": {
+    "MUXER_GUARD": "on",
+    "MUXER_BUILTIN_AGENT_MODEL": "sonnet",
+    "MUXER_REPORT": "always",
+    "MUXER_REPORT_MIN_USD": "0",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet"
+  },
+  "enabledPlugins": {
+    "muxer@muxer-local": true
+  },
+  "permissions": {
+    "additionalDirectories": [
+      "../../00_SOURCES",
+      "../../10_NEW/PaczkaInfaPG",
+      "../../20_WORK",
+      "../../90_MEDIA"
+    ],
+    "deny": [
+      "Edit(**/00_SOURCES/**)",
+      "Bash(rm -rf *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)"
+    ],
+    "allow": [
+      "Bash(python scripts/*)",
+      "Bash(python3 scripts/*)",
+      "Bash(.venv/bin/python scripts/*)",
+      "Bash(pytest *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(gh issue *)",
+      "Bash(gh pr *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-sources.py\""
+          }
+        ]
+      }
+    ]
+  }
+}

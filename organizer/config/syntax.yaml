@@ -1,0 +1,161 @@
+# syntax.yaml — docelowa struktura paczki i konwencja nazewnictwa
+# =====================================================================
+# To jest KONTRAKT struktury: klasyfikator mapuje każdy plik na ścieżkę
+# docelową zgodną z tym plikiem, a validator sprawdza, czy plan się do
+# niego stosuje. Zmieniasz strukturę TU, nie w kodzie.
+#
+# Katalog przedmiotu (z subjects.yaml):
+#   paczka/SEM{semester}/({skrot})_{nazwa}/
+# =====================================================================
+
+meta:
+  subject_folder: "({skrot})_{nazwa}"
+  field_separator: "_"        # separator pól w nazwie pliku
+  topic_separator: "-"        # separator przed tematem/nazwiskiem
+  number_padding: 2           # numery dwucyfrowe z zerem wiodącym: 01, 02, ...
+  keep_diacritics: true       # diakrytyki ZACHOWANE w nazwach folderów (wykład, ćwiczenia, książki)
+  year_field: "{rok}"         # np. 2024
+
+# Pola (placeholders) używane we wzorcach nazw:
+placeholders:
+  skrot: "skrót przedmiotu (z subjects.yaml)"
+  rok: "rok materiału, 4 cyfry (2024)"
+  nr_wykladu: "numer wykładu"
+  temat_wykladu: "krótki temat wykładu"
+  nr_grupy: "numer grupy"
+  nr_kolosa: "numer kolokwium (folder)"
+  nr_kol: "numer kolokwium (nazwa pliku)"
+  prowadzacy: "nazwisko prowadzącego"
+  nr_laby: "numer laboratorium"
+  temat: "krótki temat"
+  temat_notatki: "temat notatki"
+  temat_opracowania: "temat opracowania"
+  nr_projektu: "numer projektu"
+  nazwa_projektu: "nazwa projektu"
+  nr_rozwiazania: "numer rozwiązania"
+  tytul: "tytuł książki / literatury"
+
+# =====================================================================
+# KATEGORIE (foldery wewnątrz katalogu przedmiotu)
+# =====================================================================
+categories:
+
+  wyklad:
+    folder: "wykład"
+    forms: [W]
+    files:
+      - "{skrot}_{rok}_merge.pdf"                                   # scalone wykłady
+      - "{skrot}_{rok}_wykład_0{nr_wykladu}-{temat_wykladu}.pdf"    # pojedynczy wykład
+    subfolders:
+      egzamin:
+        folder: "egzamin"
+        files:
+          - "{skrot}_{rok}_egzamin_grupa_{nr_grupy}.png"           # zdjęcie/skan egzaminu
+
+  kolokwia:
+    folder: "kolokwia"
+    forms: [C, L, W]        # kolokwia mogą dotyczyć różnych form
+    subfolders:
+      kol:
+        folder: "kol_0{nr_kolosa}"
+        files:
+          - "{skrot}_{rok}_kol_{nr_kol}_{prowadzacy}_grupa_{nr_grupy}.pdf"
+
+  opracowania:
+    folder: "opracowania"
+    files:
+      - "{skrot}_{rok}_{temat_notatki}.pdf"
+      - "{skrot}_{rok}_{temat_opracowania}.pdf"
+      - "{skrot}_{rok}_anki.apkg"
+    subfolders:
+      sources:
+        folder: "sources/{skrot}_{rok}_{temat_opracowania}"
+        note: "źródła opracowania (obrazy + plik źródłowy)"
+        files:
+          - "image1.png"          # (image2.png, ...)
+          - "main.tex"            # albo main.md / main.typ
+
+  laboratoria:
+    folder: "laboratoria"
+    forms: [L]
+    variants:
+      wspolne:
+        folder: "wspólne/lab_0{nr_laby}"
+        files:
+          - "{skrot}_{rok}_lab_0{nr_laby}_instrukcja.pdf"
+        subfolders:
+          rozwiazanie:
+            folder: "{skrot}_{rok}_lab_0{nr_laby}_rozw"
+            note: "rozwiązanie laby (kod + materiały)"
+            files: ["main.cpp", "matma.png"]     # przykładowo
+      per_prowadzacy:
+        folder: "{prowadzacy}/lab_0{nr_laby}"
+        files:
+          - "{skrot}_{rok}_lab_0{nr_laby}_instrukcja-{prowadzacy}.pdf"
+
+  cwiczenia:
+    folder: "ćwiczenia/{prowadzacy}"
+    forms: [C]
+    files:
+      - "{skrot}_{rok}_cw_0{nr_cwiczen}-{temat}.pdf"
+
+  projekt:
+    folder: "projekt/{rok}_{nr_projektu}"
+    forms: [P]
+    files:
+      - "{skrot}_{rok}_projekt_instrukcja-{nazwa_projektu}.pdf"
+    subfolders:
+      rozwiazanie:
+        folder: "{skrot}_{rok}_projekt_rozw_{nr_rozwiazania}"
+        note: "pliki rozwiązania projektu"
+        files: ["*.cpp"]      # itp.
+
+  ksiazki:
+    folder: "książki"
+    files:
+      - "polecana_literatura_linki.txt"
+      - "{tytul}_{rok}.pdf"
+
+  inne:
+    folder: "inne"
+    files:
+      - "nagrania.txt"        # linki/ścieżki do nagrań (media poza paczką — patrz media:)
+
+# =====================================================================
+# OUTDATED — materiały NIEAKTUALNE MERYTORYCZNIE
+# =====================================================================
+outdated:
+  folder: "outdated"
+  meaning: >
+    Materiały nieaktualne z powodu zmiany świata: inny prowadzący, zmieniony
+    zakres przedmiotu, zmieniona forma egzaminu. Zachowujemy historię, ale nie
+    zaśmiecamy bieżącej paczki.
+  NOT_for: >
+    NIE dla materiałów tylko "poprawionych" / "lekko zmienionych". Nowsza wersja
+    tego samego materiału => nowsza jest kanoniczna, starsza to relacja
+    older_version (nie trafia do outdated).
+  decision: "SEMANTYCZNA — zawsze przez review (człowiek/AI z kontekstem), nigdy z automatu z podobieństwa"
+  structure: "wewnątrz outdated/ ten sam podział na kategorie co wyżej"
+
+# =====================================================================
+# MEDIA — duże pliki NIE trafiają do paczki (10_NEW/paczka)
+# =====================================================================
+media:
+  exclude_from_package: true
+  extensions: [mp4, mov, avi, mkv, webm, wav, flac, mp3, m4a]
+  threshold_bytes: 26214400            # 25 MiB — powyżej idzie do 90_MEDIA
+  target_outside_repo: "90_MEDIA/{skrot}/{opis}"
+  reference_file: "inne/nagrania.txt"
+  reference_line: "{opis}  |  {sciezka_w_90_MEDIA}  |  {link_do_uzupelnienia}"
+  note: "po uploadzie na YT/Drive podmieniasz <link_do_uzupelnienia>. Prowenancja media zapisana w bazie."
+
+# =====================================================================
+# REGUŁY NAZEWNICTWA (lint w validatorze)
+# =====================================================================
+naming_rules:
+  - "numery zawsze dwucyfrowe z zerem wiodącym: lab_03, kol_02, wykład_01"
+  - "rok = 4 cyfry"
+  - "pola oddzielone '_'; temat/nazwisko oddzielone '-'"
+  - "nazwy folderów kategorii z diakrytykami (wykład, ćwiczenia, książki)"
+  - "skrót dokładnie jak w subjects.yaml (zachować kropki: SI., JPNP.)"
+  - "niezgodność nazwy => miękkie ostrzeżenie (auto-poprawialne), nie twardy błąd"

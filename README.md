@@ -1,8 +1,22 @@
 # paczka-tools
 
-Zbiór narzędzi pomocniczych projektu Paczka.
+Zbiór narzędzi pomocniczych projektu Paczka. Każde narzędzie jest self-contained
+(własne README, zależności, ewentualnie venv). Nic tu nie jest deployowane.
 
 ## Narzędzia
+
+### organizer
+Scalanie starych „paczek" materiałów (`00_SOURCES`) w jedną uporządkowaną paczkę:
+pipeline `scan → hash → dedup → extract → classify → plan → apply → verify`, AI tylko
+dla niejednoznacznych resztek, człowiek zatwierdza plan per przedmiot. Zawiera
+konfigurację Claude Code (agenty, skille, hooki) — sesję odpalasz w `organizer/`.
+Start: [`organizer/README.md`](organizer/README.md), setup: `bash organizer/setup/install.sh`.
+
+### multi-folder-downloader
+Rekurencyjne pobieranie dużego, publicznego drzewa Google Drive z zachowaniem
+struktury (checkpoint SQLite, równoległe workery, dashboard, eksport Docs/Sheets).
+Produkuje `00_SOURCES` dla organizera. Patrz
+[`multi-folder-downloader/README-DOWNLOADER.md`](multi-folder-downloader/README-DOWNLOADER.md).
 
 ### ects_extractor
 Skrypty do ekstrakcji informacji o przedmiotach i tworzenia struktury folderów.

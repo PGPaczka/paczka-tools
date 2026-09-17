@@ -1,0 +1,23 @@
+# thresholds.yaml — progi decyzyjne (łatwe do strojenia, bez dotykania kodu)
+
+confidence:
+  auto_apply: 0.90      # >= : można zatwierdzić automatycznie (po validatorze)
+  review_min: 0.70      # [review_min, auto_apply) : do szybkiego review
+  # < review_min : unresolved
+
+near_duplicate:
+  simhash_hamming_max: 3     # maks. odległość Hamminga simhash uznawana za near-dupe
+  minhash_jaccard_min: 0.85  # min. Jaccard (MinHash/LSH) uznawany za near-dupe
+  phash_hamming_max: 8       # obrazy: maks. odległość perceptual hash
+
+folder_overlap:
+  report_min_ratio: 0.50     # raportuj pary katalogów o pokryciu >= 50%
+
+media:
+  threshold_bytes: 26214400  # 25 MiB — powyżej idzie do 90_MEDIA (spójne z syntax.yaml)
+
+llm:
+  backend: anthropic         # anthropic | openai | claude_cli | codex_cli
+  classify_model: ""         # mniejszy/tańszy model do classify_one (uzupełnić)
+  relate_model: ""           # mocniejszy model do relate_cluster (uzupełnić)
+  max_text_head_bytes: 2048  # ile tekstu na plik wysyłamy do modelu
