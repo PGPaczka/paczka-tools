@@ -40,7 +40,7 @@ Kolejność uruchamiania (robione raz, na całości źródeł):
 1. `python scripts/db_admin.py init` — tworzy/aktualizuje schemat `20_WORK/organizer.sqlite`.
 2. `python scripts/scan.py` — statuje paczki źródłowe (`00_SOURCES/`, read-only),
    zapisuje `source_packages`/`folders`/`files` (status `discovered`) i generuje
-   `docs/SOURCES_TREE.md`.
+   `reports/SOURCES_TREE.md`.
 3. `python scripts/hash_files.py` — liczy sha256 plików w statusie `discovered`,
    zapisuje `content` (dedup plików), przestawia status na `hashed`.
 4. `python scripts/fold_hash.py` — liczy hashe poddrzew, oznacza dokładne
@@ -54,7 +54,7 @@ Kolejność uruchamiania (robione raz, na całości źródeł):
 | Skrypt | Wejście | Wyjście | Wznawialność / uwagi |
 |---|---|---|---|
 | `db_admin.py init` | brak (zakłada bazę) | schemat w `20_WORK/organizer.sqlite` | idempotentny; `init` też aktualizuje istniejący schemat |
-| `scan.py` | `00_SOURCES/` (read-only) | `source_packages`, `folders`, `files` (`discovered`) + `docs/SOURCES_TREE.md` | wznawialny — pomija niezmienione poddrzewa; exit 3 = skan częściowy (coś pominięto, zapis i tak się odbył), 1 = zły katalog/nieznana paczka, 2 = sprzeczne opcje |
+| `scan.py` | `00_SOURCES/` (read-only) | `source_packages`, `folders`, `files` (`discovered`) + `reports/SOURCES_TREE.md` | wznawialny — pomija niezmienione poddrzewa; exit 3 = skan częściowy (coś pominięto, zapis i tak się odbył), 1 = zły katalog/nieznana paczka, 2 = sprzeczne opcje |
 | `hash_files.py` | `files` w statusie `discovered` | `content` (sha256, content_kind), `files` → `hashed` | wznawialny (batch domyślnie 200); `--retry-errors` cofa `error` na `discovered`; `--package`/`--limit` do ograniczenia zakresu |
 | `fold_hash.py` | `folders`/`files` z bazy | `folders.duplicate_of`, `reports/folder_overlap.csv` | dwa przejścia (FK); próg z `config/thresholds.yaml`; `--no-overlap` pomija raport |
 | `dedup_report.py` | baza (`content`/`files`/`folders`) | `reports/dedup_summary.md`, `reports/inventory.jsonl` | tylko odczyt bazy, bez zapisu do źródeł ani do dysku poza `reports/` |
@@ -71,9 +71,9 @@ Uwagi:
 - Kody wyjścia `scan.py`: `0` pełny skan, `3` skan częściowy (coś pominięto —
   nieczytelny katalog, nazwa spoza UTF-8, błąd stat), `1` zły katalog źródeł
   lub nieznana paczka, `2` sprzeczne opcje.
-- Do gita trafiają: `docs/SOURCES_TREE.md`, `reports/dedup_summary.md`,
+- Do gita trafiają: `reports/SOURCES_TREE.md`, `reports/dedup_summary.md`,
   `reports/inventory.jsonl`, `reports/folder_overlap.csv`,
-  `reports/bootstrap_rmlint.txt`. Poza gitem: `20_WORK/organizer.sqlite`
+  `reports/bootstrap/bootstrap_rmlint.txt`. Poza gitem: `20_WORK/organizer.sqlite`
   (operacyjne źródło prawdy, odtwarzalne przez re-run).
 - Wynik pierwszego przebiegu na całości źródeł: 14 paczek, 48 049 plików,
   37,0 GiB, z czego 18 426 unikalnych treści i 17,9 GiB kopii (48,4%).
@@ -93,11 +93,12 @@ paczka-tools/organizer/          # ← tu odpalasz `just claude` lub `just codex
 ├── README.md  SKILLS.md
 ├── .claude/                     # commitowane: settings.json, hooks/guard-sources.py,
 │                                #   agents/ (5 z VoltAgent), skills/ (organizer-*)
-├── docs/                        # ARCHITEKTURA_FINALv1.md, ORGANIZACJA.md, CLAUDE_CODE_SETUP.md, SOURCES_TREE.md
+├── docs/                        # dokumentacja architektury, organizacji i konfiguracji
 ├── config/                      # paths.yaml, subjects.yaml, syntax.yaml, thresholds.yaml
 ├── prompts/                     # prompty AI (classify_ambiguous, relate_cluster)
 ├── scripts/                     # etapy pipeline (Python)
-├── reports/                     # eksporty: inventory, plany, provenance-operacyjne (w gicie)
+├── reports/                     # SOURCES_TREE.md, inventory, plany, handoff (w gicie)
+│   └── bootstrap/               # historyczne raporty wstępne
 └── setup/                       # install.sh, PLUGINS.md, requirements.txt, statusline.sh
 ```
 
@@ -170,7 +171,7 @@ sudo apt update && sudo apt install -y \
 ### Python (self-contained w tym folderze)
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r setup/requirements.txt
 ```
 
 `setup/requirements.txt`:

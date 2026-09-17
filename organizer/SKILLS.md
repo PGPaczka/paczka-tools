@@ -16,7 +16,7 @@ Legenda: 🔧 = skrypt (bez AI) · 🤖 = używa AI · 👤 = wymaga człowieka.
 **Kroki:** przejdź drzewo (tylko `stat`) → zapisz `files` i `folders`
 (file_count, total_bytes, max_mtime, structural_signature). Na re-runie pomiń
 poddrzewa niezmienione od ostatniego razu.
-**Wyjście:** tabele `files`/`folders`, `reports/inventory.jsonl`, `SOURCES_TREE.md`.
+**Wyjście:** tabele `files`/`folders`, `reports/inventory.jsonl`, `reports/SOURCES_TREE.md`.
 
 ## 🔧 hash-content
 **Kiedy:** po `scan-inventory`.

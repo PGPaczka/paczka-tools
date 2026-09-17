@@ -12,8 +12,8 @@ Legenda: `[ ]` do zrobienia · `[x]` zrobione · `[~]` w toku · ~~przekreślone
 - [x] A1. Szkielet repo + `config/` (paths, subjects, syntax, thresholds) + Claude Code setup (2026-09-17)
 - [x] A2. Model danych — sekcja 4: `scripts/orglib/{schema.sql,db.py,config.py,hashes.py}`, `scripts/db_admin.py`, 70 testów (2026-09-17)
 - [x] A2a. Naprawa `config/subjects.yaml` (sem 7: klucz `wspolne`, poprawny YAML) (2026-09-17)
-- [x] A0. Bootstrap skali dublowania: `rmlint -D` + `ncdu` na źródłach (tylko raport) → `reports/bootstrap_rmlint.txt`: 47 991 plików, 29 548 kopii, 17,94 GB dubli (~45%); pełne artefakty w `20_WORK/` (2026-09-17)
-- [x] A3. `scripts/scan.py` — stat źródeł → `source_packages`, `folders`, `files` (status `discovered`), `structural_signature`; skip niezmienionych poddrzew na re-runie; generuje `docs/SOURCES_TREE.md` (2026-09-17)
+- [x] A0. Bootstrap skali dublowania: `rmlint -D` + `ncdu` na źródłach (tylko raport) → `reports/bootstrap/bootstrap_rmlint.txt`: 47 991 plików, 29 548 kopii, 17,94 GB dubli (~45%); pełne artefakty w `20_WORK/` (2026-09-17)
+- [x] A3. `scripts/scan.py` — stat źródeł → `source_packages`, `folders`, `files` (status `discovered`), `structural_signature`; skip niezmienionych poddrzew na re-runie; generuje `reports/SOURCES_TREE.md` (2026-09-17)
 - [x] A4. `scripts/hash_files.py` — sha256 → `files.sha256`, `content` (content_kind z `orglib/kinds.py`), status `hashed`; wznawialny, `--retry-errors`, containment ścieżek (2026-09-17)
 - [x] A5. `scripts/fold_hash.py` — `tree_hash` / `content_set_hash` → `folders.duplicate_of` (dwa przejścia, FK) + `reports/folder_overlap.csv` (próg z `thresholds.yaml`) (2026-09-17)
 - [x] A6. `scripts/dedup_report.py` — unique vs duplicate (liczby, bajty, per paczka) → `reports/dedup_summary.md`, `reports/inventory.jsonl` (2026-09-17)
@@ -87,6 +87,7 @@ Legenda: `[ ]` do zrobienia · `[x]` zrobione · `[~]` w toku · ~~przekreślone
 ## E. Dokumentacja
 
 - [x] E1. README: sekcja „Skrypty” z realnymi nazwami i kolejnością po A3–A6 (2026-09-17)
-- [x] E2. `docs/SOURCES_TREE.md` (generowany przez `scan.py`; pierwszy snapshot: 14 paczek, 9 540 katalogów, 48 049 plików, 37,0 GiB) (2026-09-17)
+- [x] E2. `reports/SOURCES_TREE.md` (generowany przez `scan.py`; pierwszy snapshot: 14 paczek, 9 540 katalogów, 48 049 plików, 37,0 GiB) (2026-09-17)
 - [ ] E3. `STATUS.md` (generowany: przedmioty × etapy + liczby)
 - [x] E4. `reports/HANDOFF.md` + `just handoff`: wspólny checkpoint sesji dla Claude, Codexa i człowieka. (2026-09-17)
+- [x] E5. Porządek plików: generowany `SOURCES_TREE.md` w `reports/`, historyczne raporty w `reports/bootstrap/`, mapa raportów i aktualizacja odwołań; kod pipeline'u i dane poza repo bez przenosin. (2026-09-18)

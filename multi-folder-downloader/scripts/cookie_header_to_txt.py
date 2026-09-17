@@ -6,23 +6,23 @@ cookies.txt w formacie Netscape, którego oczekuje gdown (--cookies).
 
 Nie wymaga żadnego rozszerzenia do przeglądarki.
 
-Domyślnie zapisuje cookies.txt obok tego skryptu (czyli w
+Domyślnie zapisuje cookies.txt w katalogu danych (czyli w
 multi-folder-downloader/cookies/), skąd downloader bierze je automatycznie.
 
 Użycie (dowolny wariant):
 
   # 1) wklej nagłówek interaktywnie:
-  python cookie_header_to_txt.py
+  python scripts/cookie_header_to_txt.py
   # ...wklej linię "SID=...; HSID=...; ..." i naciśnij Enter
 
   # 2) z pliku, do którego wkleiłeś nagłówek:
-  python cookie_header_to_txt.py -i header.txt
+  python scripts/cookie_header_to_txt.py -i cookies/header.txt
 
   # 3) przez potok:
-  echo 'SID=...; HSID=...; ...' | python cookie_header_to_txt.py
+  echo 'SID=...; HSID=...; ...' | python scripts/cookie_header_to_txt.py
 
   # 4) inna ścieżka wyjściowa, jeśli potrzebna:
-  python cookie_header_to_txt.py -o ~/cookies.txt
+  python scripts/cookie_header_to_txt.py -o ~/cookies.txt
 
 Nagłówek może zaczynać się od "cookie:" — zostanie to obcięte.
 """
@@ -41,10 +41,10 @@ FAR_FUTURE = int(time.time()) + 10 * 365 * 24 * 3600
 # na .google.com z flagą domenową TRUE.
 DOMAIN = ".google.com"
 
-# Domyślnie zapisuje obok siebie (cookies/cookies.txt), niezależnie od tego,
+# Domyślnie zapisuje w cookies/cookies.txt, niezależnie od tego,
 # z jakiego katalogu skrypt jest uruchamiany.
-SCRIPT_DIR = Path(__file__).resolve().parent
-DEFAULT_OUTPUT = str(SCRIPT_DIR / "cookies.txt")
+PROJECT_DIR = Path(__file__).resolve().parent.parent
+DEFAULT_OUTPUT = str(PROJECT_DIR / "cookies" / "cookies.txt")
 
 
 def parse_cookie_header(raw: str) -> list[tuple[str, str]]:
@@ -101,7 +101,7 @@ def main() -> int:
         "-o",
         "--output",
         default=DEFAULT_OUTPUT,
-        help="Ścieżka wyjściowa cookies.txt (domyślnie: obok tego skryptu).",
+        help="Ścieżka wyjściowa cookies.txt (domyślnie: cookies/cookies.txt w katalogu projektu).",
     )
     args = ap.parse_args()
 
@@ -130,6 +130,7 @@ def main() -> int:
     important = {"SID", "SSID", "HSID", "SAPISID", "APISID", "__Secure-1PSID"}
     missing = important - names
     out_path = Path(args.output).expanduser()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(to_netscape(pairs), encoding="utf-8")
     try:
         out_path.chmod(0o600)

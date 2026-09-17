@@ -508,7 +508,7 @@ def scan(
         None, "--sources", help="Katalog źródeł (domyślnie z config/paths.yaml)."
     ),
     tree: Optional[Path] = typer.Option(
-        None, "--tree", help="Plik snapshotu drzewa (domyślnie docs/SOURCES_TREE.md)."
+        None, "--tree", help="Plik snapshotu drzewa (domyślnie reports/SOURCES_TREE.md)."
     ),
     no_tree: bool = typer.Option(False, "--no-tree", help="Nie generuj snapshotu drzewa."),
 ) -> None:
@@ -551,7 +551,7 @@ def scan(
         for stats in results:
             typer.echo(stats.summary())
         if not no_tree:
-            default_tree = config.ORGANIZER_ROOT / "docs" / "SOURCES_TREE.md"
+            default_tree = config.ORGANIZER_ROOT / "reports" / "SOURCES_TREE.md"
             tree_path = tree if tree is not None else default_tree
             typer.echo(f"drzewo: {write_sources_tree(conn, Path(tree_path))}")
     finally:

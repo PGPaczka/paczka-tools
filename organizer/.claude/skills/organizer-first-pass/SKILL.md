@@ -30,7 +30,7 @@ wracają tylko liczby i błędy; zapisz jedną linię do `reports/STATUS.md`.
    Skala dublowania → 3 liczby w STATUS.md.
 1. **Szkielet**: baza `<work>/organizer.sqlite` ze schematem z §4 (`scripts/init_db.py`).
 2. **Config**: `config/subjects.yaml` + `thresholds.yaml` załadowane bez błędów (walidator YAML).
-3. **scan**: `scripts/scan.py` → `files`, `folders`, `reports/inventory.jsonl`, `docs/SOURCES_TREE.md`.
+3. **scan**: `scripts/scan.py` → `files`, `folders`, `reports/inventory.jsonl`, `reports/SOURCES_TREE.md`.
 4. **hash**: `scripts/hash_files.py` → `content`, `reports/exact_duplicates.csv`.
    Długie — uruchom w tle, sprawdzaj postęp zwięźle; etap jest wznawialny.
 5. **fold_hash**: `scripts/fold_hash.py` → `tree_hash`, `content_set_hash`, `duplicate_of`,

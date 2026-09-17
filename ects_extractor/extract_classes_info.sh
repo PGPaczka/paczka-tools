@@ -1,7 +1,9 @@
 #!/bin/bash
 
 input_file="struktura.csv"
-output_file="subjects_formatted.txt"
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+output_file="$script_dir/data/subjects_formatted.txt"
+mkdir -p "$(dirname -- "$output_file")"
 
 # Clear the output file
 > "$output_file"
@@ -18,7 +20,7 @@ mv $tmp_csv."0" $tmp_csv && \
 rm $tmp_xls
 
 echo "Processing data from CSV..."
-awk -v FPAT='[^,]*|"[^"]+"' '
+awk -v output_file="$output_file" -v FPAT='[^,]*|"[^"]+"' '
 BEGIN {
     current_semester = ""
     current_stream = ""
@@ -34,7 +36,7 @@ BEGIN {
     gsub(/,+/, "", current_semester) # Remove commas
     current_stream = ""
     current_profile = ""
-    print "\n" current_semester >> "'"$output_file"'"
+    print "\n" current_semester >> output_file
     next
 }
 
@@ -45,7 +47,7 @@ BEGIN {
     gsub(/^[0-9]+ /, "", current_stream) # Remove number from beginning
     gsub(/,+/, "", current_stream)       # Remove commas
     current_profile = ""
-    print indent current_stream >> "'"$output_file"'"
+    print indent current_stream >> output_file
     next
 }
 
@@ -55,7 +57,7 @@ BEGIN {
     gsub(/"/, "", current_profile)
     gsub(/^[0-9]+ /, "", current_profile) # Remove number from beginning
     gsub(/,+/, "", current_profile)       # Remove commas
-    print indent indent current_profile >> "'"$output_file"'"
+    print indent indent current_profile >> output_file
     next
 }
 
@@ -110,7 +112,7 @@ BEGIN {
     }
     
     # Print course
-    printf "%s(%s)_%s: %s\n", current_indent, acronym, formatted_name, class_types >> "'"$output_file"'"
+    printf "%s(%s)_%s: %s\n", current_indent, acronym, formatted_name, class_types >> output_file
 }' "$input_file"
 
 rm $input_file

@@ -12,9 +12,11 @@ Główne pliki:
 download_drive_dashboard_sqlite.py   # główny downloader + dashboard
 diag_drive.py                        # diagnostyka (folder / plik / native) po linku
 .gitignore
-cookies/
+scripts/
 └── cookie_header_to_txt.py          # nagłówek cookie z DevTools -> cookies.txt
+cookies/                             # lokalne sekrety, bez kodu
 state/                                # tworzone automatycznie, checkpoint SQLite
+tests/                               # testy bez sieci i prawdziwych cookies
 ```
 
 Wszystkie komendy poniżej zakładają, że jesteś w `multi-folder-downloader/` (`cd multi-folder-downloader`).
@@ -78,11 +80,11 @@ Potrzebne, gdy Google throttluje pobieranie (błąd „Cannot retrieve file url 
 2. Zamień nagłówek na plik `cookies/cookies.txt`:
 
    ```bash
-   python cookies/cookie_header_to_txt.py
+   python scripts/cookie_header_to_txt.py
    # ...wklej nagłówek i naciśnij Enter
    ```
 
-   Bez `-o` skrypt zapisuje zawsze obok siebie, czyli w `cookies/cookies.txt`, niezależnie z jakiego katalogu go uruchomisz.
+   Bez `-o` skrypt zapisuje zawsze w katalogu danych `cookies/cookies.txt`, niezależnie z jakiego katalogu go uruchomisz.
 
 3. Uruchom pobieranie — **`--cookies` nie jest już potrzebne**, `download_drive_dashboard_sqlite.py` sam wykrywa i używa `cookies/cookies.txt`, jeśli ten plik istnieje:
 
@@ -227,23 +229,25 @@ Pełna pomoc: `python download_drive_dashboard_sqlite.py --help`.
 <workspace>/                         # np. ~/dev/paczka/PaczkaMerge/ (katalog roboczy, nie repo)
 ├── 00_SOURCES/                      # pobrane materiały (domyślny output; organizer czyta je read-only)
 └── paczka-tools/                    # klon PGPaczka/paczka-tools
-    └── multi-folder-downloader/     # skrypty, konfiguracja, docsy i dane SQLite — wszystko razem
-    ├── download_drive_dashboard_sqlite.py
-    ├── diag_drive.py
-    ├── README-DOWNLOADER.md
-    ├── .gitignore                   # pełny, samodzielny — sekrety/dane/śmieci tego katalogu
-    ├── cookies/                     # skrypt + pliki cookies, osobno od reszty
-    │   ├── cookie_header_to_txt.py
-    │   ├── cookies.txt              # sekret, lokalny, gitignored
-    │   └── header.txt               # opcjonalny input do cookie_header_to_txt.py, gitignored
-    ├── state/                       # checkpoint SQLite, osobno od reszty
-    │   └── download_state.sqlite
-    ├── .paczka_download_tmp/        # tymczasowe pliki pobierania
-    └── _download_logs/
-        └── YYYYMMDD_HHMMSS/
-            ├── run.log
-            ├── failures.csv
-            └── summary.json
+    └── multi-folder-downloader/
+        ├── download_drive_dashboard_sqlite.py
+        ├── diag_drive.py
+        ├── README.md
+        ├── .gitignore               # samodzielne reguły dla tego narzędzia
+        ├── scripts/                 # pomocniczy kod, bez sekretów
+        │   └── cookie_header_to_txt.py
+        ├── tests/                   # testy lokalne
+        ├── cookies/                 # wyłącznie lokalne sekrety (gitignored)
+        │   ├── cookies.txt
+        │   └── header.txt           # opcjonalne wejście konwertera
+        ├── state/                   # checkpoint SQLite (gitignored)
+        │   └── download_state.sqlite
+        ├── .paczka_download_tmp/     # tymczasowe pliki pobierania
+        └── _download_logs/
+            └── YYYYMMDD_HHMMSS/
+                ├── run.log
+                ├── failures.csv
+                └── summary.json
 ```
 
 `00_SOURCES/` powstaje dwa poziomy wyżej niż skrypty (czyli w `<workspace>/`, obok klona `paczka-tools`), bo to duży zbiór pobranych materiałów, osobny od narzędzia, które go tworzy, i nie może wylądować wewnątrz repo. Wszystko inne — konfiguracja, cookies, checkpoint SQLite, logi, tymczasowe pliki — zostaje w `multi-folder-downloader/`, każde w swoim podkatalogu. Jeśli chcesz inny układ, wskaż `--output`, `--cookies` i/lub `--state-db` jawnie.
@@ -258,6 +262,17 @@ Pełna pomoc: `python download_drive_dashboard_sqlite.py --help`.
 - `multi-folder-downloader/.gitignore` — pełna, samodzielna kopia ignorująca wszystko specyficzne dla tego narzędzia: `cookies/cookies.txt`, `cookies/header.txt`, `credentials.json`, `token.json`, `state/download_state.sqlite*`, `_download_logs/`, `.paczka_download_tmp/` oraz też śmieci Pythona/edytora (żeby ten katalog działał samodzielnie, nawet gdybyś przeniósł go do innego repo).
 
 Nigdy nie commituj cookies ani pobranych materiałów.
+
+---
+
+## Testy lokalne
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+Testy konwertera używają wyłącznie sztucznych nagłówków w katalogach
+tymczasowych, bez połączenia z Google i bez odczytu lokalnych sekretów.
 
 ---
 

@@ -296,6 +296,24 @@ def test_cli_scans_everything_and_writes_tree(tmp_path: Path, sources: Path) -> 
         connection.close()
 
 
+def test_cli_default_tree_is_a_report(
+    tmp_path: Path, sources: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    organizer_root = tmp_path / "organizer"
+    monkeypatch.setattr(scan.config, "ORGANIZER_ROOT", organizer_root)
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(
+        scan.app,
+        ["--db", str(tmp_path / "db.sqlite"), "--sources", str(sources)],
+    )
+
+    assert result.exit_code == 0, result.output
+    tree = organizer_root / "reports" / "SOURCES_TREE.md"
+    assert "P1" in tree.read_text(encoding="utf-8")
+    assert not (organizer_root / "docs").exists()
+
+
 def test_cli_package_filter_scans_only_selected(tmp_path: Path, sources: Path) -> None:
     database = tmp_path / "db.sqlite"
 

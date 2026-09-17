@@ -113,11 +113,13 @@ paczka-tools/organizer/
 ├── docs/
 │   ├── ARCHITEKTURA_FINALv1.md       # ten dokument
 │   ├── ORGANIZACJA.md                # mapa repozytoriów i organizacji
-│   └── SOURCES_TREE.md               # snapshot drzewa źródeł (ślad, generowany)
+│   └── CLAUDE_CODE_SETUP.md          # dokumentacja konfiguracji
 ├── config/   (paths.yaml, subjects.yaml, syntax.yaml, thresholds.yaml — syntax.yaml pełni rolę taksonomii)
 ├── prompts/  (classify_ambiguous, relate_cluster)
 ├── scripts/  (etapy pipeline)
 └── reports/  (inventory, plany, provenance-operacyjne — w gicie)
+    ├── SOURCES_TREE.md               # snapshot drzewa źródeł (ślad, generowany)
+    └── bootstrap/                   # historyczne raporty wstępne
 ```
 
 Katalogi lokalne (poza gitem, ścieżki w `config/`):
@@ -140,7 +142,7 @@ Katalogi lokalne (poza gitem, ścieżki w `config/`):
 ### „Ślad struktury, z jaką pracowaliśmy" (P2b)
 Nie trzymamy pustych, zignorowanych `00/20/90` w repo. Ślad = commitowany
 `reports/inventory.jsonl` (każdy plik źródłowy: hash, rozmiar, paczka, provenance)
-+ `docs/SOURCES_TREE.md` (tekstowy snapshot drzewa `00_SOURCES`). Realna,
++ `reports/SOURCES_TREE.md` (tekstowy snapshot drzewa `00_SOURCES`). Realna,
 przeszukiwalna, diffowalna wiedza „co tam było" bez ładowania binariów do gita.
 
 ---
