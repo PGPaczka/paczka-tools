@@ -20,9 +20,21 @@ ORGANIZER_ROOT: Path = Path(__file__).resolve().parents[2]
 #: Domyślny katalog z plikami YAML konfiguracji.
 CONFIG_DIR: Path = ORGANIZER_ROOT / "config"
 
-#: Szablon katalogu docelowego przedmiotu. MUSI być zgodny z
-#: ``config/subjects.yaml: meta.target_path_template``.
-TARGET_PATH_TEMPLATE: str = "paczka/SEM{semester}/({skrot})_{nazwa}"
+#: Szablon katalogu docelowego przedmiotu (semestry 1-4, bez poziomu grupy).
+#: MUSI być zgodny z ``config/subjects.yaml: meta.target_path_template``.
+TARGET_PATH_TEMPLATE: str = "paczka/SEM{semester}/{skrot}_{nazwa}"
+
+#: Szablon katalogu docelowego przedmiotu Z poziomem grupy (semestry 5-7:
+#: ``grupa`` to strumień dla SEM5/6, katedra dla SEM7 — patrz
+#: :attr:`Subject.grupa`). MUSI być zgodny z
+#: ``config/subjects.yaml: meta.target_path_template_grouped``.
+TARGET_PATH_TEMPLATE_GROUPED: str = "paczka/SEM{semester}/{grupa}/{skrot}_{nazwa}"
+
+#: Semestry, których katalog docelowy ma dodatkowy poziom grupy (strumień/katedra).
+_GROUPED_SEMESTERS: frozenset[int] = frozenset({5, 6, 7})
+
+#: Domyślna nazwa grupy, gdy przedmiot nie ma przypisanego strumienia/katedry.
+_DEFAULT_GRUPA: str = "Wspolne"
 
 
 def load_yaml(name: str, config_dir: Path | None = None) -> dict[str, Any]:
@@ -106,6 +118,10 @@ class Subject:
     instancja: str | None
     strumien: str | None
     profil: str | None
+    #: Katedra prowadząca (tylko SEM7, przypisana na poziomie profilu w YAML);
+    #: ``None`` dla przedmiotów spoza ``profile`` (klucz ``wspolne``) i dla
+    #: pozostałych semestrów.
+    katedra: str | None
 
     @property
     def key(self) -> tuple[int, str]:
@@ -113,8 +129,27 @@ class Subject:
         return (self.semester, self.skrot)
 
     @property
+    def grupa(self) -> str:
+        """Poziom grupujący pod semestrem: strumień (SEM5/6) albo katedra (SEM7).
+
+        Domyślnie ``"Wspolne"``, gdy przedmiot nie ma przypisanego strumienia/
+        katedry (patrz ``config/subjects.yaml: meta.group_levels``). Dla
+        semestrów 1-4 nieużywana — :attr:`target_dir` jej wtedy nie potrzebuje.
+        """
+        if self.semester == 7:
+            return self.katedra or _DEFAULT_GRUPA
+        return self.strumien or _DEFAULT_GRUPA
+
+    @property
     def target_dir(self) -> str:
-        """Katalog docelowy w repo produktu, np. ``paczka/SEM3/(AK)_Architektura_Komputerów``."""
+        """Katalog docelowy w repo produktu, np. ``paczka/SEM3/AKO_Architektura_Komputerów``
+
+        albo, dla SEM5-7, ``paczka/SEM5/Systemy/SBD_Struktury_Baz_Danych``.
+        """
+        if self.semester in _GROUPED_SEMESTERS:
+            return TARGET_PATH_TEMPLATE_GROUPED.format(
+                semester=self.semester, grupa=self.grupa, skrot=self.skrot, nazwa=self.nazwa
+            )
         return TARGET_PATH_TEMPLATE.format(
             semester=self.semester, skrot=self.skrot, nazwa=self.nazwa
         )
@@ -122,15 +157,24 @@ class Subject:
 
 def _semester_groups(
     semester: int | str, block: Any
-) -> Iterable[tuple[str | None, list[dict[str, Any]]]]:
-    """Rozbija zawartość jednego semestru na pary (nazwa profilu | None, lista wpisów).
+) -> Iterable[tuple[str | None, str | None, list[dict[str, Any]]]]:
+    """Rozbija zawartość jednego semestru na krotki (profil | None, katedra | None, wpisy).
 
-    Nieznany kształt (klucz inny niż ``profile`` bez listy, ``profile`` niebędące
-    mapą list) podnosi ``ValueError`` — literówka w YAML ma być głośna, nie
-    przemilczana cichym pominięciem przedmiotów.
+    Katedra jest przypisana CAŁEMU profilowi (SEM7, klucz ``profile``), nie
+    pojedynczym wpisom — patrz kształt niżej. Nieznany kształt (klucz inny niż
+    ``profile`` bez listy, ``profile`` niebędące mapą ``{katedra, przedmioty}``)
+    podnosi ``ValueError`` — literówka w YAML ma być głośna, nie przemilczana
+    cichym pominięciem przedmiotów.
+
+    Kształt klucza ``profile``::
+
+        profile:
+          Nazwa_Profilu:
+            katedra: KASK
+            przedmioty: [{skrot: ..., nazwa: ..., ...}, ...]
     """
     if isinstance(block, list):
-        yield None, block
+        yield None, None, block
         return
     if not isinstance(block, dict):
         raise ValueError(
@@ -142,17 +186,25 @@ def _semester_groups(
             if not isinstance(value, dict):
                 raise ValueError(
                     f"subjects.yaml: semestr {semester}: klucz 'profile' musi być mapą "
-                    f"nazwa_profilu -> lista, jest {type(value).__name__}"
+                    f"nazwa_profilu -> {{katedra, przedmioty}}, jest {type(value).__name__}"
                 )
-            for profil, entries in value.items():
+            for profil, profile_block in value.items():
+                if not isinstance(profile_block, dict):
+                    raise ValueError(
+                        f"subjects.yaml: semestr {semester}, profil {profil!r}: "
+                        f"oczekiwano mapy {{katedra, przedmioty}}, "
+                        f"jest {type(profile_block).__name__}"
+                    )
+                entries = profile_block.get("przedmioty")
                 if not isinstance(entries, list):
                     raise ValueError(
                         f"subjects.yaml: semestr {semester}, profil {profil!r}: "
-                        f"oczekiwano listy przedmiotów, jest {type(entries).__name__}"
+                        f"'przedmioty' musi być listą, jest {type(entries).__name__}"
                     )
-                yield str(profil), entries
+                katedra = profile_block.get("katedra")
+                yield str(profil), (str(katedra) if katedra is not None else None), entries
         elif isinstance(value, list):
-            yield None, value
+            yield None, None, value
         else:
             raise ValueError(
                 f"subjects.yaml: semestr {semester}, klucz {key!r}: oczekiwano listy "
@@ -160,7 +212,9 @@ def _semester_groups(
             )
 
 
-def _make_subject(semester: int, entry: dict[str, Any], profil: str | None) -> Subject:
+def _make_subject(
+    semester: int, entry: dict[str, Any], profil: str | None, katedra: str | None
+) -> Subject:
     """Buduje :class:`Subject` z jednego wpisu YAML."""
     return Subject(
         semester=semester,
@@ -171,6 +225,7 @@ def _make_subject(semester: int, entry: dict[str, Any], profil: str | None) -> S
         instancja=(str(entry["instancja"]) if entry.get("instancja") is not None else None),
         strumien=(str(entry["strumien"]) if entry.get("strumien") is not None else None),
         profil=profil,
+        katedra=katedra,
     )
 
 
@@ -189,9 +244,9 @@ def iter_subjects(data: dict[str, Any] | None = None) -> list[Subject]:
     by_key: dict[tuple[int, str], str] = {}
     for raw_semester, block in (data.get("semesters") or {}).items():
         semester = int(raw_semester)
-        for profil, entries in _semester_groups(raw_semester, block):
+        for profil, katedra, entries in _semester_groups(raw_semester, block):
             for entry in entries:
-                subject = _make_subject(semester, entry, profil)
+                subject = _make_subject(semester, entry, profil, katedra)
                 dedup_key = (subject.semester, subject.skrot, subject.nazwa)
                 if dedup_key in seen:
                     continue

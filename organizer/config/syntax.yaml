@@ -5,11 +5,16 @@
 # niego stosuje. Zmieniasz strukturę TU, nie w kodzie.
 #
 # Katalog przedmiotu (z subjects.yaml):
-#   paczka/SEM{semester}/({skrot})_{nazwa}/
+#   paczka/SEM{semester}/{skrot}_{nazwa}/                       (SEM1-4)
+#   paczka/SEM{semester}/{grupa}/{skrot}_{nazwa}/                (SEM5-7, grupa=strumień/katedra)
 # =====================================================================
 
 meta:
-  subject_folder: "({skrot})_{nazwa}"
+  subject_folder: "{skrot}_{nazwa}"
+  group_levels: { 5: strumien, 6: strumien, 7: katedra }
+  group_levels_values:
+    strumien: [Aplikacje, Systemy, Wspolne]
+    katedra: [KAIMS, KASK, KBD, KISI, KSG, KT, Wspolne]
   field_separator: "_"        # separator pól w nazwie pliku
   topic_separator: "-"        # separator przed tematem/nazwiskiem
   number_padding: 2           # numery dwucyfrowe z zerem wiodącym: 01, 02, ...

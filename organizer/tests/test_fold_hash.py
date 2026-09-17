@@ -811,7 +811,11 @@ def test_cli_rejects_overlap_csv_and_no_overlap_together(tmp_path: Path) -> None
 
 
 def test_cli_help_lists_options() -> None:
-    result = runner.invoke(fold_hash.app, ["--help"])
+    # Wymuszamy zwykły tekst bez kolorów i zawijania: rich potrafi rozbić długą
+    # nazwę opcji na dwie linie, gdy wykryje wąski terminal.
+    result = runner.invoke(
+        fold_hash.app, ["--help"], env={"TERM": "dumb", "NO_COLOR": "1", "COLUMNS": "200"}
+    )
 
     assert result.exit_code == 0
     for option in ("--db", "--package", "--overlap-csv", "--no-overlap"):

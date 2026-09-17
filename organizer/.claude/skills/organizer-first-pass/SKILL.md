@@ -36,7 +36,7 @@ Jesteś koordynatorem. **Nie czytasz sam plików z `00_SOURCES`** — to robią 
 
 ## Wyjście i STOP
 Po kroku 7 pokaż użytkownikowi **≤20 linii**: liczby z `size_report.md`, ile poddrzew `duplicate_of`,
-ścieżki raportów. **Zatrzymaj się.** Następny krok (pilotaż `AK` sem 3) to `/organizer-subject AK 3`,
+ścieżki raportów. **Zatrzymaj się.** Następny krok (pilotaż `AKO` sem 3) to `/organizer-subject AKO 3`,
 uruchamiany osobno przez użytkownika.
 
 ## Zakazy

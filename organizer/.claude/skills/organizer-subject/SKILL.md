@@ -1,8 +1,8 @@
 ---
 name: organizer-subject
-description: "Cykl per przedmiot Paczka Organizer (docs/ARCHITEKTURA_FINALv1.md §13B, kroki 1–7) — issue+branch, extract, klasyfikacja deterministyczna, AI dla unresolved, build plan, validate. Zatrzymuje się PRZED review; nigdy nie robi apply. Użycie: /organizer-subject SKROT SEMESTR (np. AK 3)."
+description: "Cykl per przedmiot Paczka Organizer (docs/ARCHITEKTURA_FINALv1.md §13B, kroki 1–7) — issue+branch, extract, klasyfikacja deterministyczna, AI dla unresolved, build plan, validate. Zatrzymuje się PRZED review; nigdy nie robi apply. Użycie: /organizer-subject SKROT SEMESTR (np. AKO 3)."
 disable-model-invocation: true
-argument-hint: "SKROT SEMESTR   (np. AK 3)"
+argument-hint: "SKROT SEMESTR   (np. AKO 3)"
 arguments: [skrot, semestr]
 ---
 

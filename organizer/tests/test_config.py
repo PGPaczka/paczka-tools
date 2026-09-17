@@ -80,33 +80,70 @@ def subjects() -> list[config.Subject]:
 def test_iter_subjects_covers_colliding_shortcuts(subjects: list[config.Subject]) -> None:
     keys = {s.key for s in subjects}
 
-    assert (3, "AK") in keys
+    assert (3, "AKO") in keys
     assert (7, "AK") in keys
     assert (7, "SI.") in keys
     assert (4, "SI") in keys
 
 
 def test_iter_subjects_keeps_aliases(subjects: list[config.Subject]) -> None:
-    ak3 = next(s for s in subjects if s.key == (3, "AK"))
+    ako3 = next(s for s in subjects if s.key == (3, "AKO"))
 
-    assert "AKO" in ak3.aliases
+    assert "AK" in ako3.aliases
+    assert "AKO2020" in ako3.aliases
 
 
-def test_iter_subjects_dedupes_sdii_in_semester_7(subjects: list[config.Subject]) -> None:
-    sdii7 = [s for s in subjects if s.key == (7, "SDII")]
+def test_iter_subjects_has_single_sdiii_in_semester_7(subjects: list[config.Subject]) -> None:
+    """SDII było kiedyś powtórzone w każdym profilu sem7 — dziś jest jeden SDIII (wspolne)."""
+    sdiii7 = [s for s in subjects if s.key == (7, "SDIII")]
 
-    assert len(sdii7) == 1
-    assert sdii7[0].profil == "Architektura_systemów_komputerowych"
+    assert len(sdiii7) == 1
+    assert sdiii7[0].profil is None
+    assert "SDII" in sdiii7[0].aliases
+    assert not any(s.key == (7, "SDII") for s in subjects)
 
 
 def test_iter_subjects_marks_profiles_and_streams(subjects: list[config.Subject]) -> None:
     ak7 = next(s for s in subjects if s.key == (7, "AK"))
     sbd = next(s for s in subjects if s.key == (5, "SBD"))
-    pdii7 = next(s for s in subjects if s.key == (7, "PDII"))
+    pdiii7 = next(s for s in subjects if s.key == (7, "PDIII"))
 
     assert ak7.profil == "Inteligentne_systemy_interaktywne"
     assert sbd.strumien == "Systemy"
-    assert pdii7.profil is None
+    assert pdiii7.profil is None
+    assert "PDII" in pdiii7.aliases
+
+
+def test_iter_subjects_marks_katedra_from_profile(subjects: list[config.Subject]) -> None:
+    ak7 = next(s for s in subjects if s.key == (7, "AK"))
+    pgk7 = next(s for s in subjects if s.key == (7, "PGK"))
+    pdiii7 = next(s for s in subjects if s.key == (7, "PDIII"))
+
+    assert ak7.katedra == "KISI"
+    assert pgk7.katedra == "KISI"
+    assert pdiii7.katedra is None  # wspolne — grupa domyślnie "Wspolne"
+
+
+def test_no_duplicate_semester_skrot_keys(subjects: list[config.Subject]) -> None:
+    keys = [s.key for s in subjects]
+
+    assert len(keys) == len(set(keys))
+
+
+def test_every_sem7_subject_has_known_katedra(subjects: list[config.Subject]) -> None:
+    allowed = {"KAIMS", "KASK", "KBD", "KISI", "KSG", "KT", "Wspolne"}
+
+    for subject in subjects:
+        if subject.semester == 7:
+            assert subject.grupa in allowed, subject
+
+
+def test_every_sem5_sem6_subject_has_known_strumien(subjects: list[config.Subject]) -> None:
+    allowed = {"Aplikacje", "Systemy", "Wspolne"}
+
+    for subject in subjects:
+        if subject.semester in (5, 6):
+            assert subject.grupa in allowed, subject
 
 
 def test_iter_subjects_skips_magisterskie(subjects: list[config.Subject]) -> None:
@@ -124,11 +161,37 @@ def test_find_subject_missing_raises(subjects: list[config.Subject]) -> None:
         config.find_subject(1, "NIE_MA", subjects)
 
 
-def test_target_dir_matches_yaml_template(subjects: list[config.Subject]) -> None:
-    ak3 = config.find_subject(3, "AK", subjects)
+def test_find_subject_resolves_renamed_skroty_by_old_alias(
+    subjects: list[config.Subject],
+) -> None:
+    assert config.find_subject(3, "AK", subjects).skrot == "AKO"
+    assert config.find_subject(3, "ako", subjects).skrot == "AKO"
+    assert config.find_subject(1, "HDI", subjects).skrot == "HDMI"
+    assert config.find_subject(7, "SDII", subjects).skrot == "SDIII"
+    assert config.find_subject(7, "jpnp.", subjects).skrot == "JPNP"
 
-    assert ak3.target_dir == "paczka/SEM3/(AK)_Architektura_Komputerów"
+
+def test_target_dir_matches_yaml_template(subjects: list[config.Subject]) -> None:
+    ako3 = config.find_subject(3, "AK", subjects)
+
+    assert ako3.target_dir == "paczka/SEM3/AKO_Architektura_Komputerów"
     assert config.load_yaml("subjects")["meta"]["target_path_template"] == config.TARGET_PATH_TEMPLATE
+    assert (
+        config.load_yaml("subjects")["meta"]["target_path_template_grouped"]
+        == config.TARGET_PATH_TEMPLATE_GROUPED
+    )
+
+
+def test_target_dir_uses_grupa_for_sem5_sem6_sem7(subjects: list[config.Subject]) -> None:
+    sbd = config.find_subject(5, "SBD", subjects)
+    io = config.find_subject(5, "IO", subjects)
+    pgk = config.find_subject(7, "PGK", subjects)
+    pdiii = config.find_subject(7, "PDII", subjects)
+
+    assert sbd.target_dir == "paczka/SEM5/Systemy/SBD_Struktury_Baz_Danych"
+    assert io.target_dir == "paczka/SEM5/Wspolne/IO_Inżynieria_Oprogramowania"
+    assert pgk.target_dir == "paczka/SEM7/KISI/PGK_Projektowanie_Gier_Komputerowych"
+    assert pdiii.target_dir == "paczka/SEM7/Wspolne/PDIII_Projekt_Dyplomowy_Inżynierski_II"
 
 
 # --- walidacja kształtu YAML i tożsamości przedmiotu -------------------------
@@ -148,10 +211,17 @@ def test_iter_subjects_rejects_profile_that_is_not_a_mapping() -> None:
         config.iter_subjects(data)
 
 
-def test_iter_subjects_rejects_profile_entries_that_are_not_a_list() -> None:
-    data = {"semesters": {"7": {"profile": {"X": {"skrot": "A", "nazwa": "A_x"}}}}}
+def test_iter_subjects_rejects_profile_block_that_is_not_a_mapping() -> None:
+    data = {"semesters": {"7": {"profile": {"X": [{"skrot": "A", "nazwa": "A_x"}]}}}}
 
-    with pytest.raises(ValueError, match="oczekiwano listy przedmiotów"):
+    with pytest.raises(ValueError, match="oczekiwano mapy"):
+        config.iter_subjects(data)
+
+
+def test_iter_subjects_rejects_profile_without_przedmioty_list() -> None:
+    data = {"semesters": {"7": {"profile": {"X": {"katedra": "KX", "skrot": "A"}}}}}
+
+    with pytest.raises(ValueError, match="'przedmioty' musi być listą"):
         config.iter_subjects(data)
 
 
@@ -178,11 +248,20 @@ def test_iter_subjects_rejects_same_key_with_different_name() -> None:
 
 def test_iter_subjects_allows_same_entry_in_many_profiles() -> None:
     entry = {"skrot": "SDII", "nazwa": "Seminarium", "forms": ["S"]}
-    data = {"semesters": {"7": {"profile": {"A": [dict(entry)], "B": [dict(entry)]}}}}
+    data = {
+        "semesters": {
+            "7": {
+                "profile": {
+                    "A": {"katedra": "KA", "przedmioty": [dict(entry)]},
+                    "B": {"katedra": "KB", "przedmioty": [dict(entry)]},
+                }
+            }
+        }
+    }
 
     subjects = config.iter_subjects(data)
 
-    assert [s.profil for s in subjects] == ["A"]
+    assert [(s.profil, s.katedra) for s in subjects] == [("A", "KA")]
 
 
 def test_find_subject_rejects_ambiguous_alias() -> None:

@@ -58,11 +58,13 @@ aliasu w subjects.yaml i tak by nie pomogło). Prawdziwe niedopasowania
 warto szukać brakujących wpisów w subjects.yaml.
 
 Katalog przedmiotu może leżeć głębiej niż bezpośrednio pod semestrem (strumień/
-profil pośrodku, np. ``SEM5/Systemy/{SKROT}_{Nazwa}``) — patrz
-:func:`classify_path`: szuka pierwszego z max. 3 kolejnych segmentów po
-semestrze, który jednocześnie pasuje do wzorca ``({SKROT})_{Nazwa}`` /
-``{SKROT}_{Nazwa}`` I rozwiązuje się przez :func:`orglib.config.find_subject`
-(pomija po drodze co najwyżej 2 segmenty pośrednie, których nie zapisujemy).
+katedra pośrodku, np. ``SEM5/Systemy/{SKROT}_{Nazwa}``, ``SEM7/KISI/{SKROT}_{Nazwa}``)
+— patrz :func:`classify_path`: szuka pierwszego z max. 3 kolejnych segmentów po
+semestrze, który jednocześnie pasuje do wzorca ``{SKROT}_{Nazwa}`` (kanoniczny,
+``config/syntax.yaml: meta.subject_folder``) / ``({SKROT})_{Nazwa}`` (stara
+pisownia, wciąż spotykana w źródłach) I rozwiązuje się przez
+:func:`orglib.config.find_subject` (pomija po drodze co najwyżej 2 segmenty
+pośrednie, których nie zapisujemy).
 
 Usuwanie nieaktualnych wpisów ground truth
 --------------------------------------------
@@ -124,7 +126,7 @@ _OUT_OF_SCOPE_DIR_NAMES: frozenset[str] = frozenset({"sources", "ogolne"})
 
 _SEM_RE = re.compile(r"^SEM(\d+)$")
 _MAGISTERSKIE_RE = re.compile(r"^Magisterskie_SEM(\d+)$")
-#: Akceptuje '(SKROT)_Nazwa' (syntax.yaml) i 'SKROT_Nazwa' (stan repo produktu — TODO A9).
+#: Akceptuje 'SKROT_Nazwa' (kanoniczny, syntax.yaml) i '(SKROT)_Nazwa' (stara pisownia).
 _SUBJECT_RE = re.compile(r"^\(?([^)_]+)\)?_(.+)$")
 
 #: Wartość dodawana do numeru semestru magisterskiego, żeby nie kolidował z 1-7.

@@ -2,7 +2,7 @@
 
 Repo produktu żyje wyłącznie w tmp_path — testy nigdy nie dotykają prawdziwego
 10_NEW/PaczkaInfaPG. `config/subjects.yaml` jest PRAWDZIWY (nie mockowany),
-więc testy sprawdzają realne aliasy (AKO -> AK) i realne kolizje skrótów.
+więc testy sprawdzają realne aliasy (AK -> AKO) i realne kolizje skrótów.
 """
 
 from __future__ import annotations
@@ -85,7 +85,7 @@ def test_first_scan_records_content_applied_and_classification(conn, repo_root, 
     assert stats.seen == 5
     assert stats.hashed == 5
     assert stats.errors == 0
-    assert stats.classified == 3  # AKO(->AK), PO, SI
+    assert stats.classified == 3  # AKO, PO, SI
     assert stats.unmatched == 2  # XYZ_Nieznany (w zakresie), SEM1/sources (poza zakresem)
     assert stats.unmatched_folders == {(3, "XYZ_Nieznany")}
     assert stats.out_of_scope_folders == {(1, "sources")}
@@ -113,7 +113,7 @@ def test_first_scan_records_content_applied_and_classification(conn, repo_root, 
 
     classifications = _classifications(conn)
     ak = classifications[_sha(b"aaa")]
-    assert (ak["semester"], ak["subject_key"], ak["category"]) == (3, "AK", "wykład")
+    assert (ak["semester"], ak["subject_key"], ak["category"]) == (3, "AKO", "wykład")
     assert (ak["classification_method"], ak["confidence"], ak["run_id"]) == (
         "manual",
         1.0,
@@ -262,7 +262,7 @@ def test_ai_classification_is_overwritten_by_ground_truth(conn, repo_root, subje
     scan_target.scan_target(conn, repo_root, "paczka", subjects)
 
     row = _classifications(conn)[sha]
-    assert row["subject_key"] == "AK"
+    assert row["subject_key"] == "AKO"
     assert row["classification_method"] == "manual"
     assert row["run_id"] == "ground_truth"
 
@@ -288,6 +288,7 @@ def test_unmatched_folder_is_classified_after_subject_is_added(tmp_path: Path, c
             instancja=None,
             strumien=None,
             profil=None,
+            katedra=None,
         )
     ]
 

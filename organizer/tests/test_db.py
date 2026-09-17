@@ -258,7 +258,7 @@ def test_relations_reject_self_reference(conn: sqlite3.Connection) -> None:
 
 def test_plan_items_allow_many_targets_per_content(conn: sqlite3.Connection) -> None:
     _seed_content(conn, "b" * 64)
-    for target in ("paczka/SEM3/(AK)_x/a.pdf", "paczka/SEM4/(SI)_y/a.pdf"):
+    for target in ("paczka/SEM3/AKO_x/a.pdf", "paczka/SEM4/SI_y/a.pdf"):
         db.upsert_plan_item(
             conn,
             {
@@ -275,7 +275,7 @@ def test_plan_items_allow_many_targets_per_content(conn: sqlite3.Connection) -> 
 def test_record_applied_keys_on_target_path(conn: sqlite3.Connection) -> None:
     _seed_content(conn, "c" * 64)
     row = {
-        "target_relative_path": "paczka/SEM3/(AK)_x/a.pdf",
+        "target_relative_path": "paczka/SEM3/AKO_x/a.pdf",
         "sha256": "c" * 64,
         "action": "copy",
         "plan_hash": "h1",
@@ -430,7 +430,7 @@ def test_manual_decisions_roundtrip(conn: sqlite3.Connection, tmp_path: Path) ->
         {
             "sha256": "d" * 64,
             "decision_type": "outdated",
-            "target_relative_path": "paczka/SEM3/(AK)_x/outdated/a.pdf",
+            "target_relative_path": "paczka/SEM3/AKO_x/outdated/a.pdf",
             "relation_override": None,
             "decided_by": "billy",
             "decided_at": db.now_iso(),
@@ -439,7 +439,7 @@ def test_manual_decisions_roundtrip(conn: sqlite3.Connection, tmp_path: Path) ->
         {
             "sha256": "e" * 64,
             "decision_type": "classify",
-            "target_relative_path": "paczka/SEM4/(SI)_y/wyklady/b.pdf",
+            "target_relative_path": "paczka/SEM4/SI_y/wyklady/b.pdf",
             "relation_override": None,
             "decided_by": "billy",
             "decided_at": db.now_iso(),

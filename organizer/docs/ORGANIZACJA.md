@@ -38,7 +38,8 @@ flowchart TD
 
 ### paczka-content — PRODUKT (ground truth) — DOCELOWO; dziś rolę pełni `PaczkaInfaPG/paczka`
 Cienkie repo z gotową paczką. Docelowo tylko:
-- `paczka/` — materiały, układ `SEM{n}/({SKROT})_{Nazwa}/...` (patrz `config/syntax.yaml`)
+- `paczka/` — materiały, układ `SEM{n}/{SKROT}_{Nazwa}/...` (SEM5-7 mają dodatkowy
+  poziom strumienia/katedry przed `{SKROT}_{Nazwa}`; patrz `config/syntax.yaml`)
 - `paczka_meta/` — metadane pakietu: provenance dla użytkownika, README przedmiotów
 - `docs/` — dokumentacja paczki
 - `.github/` — **thin caller** do współdzielonych/reużywalnych workflowów

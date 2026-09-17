@@ -128,8 +128,10 @@ Katalogi lokalne (poza gitem, ścieżki w `config/`):
 ```
 
 ### Gdzie trafia wynik
-- Materiały (PDF/obrazy) → `paczka/SEM{n}/({SKROT})_{Nazwa}/...` w klonie repo
-  docelowego (`config/paths.yaml: target_repo` — **dziś `10_NEW/PaczkaInfaPG`**, docelowo
+- Materiały (PDF/obrazy) → `paczka/SEM{n}/{SKROT}_{Nazwa}/...` (SEM5-7: dodatkowy
+  poziom strumienia/katedry, `paczka/SEM{n}/{strumień|katedra}/{SKROT}_{Nazwa}/...`
+  — patrz `config/syntax.yaml: meta.group_levels`) w klonie repo docelowego
+  (`config/paths.yaml: target_repo` — **dziś `10_NEW/PaczkaInfaPG`**, docelowo
   `paczka-content`), na branchu `subject/{SKROT}`, przez PR per przedmiot.
 - Provenance + README pakietu (dla użytkownika) → `paczka-content/paczka_meta/`.
 - Manifesty, plany, provenance-operacyjne, `manual_decisions.jsonl` →
