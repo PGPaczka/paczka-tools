@@ -5,18 +5,29 @@
 #   jest para (semestr, skrot). Gdy ten sam skrót powtarza się w tym samym
 #   semestrze — dodatkowo różnicujemy nazwą. Klasyfikator MUSI znać semestr
 #   (z docelowej ścieżki paczka/SEM{n}/...), żeby rozstrzygnąć kolizje.
+#   WYJĄTEK: w SEM7 sam skrót "SI" powtarza się w DWÓCH katedrach (patrz
+#   KOLIZJE niżej) — tam nawet (semestr, skrot) nie wystarcza i trzeba dodać
+#   grupę (katedrę).
 #
 # KOLIZJE SKRÓTÓW (ten sam skrót = różne przedmioty):
 #   PO  : sem2 Programowanie_Obiektowe    vs  sem7 (KISI) Przetwarzanie_Obrazów
 #   SI  : sem4 Sztuczna_Inteligencja      vs  sem7 (KT) Sieci_IP
+#   SI  : sem7 (KASK) Serwisy_Internetowe_NET  vs  sem7 (KT) Sieci_IP — DRUGA,
+#         WEWNĄTRZ-semestralna kolizja: rozstrzyga katedra (grupa), nie skrót.
+#         W SEM7 para (semestr, skrot) PRZESTAŁA być jednoznaczna — klasyfikator
+#         MUSI dodatkowo przekazać grupę (`find_subject(..., grupa=...)`, gdzie
+#         `grupa` to katalog katedry `{KOD}_{profil}` leżący między SEM7/ a
+#         katalogiem przedmiotu); bez trafienia w grupę zapytanie jest
+#         wieloznaczne (ValueError z obiema nazwami do ręcznego rozstrzygnięcia).
 #   SK  : sem4 Sieci_Komputerowe          vs  sem6 Sieci_Korporacyjne  (por. SK-L sem5)
 #   ASK : sem5 Administrowanie_Systemami  vs  sem7 (KT) Administrowanie_Sieciami
 #   WFI : sem2, sem3 (Wychowanie Fizyczne I/II — ta sama rodzina, różne instancje)
 #
-#   Dawne kolizje AK (sem3 vs sem7), PGI (sem5 vs sem6), PDII/SDII (sem6 vs
-#   sem7) ZNIKNĘŁY po dopasowaniu skrótów do ground truth w target_repo:
-#   sem3 AK -> AKO, sem6 PGI -> PGII, sem7 PDII -> PDIII, sem7 SDII -> SDIII
-#   (stare skróty żyją dalej jako aliasy, patrz niżej).
+#   Dawne kolizje AK (sem3 vs sem7) — ZNIKNĘŁA (sem3 AK -> AKO, stary skrót
+#   żyje jako alias), PGI (sem5 vs sem6) — ZNIKNĘŁA (sem6 PGI -> PGII), PDII/
+#   SDII (sem6 vs sem7) — ZNIKNĘŁA (sem7 PDII -> PDIII, sem7 SDII -> SDIII)
+#   po dopasowaniu skrótów do ground truth w target_repo (stare skróty żyją
+#   dalej jako aliasy, patrz niżej).
 #
 #   JAI : sem1..sem5 (Język Angielski I–IV) — ta sama rodzina, różne instancje;
 #   jako SKRÓT unikalny tylko w sem2 (JAI); sem3/4/5 to JAII/JAIII/JAIV
@@ -96,7 +107,7 @@ semesters:
     - { skrot: MPwI,   nazwa: Metody_Probabilistyczne_w_Informatyce,  forms: [W, C, L], aliases: [MPWI] }
 
   5:
-    - { skrot: PGI,  nazwa: PROJEKT_GRUPOWY_I,             forms: [P], instancja: I }
+    - { skrot: PGI,  nazwa: Projekt_Grupowy_I,             forms: [P], instancja: I }
     - { skrot: IO,   nazwa: Inżynieria_Oprogramowania,     forms: [W, L] }
     - { skrot: JAIV, nazwa: Język_Angielski_IV,            forms: [C], instancja: IV, aliases: [JAI] }
     - { skrot: SK-L, nazwa: Sieci_Komputerowe_-_Laboratorium, forms: [L] }
@@ -117,13 +128,13 @@ semesters:
     - { skrot: SIP, nazwa: Systemy_Informacji_Przestrzennej,        forms: [W, L], strumien: Aplikacje }
 
   6:
-    - { skrot: PGII, nazwa: PROJEKT_GRUPOWY_II,                 forms: [P], instancja: II, aliases: [PGI] }
+    - { skrot: PGII, nazwa: Projekt_Grupowy_II,                 forms: [P], instancja: II, aliases: [PGI] }
     - { skrot: ZBS,  nazwa: Zarządzanie_Bezpieczeństwem_Sieci,  forms: [W, L] }
     - { skrot: RPI,  nazwa: Realizacja_Projektu_Informatycznego, forms: [W, P] }
     - { skrot: ZFI,  nazwa: Zarządzanie_Firmą_Informatyczną,    forms: [W, P] }
     - { skrot: PDII, nazwa: Projekt_Dyplomowy_Inżynierski_I,    forms: [P], instancja: I }
     - { skrot: SDII, nazwa: Seminarium_Dyplomowe_Inżynierskie_I, forms: [S], instancja: I }
-    - { skrot: TRP,  nazwa: Technika_Radia_Programowalnego,     forms: [W, L] }  # forms do potwierdzenia (dodany z ground truth)
+    - { skrot: TRP,  nazwa: Technika_Radia_Programowalnego,     forms: [W, L] }
     # --- Strumień: Systemy ---
     - { skrot: ZAKO, nazwa: Zaawansowane_Architektury_Komputerów, forms: [W, L], strumien: Systemy, aliases: [ZAK] }
     - { skrot: LSB, nazwa: Lokalne_Sieci_Bezprzewodowe,          forms: [W, L], strumien: Systemy }
@@ -154,7 +165,7 @@ semesters:
         katedra: KASK
         przedmioty:
           - { skrot: PAI,  nazwa: Projektowanie_Aplikacji_Internetowych, forms: [W, P] }
-          - { skrot: "SI.", nazwa: Serwisy_Internetowe_.NET,            forms: [W, P] }   # skrót z kropką — zachować dokładnie
+          - { skrot: SI, nazwa: Serwisy_Internetowe_NET,                forms: [W, P], aliases: ["SI."] }
           - { skrot: NIAJ, nazwa: Narzędzia_I_Aplikacje_JEE,            forms: [W, L] }
       Inteligentne_Systemy_Interaktywne:
         katedra: KISI

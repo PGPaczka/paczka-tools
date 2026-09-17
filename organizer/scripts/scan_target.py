@@ -297,6 +297,16 @@ def classify_path(parts: Sequence[str], subjects: Sequence[config.Subject]) -> C
     zapisywane). Segment tuż za katalogiem przedmiotu to ``category``; gdy to
     dosłownie ``'outdated'``, ustawia ``is_outdated`` i ``category`` to
     KOLEJNY segment (albo ``None``).
+
+    Gdy katalog przedmiotu ma bezpośredniego poprzednika wśród sprawdzanych
+    segmentów (strumień/katedra), przekazuje go do
+    :func:`orglib.config.find_subject` jako ``grupa`` — rozstrzyga to kolizje
+    skrótu W OBRĘBIE semestru, których sam skrót nie rozstrzyga (SEM7 SI: KASK
+    vs KT, patrz nagłówek ``subjects.yaml``). Gdy dopasowanie z grupą zawiedzie
+    (``KeyError``/``ValueError`` — zła/nieznana nazwa grupy, albo przedmiot
+    faktycznie leży bezpośrednio pod semestrem mimo pominiętego segmentu),
+    próbuje ponownie BEZ grupy — ale nigdy w drugą stronę: zły traf w grupę
+    nie ma prawa cicho podmienić poprawnego dopasowania na zgadywankę.
     """
     parts = tuple(parts)
     if len(parts) < 2:
@@ -326,10 +336,18 @@ def classify_path(parts: Sequence[str], subjects: Sequence[config.Subject]) -> C
         match = _SUBJECT_RE.fullmatch(candidate)
         if not match:
             continue
-        try:
-            subject = config.find_subject(semester, match.group(1), subjects)
-        except (KeyError, ValueError):
-            continue
+        grupa = dirs[index - 1] if index > 0 else None
+        subject: Optional[config.Subject] = None
+        if grupa is not None:
+            try:
+                subject = config.find_subject(semester, match.group(1), subjects, grupa=grupa)
+            except (KeyError, ValueError):
+                subject = None
+        if subject is None:
+            try:
+                subject = config.find_subject(semester, match.group(1), subjects)
+            except (KeyError, ValueError):
+                continue
         rest = dirs[index + 1 :]
         category = rest[0] if rest else None
         is_outdated = False

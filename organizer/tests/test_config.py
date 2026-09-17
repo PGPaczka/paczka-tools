@@ -82,7 +82,7 @@ def test_iter_subjects_covers_colliding_shortcuts(subjects: list[config.Subject]
 
     assert (3, "AKO") in keys
     assert (7, "AK") in keys
-    assert (7, "SI.") in keys
+    assert (7, "SI") in keys
     assert (4, "SI") in keys
 
 
@@ -124,8 +124,11 @@ def test_iter_subjects_marks_katedra_from_profile(subjects: list[config.Subject]
     assert pdiii7.katedra is None  # wspolne — grupa domyślnie "Wspolne"
 
 
-def test_no_duplicate_semester_skrot_keys(subjects: list[config.Subject]) -> None:
-    keys = [s.key for s in subjects]
+def test_no_duplicate_semester_grupa_skrot_keys(subjects: list[config.Subject]) -> None:
+    """(semestr, skrot) sam NIE jest już unikalny globalnie (SEM7 SI: KASK vs KT) —
+    unikalna jest dopiero (semestr, grupa, skrot); patrz KOLIZJE w subjects.yaml.
+    """
+    keys = [(s.semester, s.grupa, s.skrot) for s in subjects]
 
     assert len(keys) == len(set(keys))
 
@@ -205,6 +208,51 @@ def test_target_dir_uses_grupa_for_sem5_sem6_sem7(subjects: list[config.Subject]
         == "paczka/SEM7/KISI_Inteligentne_Systemy_Interaktywne/PGK_Projektowanie_Gier_Komputerowych"
     )
     assert pdiii.target_dir == "paczka/SEM7/Wspolne/PDIII_Projekt_Dyplomowy_Inżynierski_II"
+
+
+def test_target_dir_matches_renamed_ground_truth_dirs(subjects: list[config.Subject]) -> None:
+    """PGI/PGII/SEM7-SI dopasowane do katalogów przemianowanych w target_repo
+    (branch fix/nazwy-katalogow-przedmiotow — patrz TODO.md A9)."""
+    pgi = config.find_subject(5, "PGI", subjects)
+    pgii = config.find_subject(6, "PGII", subjects)
+    si_kask = config.find_subject(
+        7, "SI", subjects, grupa="KASK_Architektura_Systemów_Komputerowych"
+    )
+
+    assert pgi.target_dir == "paczka/SEM5/Wspolne/PGI_Projekt_Grupowy_I"
+    assert pgii.target_dir == "paczka/SEM6/Wspolne/PGII_Projekt_Grupowy_II"
+    assert (
+        si_kask.target_dir
+        == "paczka/SEM7/KASK_Architektura_Systemów_Komputerowych/SI_Serwisy_Internetowe_NET"
+    )
+
+
+def test_find_subject_sem7_si_ambiguous_without_grupa(subjects: list[config.Subject]) -> None:
+    """Bez grupy SEM7 SI jest wieloznaczne (KASK Serwisy_Internetowe_NET vs KT Sieci_IP)."""
+    with pytest.raises(ValueError, match="wieloznaczne") as exc:
+        config.find_subject(7, "SI", subjects)
+
+    assert "Serwisy_Internetowe_NET" in str(exc.value)
+    assert "Sieci_IP" in str(exc.value)
+
+
+def test_find_subject_sem7_si_resolved_by_grupa(subjects: list[config.Subject]) -> None:
+    kask = config.find_subject(
+        7, "SI", subjects, grupa="KASK_Architektura_Systemów_Komputerowych"
+    )
+    kt = config.find_subject(7, "SI", subjects, grupa="KT_Teleinformatyka")
+
+    assert kask.nazwa == "Serwisy_Internetowe_NET"
+    assert kt.nazwa == "Sieci_IP"
+
+
+def test_find_subject_sem7_si_dot_alias_still_unique(subjects: list[config.Subject]) -> None:
+    """Stary skrót "SI." żyje jako alias TYLKO na przedmiocie KASK — bez grupy nadal jednoznaczny."""
+    assert config.find_subject(7, "SI.", subjects).nazwa == "Serwisy_Internetowe_NET"
+
+
+def test_find_subject_sem4_si_unaffected_by_sem7_collision(subjects: list[config.Subject]) -> None:
+    assert config.find_subject(4, "SI", subjects).nazwa == "Sztuczna_Inteligencja"
 
 
 # --- walidacja kształtu YAML i tożsamości przedmiotu -------------------------

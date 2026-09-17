@@ -236,14 +236,17 @@ def iter_subjects(data: dict[str, Any] | None = None) -> list[Subject]:
 
     Wpisy powtórzone w wielu profilach (np. SDII w sem 7) deduplikuje po
     (semestr, skrót, nazwa), zachowując pierwszy napotkany profil. Gdy po tej
-    deduplikacji ten sam klucz (semestr, skrót) wskazuje na dwie różne nazwy,
-    podnosi ``ValueError`` — tożsamość przedmiotu przestałaby być rozstrzygalna.
+    deduplikacji ten sam klucz (semestr, skrót, grupa) wskazuje na dwie różne
+    nazwy, podnosi ``ValueError`` — w OBRĘBIE tej samej grupy tożsamość
+    przedmiotu przestałaby być rozstrzygalna. (semestr, skrót) SAM nie musi
+    być globalnie unikalny w obrębie semestru — patrz kolizja SEM7 SI (KASK
+    vs KT) w nagłówku ``subjects.yaml``; rozstrzyga ją dopiero grupa (katedra).
     """
     if data is None:
         data = load_yaml("subjects")
     subjects: list[Subject] = []
     seen: set[tuple[int, str, str]] = set()
-    by_key: dict[tuple[int, str], str] = {}
+    by_key: dict[tuple[int, str, str], str] = {}
     for raw_semester, block in (data.get("semesters") or {}).items():
         semester = int(raw_semester)
         for profil, katedra, entries in _semester_groups(raw_semester, block):
@@ -252,26 +255,38 @@ def iter_subjects(data: dict[str, Any] | None = None) -> list[Subject]:
                 dedup_key = (subject.semester, subject.skrot, subject.nazwa)
                 if dedup_key in seen:
                     continue
-                previous = by_key.get(subject.key)
+                group_key = (subject.semester, subject.skrot, subject.grupa)
+                previous = by_key.get(group_key)
                 if previous is not None:
                     raise ValueError(
-                        f"subjects.yaml: klucz {subject.key} wskazuje na dwa różne przedmioty: "
-                        f"{previous!r} i {subject.nazwa!r} — rozróżnij je skrótem"
+                        f"subjects.yaml: klucz {subject.key} w grupie {subject.grupa!r} "
+                        f"wskazuje na dwa różne przedmioty: {previous!r} i {subject.nazwa!r} "
+                        "— rozróżnij je skrótem"
                     )
-                by_key[subject.key] = subject.nazwa
+                by_key[group_key] = subject.nazwa
                 seen.add(dedup_key)
                 subjects.append(subject)
     return subjects
 
 
 def find_subject(
-    semester: int, skrot: str, subjects: Sequence[Subject] | None = None
+    semester: int,
+    skrot: str,
+    subjects: Sequence[Subject] | None = None,
+    *,
+    grupa: str | None = None,
 ) -> Subject:
     """Znajduje przedmiot po skrócie LUB aliasie (bez rozróżniania wielkości liter).
 
     Trafienie w skrót ma pierwszeństwo przed trafieniem w alias. Wieloznaczność
     (ta sama szukana wartość pasuje do kilku przedmiotów w tym semestrze) to
     ``ValueError`` — AI/skrypt nie może tu zgadywać. Brak dopasowania: ``KeyError``.
+
+    ``grupa``, gdy podana, zawęża kandydatów do przedmiotów, dla których
+    :attr:`Subject.grupa` == ``grupa`` (dokładne dopasowanie stringa — strumień
+    dla SEM5/6, ``{katedra}_{profil}`` dla SEM7, inaczej ``"Wspolne"``).
+    Rozstrzyga kolizje w obrębie semestru, których sam skrót nie rozstrzyga
+    (patrz SEM7 SI: KASK ``Serwisy_Internetowe_NET`` vs KT ``Sieci_IP``).
     """
     needle = skrot.strip().casefold()
     pool = subjects if subjects is not None else iter_subjects()
@@ -280,6 +295,8 @@ def find_subject(
     for subject in pool:
         if subject.semester != semester:
             continue
+        if grupa is not None and subject.grupa != grupa:
+            continue
         if subject.skrot.casefold() == needle:
             by_skrot.append(subject)
         elif any(alias.casefold() == needle for alias in subject.aliases):
@@ -287,10 +304,12 @@ def find_subject(
 
     matches = by_skrot or by_alias
     if not matches:
-        raise KeyError(f"brak przedmiotu (semestr={semester}, skrot={skrot!r})")
+        grupa_suffix = f", grupa={grupa!r}" if grupa is not None else ""
+        raise KeyError(f"brak przedmiotu (semestr={semester}, skrot={skrot!r}{grupa_suffix})")
     if len(matches) > 1:
+        candidates = [f"{s.nazwa} (grupa={s.grupa!r})" for s in matches]
         raise ValueError(
             f"wieloznaczne dopasowanie (semestr={semester}, skrot={skrot!r}): "
-            f"{[s.nazwa for s in matches]} — doprecyzuj skrót"
+            f"{candidates} — doprecyzuj skrót albo podaj grupę"
         )
     return matches[0]

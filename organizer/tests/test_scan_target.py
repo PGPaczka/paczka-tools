@@ -339,6 +339,37 @@ def test_subject_dir_two_levels_below_intermediate_folders(tmp_path: Path, conn,
     assert (row["semester"], row["subject_key"], row["category"]) == (7, "PGK", "wyklad")
 
 
+def test_sem7_si_collision_resolved_by_department_group(tmp_path: Path, conn, subjects):
+    """SEM7 SI powtarza się w dwóch katedrach (KASK Serwisy_Internetowe_NET vs
+    KT Sieci_IP) — classify_path musi rozstrzygnąć po katalogu katedry (grupa),
+    nie zgadywać ani mylić jednego z drugim."""
+    root = tmp_path / "PaczkaInfaPG"
+    paczka = root / "paczka"
+    kask_dir = (
+        paczka / "SEM7" / "KASK_Architektura_Systemów_Komputerowych" / "SI_Serwisy_Internetowe_NET"
+    )
+    kt_dir = paczka / "SEM7" / "KT_Teleinformatyka" / "SI_Sieci_IP"
+    kask_dir.mkdir(parents=True)
+    kt_dir.mkdir(parents=True)
+    (kask_dir / "net.pdf").write_bytes(b"net-material")
+    (kt_dir / "ip.pdf").write_bytes(b"ip-material")
+
+    stats = scan_target.scan_target(conn, root, "paczka", subjects)
+
+    assert stats.classified == 2
+    classifications = _classifications(conn)
+    net_row = classifications[_sha(b"net-material")]
+    ip_row = classifications[_sha(b"ip-material")]
+
+    assert (net_row["semester"], net_row["subject_key"]) == (7, "SI")
+    assert (ip_row["semester"], ip_row["subject_key"]) == (7, "SI")
+    assert (
+        net_row["target_relative_path"]
+        == "paczka/SEM7/KASK_Architektura_Systemów_Komputerowych/SI_Serwisy_Internetowe_NET/net.pdf"
+    )
+    assert ip_row["target_relative_path"] == "paczka/SEM7/KT_Teleinformatyka/SI_Sieci_IP/ip.pdf"
+
+
 # --- ta sama treść pod kilkoma ścieżkami docelowymi ----------------------------
 
 
