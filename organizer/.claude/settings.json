@@ -46,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard-sources.py\""
+            "command": "python3 \"${CLAUDE_PROJECT_DIR}/.agents/hooks/guard-sources.py\""
           }
         ]
       }

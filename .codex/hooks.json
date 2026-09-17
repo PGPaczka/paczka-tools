@@ -1,0 +1,18 @@
+{
+  "description": "Paczka Organizer: wspólna ochrona katalogu 00_SOURCES.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Edit|Write|apply_patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/organizer/.agents/hooks/guard-sources.py\"",
+            "statusMessage": "Sprawdzam ochronę 00_SOURCES",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
