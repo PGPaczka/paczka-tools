@@ -1,0 +1,64 @@
+# A0 — bootstrap skali dublowania (rmlint + du + ncdu), 2026-09-17
+
+Tylko raport. Nic nie zostało skasowane ani zmodyfikowane w 00_SOURCES (reguła twarda nr 1).
+Polecenie: `rmlint -D -T df -o pretty -o summary -o json 00_SOURCES` (bez `-c sh`, bez rmlint.sh).
+Artefakty poza gitem (20_WORK/): bootstrap_rmlint.json (20 MB, pełna lista par),
+bootstrap_rmlint_pretty.txt (6,8 MB, listing ls/rm — NIE uruchamiać), ncdu_sources.json (`ncdu -f`).
+
+## Podsumowanie rmlint (2 min skanu)
+
+  pliki przeskanowane:        47 991   (find: 49 398 — różnica = ukryte/.gitkeep/puste)
+  duplikaty (kopie):          29 548   w 10 348 grupach
+  bajty w kopiach:            17,94 GB z ~40 GB  (~45% źródeł to dokładne kopie)
+  duplicate_dir w JSON:       0  — rmlint 2.9 z `-D` nie wyemitował wpisów katalogowych;
+                                 dedup katalogów robi nasz fold_hash.py (tree_hash), więc bez znaczenia
+
+## Rozmiar paczek (du -sb, malejąco)
+
+  Paczki Infa                 15 595 102 494   (14,5 GiB)
+  Paczki INFA                  9 253 296 117   ( 8,6 GiB)
+  V semestr 2024_2025          3 295 678 539   ( 3,1 GiB)
+  IV semestr 2024_2025         2 592 221 618   ( 2,4 GiB)
+  Paczka II sem. 21_22         2 336 951 396   ( 2,2 GiB)
+  Semestr 3 paczka             2 300 629 111   ( 2,1 GiB)
+  II semestr 2024_2025         2 155 524 196   ( 2,0 GiB)
+  INF SEM 2                    1 826 327 929   ( 1,7 GiB)
+  Paczka I sem. 22_23          1 109 586 689   ( 1,0 GiB)
+  III semestr 2024_2025          902 896 344   ( 861 MiB)
+  SEM2                           777 888 080   ( 742 MiB)
+  I semestr 2024_2025            213 473 935   ( 204 MiB)
+  Paczka I sem.                  149 694 098   ( 143 MiB)
+  AKO2020                         20 164 714   (  19 MiB)
+  razem: 14 paczek, 49 398 plików, 10 539 katalogów
+
+## Gdzie siedzą kopie (bajty kopii nie-oryginalnych wg paczki)
+
+  Paczki Infa                 6,74 GiB
+  Paczki INFA                 6,56 GiB
+  INF SEM 2                   1,62 GiB
+  Semestr 3 paczka            1,20 GiB
+  Paczka II sem. 21_22        1,07 GiB
+  SEM2                        429 MiB
+  Paczka I sem. 22_23         142 MiB
+  II semestr 2024_2025         79 MiB
+
+## Pary paczek dzielące najwięcej bajtów (oryginał → kopia wg rmlint; kierunek umowny)
+
+  Paczki Infa            → Paczki INFA            3,60 GiB
+  Paczki Infa            → Paczki Infa            2,73 GiB   (dubel wewnątrz jednej paczki)
+  Semestr 3 paczka       → Paczki Infa            2,49 GiB
+  Paczka II sem. 21_22   → Paczki INFA            1,70 GiB
+  Paczki Infa            → INF SEM 2              1,62 GiB
+  Paczki Infa            → Semestr 3 paczka       1,16 GiB
+  Paczka II sem. 21_22   → Paczki Infa            1,15 GiB
+  Paczki Infa            → Paczka II sem. 21_22   1,05 GiB
+  Semestr 3 paczka       → Paczki INFA            635 MiB
+  Paczki INFA            → Paczki INFA            431 MiB
+
+## Wnioski dla pipeline'u
+
+- `Paczki Infa` i `Paczki INFA` to w dużej mierze ta sama treść (3,6 GiB wspólne) + zagnieżdżone
+  "Stare Paczki" wewnątrz `Paczki Infa` (2,7 GiB dubli w obrębie jednej paczki). Potwierdza §5
+  architektury: foldery nie są tożsamością, treść jest — exact dedup po sha256/tree_hash załatwia to bez ręcznego sprzątania.
+- Paczki 2024_2025 (I–V semestr) prawie nie dublują reszty (<80 MiB) — to głównie nowa treść.
+- Realnie unikalnej treści jest ~22 GB; extract/classify/AI dotkną tylko tej części.

@@ -12,13 +12,13 @@ Legenda: `[ ]` do zrobienia · `[x]` zrobione · `[~]` w toku · ~~przekreślone
 - [x] A1. Szkielet repo + `config/` (paths, subjects, syntax, thresholds) + Claude Code setup (2026-09-17)
 - [x] A2. Model danych — sekcja 4: `scripts/orglib/{schema.sql,db.py,config.py,hashes.py}`, `scripts/db_admin.py`, 70 testów (2026-09-17)
 - [x] A2a. Naprawa `config/subjects.yaml` (sem 7: klucz `wspolne`, poprawny YAML) (2026-09-17)
-- [ ] A0. Bootstrap skali dublowania: `rmlint --merge-directories` + `ncdu` na `00_SOURCES` (tylko raport, nic nie kasować) → `reports/bootstrap_rmlint.txt`
+- [x] A0. Bootstrap skali dublowania: `rmlint -D` + `ncdu` na źródłach (tylko raport) → `reports/bootstrap_rmlint.txt`: 47 991 plików, 29 548 kopii, 17,94 GB dubli (~45%); pełne artefakty w `20_WORK/` (2026-09-17)
 - [ ] A3. `scripts/scan.py` — stat źródeł → `source_packages`, `folders`, `files` (status `discovered`), `structural_signature`; skip niezmienionych poddrzew na re-runie; generuje `docs/SOURCES_TREE.md`
 - [ ] A4. `scripts/hash_files.py` — sha256 → `files.sha256`, `content` (content_kind po rozszerzeniu), status `hashed`; wznawialny
 - [ ] A5. `scripts/fold_hash.py` — `tree_hash` / `content_set_hash` → `folders.duplicate_of` (dwa przejścia, FK) + `reports/folder_overlap.csv` (próg z `thresholds.yaml`)
 - [ ] A6. `scripts/dedup_report.py` — unique vs duplicate (liczby, bajty, per paczka) → `reports/dedup_summary.md`, `reports/inventory.jsonl`
 - [ ] A7. Skan istniejącej `paczka/` w `target_repo` = ground truth (lock; hash + ścieżka docelowa → `applied`/klasyfikacja `manual`, conf=1.0)
-- [ ] A8. `config/taxonomy.yaml` (wymieniony w architekturze, jeszcze nie istnieje) — albo przekreślić, jeśli `syntax.yaml` wystarcza
+- [x] ~~A8. `config/taxonomy.yaml`~~ — zbędny: `syntax.yaml` (kategorie, foldery, formy, media) JEST taksonomią; architektura §3/§13 poprawiona (2026-09-17)
 
 ## B. Skrypty cyklu per-przedmiot
 

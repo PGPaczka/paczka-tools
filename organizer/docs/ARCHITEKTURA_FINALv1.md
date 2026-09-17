@@ -114,7 +114,7 @@ paczka-tools/organizer/
 │   ├── ARCHITEKTURA_FINALv1.md       # ten dokument
 │   ├── ORGANIZACJA.md                # mapa repozytoriów i organizacji
 │   └── SOURCES_TREE.md               # snapshot drzewa źródeł (ślad, generowany)
-├── config/   (subjects.yaml, syntax.yaml, thresholds.yaml, taxonomy.yaml)
+├── config/   (paths.yaml, subjects.yaml, syntax.yaml, thresholds.yaml — syntax.yaml pełni rolę taksonomii)
 ├── prompts/  (classify_ambiguous, relate_cluster)
 ├── scripts/  (etapy pipeline)
 └── reports/  (inventory, plany, provenance-operacyjne — w gicie)
@@ -325,7 +325,7 @@ głowa tekstu ~1–2 KB); cache decyzji po sha256; struktura raz na sesję; podd
 ```mermaid
 flowchart LR
     S0["0. Bootstrap<br/>rmlint + ncdu<br/>(skala dublowania)"] --> S1["1. Szkielet repo<br/>utility/organizer + config + schemat"]
-    S1 --> S2["2. Import listy → subjects.yaml<br/>(gotowe) + taxonomy/thresholds"]
+    S1 --> S2["2. Import listy → subjects.yaml<br/>(gotowe) + syntax/thresholds"]
     S2 --> S3["3. scan (stat) → files, folders<br/>+ SOURCES_TREE.md"]
     S3 --> S4["4. hash plików → content<br/>(dedup plików)"]
     S4 --> S5["5. fold_hash → duplicate_of<br/>+ folder_overlap.csv"]

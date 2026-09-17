@@ -1,0 +1,7 @@
+==> In total 47991 files, whereof 29548 are duplicates in 10348 groups.
+==> This equals 17.94 GB of duplicates which could be removed.
+==> Scanning took in total  1m 58.935s.
+
+Wrote a pretty file to: /home/billy/dev/paczka/PaczkaMerge/paczka-tools/organizer/reports/bootstrap_rmlint.txt
+Wrote a json file to: /home/billy/dev/paczka/PaczkaMerge/20_WORK/bootstrap_rmlint.json
+Wrote a summary file to: /home/billy/dev/paczka/PaczkaMerge/paczka-tools/organizer/reports/bootstrap_rmlint_summary.txt

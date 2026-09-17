@@ -1,0 +1,19 @@
+# du per paczka (bajty), 2026-09-17T18:03:28Z
+15595102494	/home/billy/dev/paczka/PaczkaMerge/00_SOURCES/Paczki Infa
+9253296117	/home/billy/dev/paczka/PaczkaMerge/00_SOURCES/Paczki INFA
+3295678539	/home/billy/dev/paczka/PaczkaMerge/00_SOURCES/V semestr 2024_2025
+2592221618	/home/billy/dev/paczka/PaczkaMerge/00_SOURCES/IV semestr 2024_2025
+2336951396	/home/billy/dev/paczka/PaczkaMerge/00_SOURCES/Paczka II sem. 21_22
+2300629111	/home/billy/dev/paczka/PaczkaMerge/00_SOURCES/Semestr 3 paczka
+2155524196	/home/billy/dev/paczka/PaczkaMerge/00_SOURCES/II semestr 2024_2025
+1826327929	/home/billy/dev/paczka/PaczkaMerge/00_SOURCES/INF SEM 2
+1109586689	/home/billy/dev/paczka/PaczkaMerge/00_SOURCES/Paczka I sem. 22_23
+902896344	/home/billy/dev/paczka/PaczkaMerge/00_SOURCES/III semestr 2024_2025
+777888080	/home/billy/dev/paczka/PaczkaMerge/00_SOURCES/SEM2
+213473935	/home/billy/dev/paczka/PaczkaMerge/00_SOURCES/I semestr 2024_2025
+149694098	/home/billy/dev/paczka/PaczkaMerge/00_SOURCES/Paczka I sem.
+20164714	/home/billy/dev/paczka/PaczkaMerge/00_SOURCES/AKO2020
+
+# liczba plików / katalogów
+49398
+10539
