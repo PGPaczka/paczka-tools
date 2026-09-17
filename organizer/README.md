@@ -32,6 +32,51 @@ scan → hash → dedup (pliki + foldery) → extract → classify (det.) →
 Wynik (`apply`) trafia do `paczka/` w klonie repo docelowego, na branchu
 `subject/{SKROT}`, i dalej jako PR. Kod i operacyjne raporty zostają tutaj.
 
+## Skrypty (pierwszy przebieg)
+
+Kolejność uruchamiania (robione raz, na całości źródeł):
+
+1. `python scripts/db_admin.py init` — tworzy/aktualizuje schemat `20_WORK/organizer.sqlite`.
+2. `python scripts/scan.py` — statuje paczki źródłowe (`00_SOURCES/`, read-only),
+   zapisuje `source_packages`/`folders`/`files` (status `discovered`) i generuje
+   `docs/SOURCES_TREE.md`.
+3. `python scripts/hash_files.py` — liczy sha256 plików w statusie `discovered`,
+   zapisuje `content` (dedup plików), przestawia status na `hashed`.
+4. `python scripts/fold_hash.py` — liczy hashe poddrzew, oznacza dokładne
+   duplikaty katalogów (`folders.duplicate_of`) i zapisuje `reports/folder_overlap.csv`.
+5. `python scripts/dedup_report.py` — liczy z bazy unique vs duplicate (liczby,
+   bajty, per paczka) → `reports/dedup_summary.md`, `reports/inventory.jsonl`.
+6. `python scripts/scan_target.py` — skanuje istniejącą `paczka/` w repo
+   docelowym jako ground truth: content + status `applied` + klasyfikacja
+   `manual`, conf=1.0.
+
+| Skrypt | Wejście | Wyjście | Wznawialność / uwagi |
+|---|---|---|---|
+| `db_admin.py init` | brak (zakłada bazę) | schemat w `20_WORK/organizer.sqlite` | idempotentny; `init` też aktualizuje istniejący schemat |
+| `scan.py` | `00_SOURCES/` (read-only) | `source_packages`, `folders`, `files` (`discovered`) + `docs/SOURCES_TREE.md` | wznawialny — pomija niezmienione poddrzewa; exit 3 = skan częściowy (coś pominięto, zapis i tak się odbył), 1 = zły katalog/nieznana paczka, 2 = sprzeczne opcje |
+| `hash_files.py` | `files` w statusie `discovered` | `content` (sha256, content_kind), `files` → `hashed` | wznawialny (batch domyślnie 200); `--retry-errors` cofa `error` na `discovered`; `--package`/`--limit` do ograniczenia zakresu |
+| `fold_hash.py` | `folders`/`files` z bazy | `folders.duplicate_of`, `reports/folder_overlap.csv` | dwa przejścia (FK); próg z `config/thresholds.yaml`; `--no-overlap` pomija raport |
+| `dedup_report.py` | baza (`content`/`files`/`folders`) | `reports/dedup_summary.md`, `reports/inventory.jsonl` | tylko odczyt bazy, bez zapisu do źródeł ani do dysku poza `reports/` |
+| `scan_target.py` | `paczka/` w `target_repo` (read-only) | `files` → status `applied`, klasyfikacja `manual` conf=1.0 | `--limit`/`--batch`; nie modyfikuje `target_repo`, tylko odczyt |
+
+Uwagi:
+
+- Wszystkie ścieżki (`00_SOURCES`, `target_repo`, `20_WORK`, `90_MEDIA`) tylko
+  z `config/paths.yaml` — nic nie jest hardkodowane w skryptach.
+- Źródła (`00_SOURCES/`) są read-only; hook `.claude/hooks/guard-sources.py`
+  blokuje tam zapis.
+- Nic nie jest fizycznie kasowane. Dedup jest logiczny, w bazie
+  (`folders.duplicate_of`) — oba foldery/pliki zostają na dysku.
+- Kody wyjścia `scan.py`: `0` pełny skan, `3` skan częściowy (coś pominięto —
+  nieczytelny katalog, nazwa spoza UTF-8, błąd stat), `1` zły katalog źródeł
+  lub nieznana paczka, `2` sprzeczne opcje.
+- Do gita trafiają: `docs/SOURCES_TREE.md`, `reports/dedup_summary.md`,
+  `reports/inventory.jsonl`, `reports/folder_overlap.csv`,
+  `reports/bootstrap_rmlint.txt`. Poza gitem: `20_WORK/organizer.sqlite`
+  (operacyjne źródło prawdy, odtwarzalne przez re-run).
+- Wynik pierwszego przebiegu na całości źródeł: 14 paczek, 48 049 plików,
+  37,0 GiB, z czego 18 426 unikalnych treści i 17,9 GiB kopii (48,4%).
+
 ## Układ
 
 ```

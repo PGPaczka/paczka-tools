@@ -58,7 +58,7 @@ mkdir -p "$WORK" "$MEDIA"; ok "work:   $WORK"; ok "media:  $MEDIA"
 
 # -------------------------------------------------------------------- 2. apt
 say "2/8 pakiety systemowe"
-APT_PKGS=(jq rmlint ncdu tesseract-ocr tesseract-ocr-pol poppler-utils)
+APT_PKGS=(jq rmlint ncdu tesseract-ocr tesseract-ocr-pol poppler-utils rclone)
 if [ "$WITH_APT" = 1 ]; then
   sudo apt-get update -qq && sudo apt-get install -y -qq "${APT_PKGS[@]}" && ok "apt: ${APT_PKGS[*]}"
 else
