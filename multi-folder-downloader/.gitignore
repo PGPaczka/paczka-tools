@@ -1,0 +1,35 @@
+# --- SEKRETY: nigdy nie commituj cookies (to jak hasło do konta Google) ---
+cookies/cookies.txt
+cookies/*.cookies
+cookies/header.txt
+credentials.json
+token.json
+
+# --- Stan pobierania (checkpoint SQLite) ---
+state/download_state.sqlite
+state/download_state.sqlite-wal
+state/download_state.sqlite-shm
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+
+# --- Logi i pliki tymczasowe skryptu ---
+_download_logs/
+.paczka_download_tmp/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.venvs/
+
+# --- System / edytor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*:ZoneIdentifier
