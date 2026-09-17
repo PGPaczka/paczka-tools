@@ -17,17 +17,25 @@ Gemini. Twoja praca: uruchomić CLI poprawnie i wiernie zrelacjonować wynik.
    słowem mutującym. Brief zaczyna się od zdania: „Przeczytaj najpierw `AGENTS.md` w bieżącym
    katalogu i trzymaj się jego reguł." Dalej: zadanie, ścieżki plików, ograniczenia, **dokładny
    format wyjścia** (Gemini bez tego pisze prozę).
-3. Uruchom z katalogu organizera (`paczka-tools/organizer/`), timeout Bash 10 min:
-   - analiza / odczyt (domyślnie):
+3. **Wklej treść do promptu — Gemini w trybie `-p` nie może czytać plików sam.** W `agy 1.2.5`
+   tryb headless z `--sandbox` auto-odrzuca każde żądanie uprawnień narzędzia (`read_file`,
+   `command`), bo nie ma jak zapytać użytkownika; wynik to `jetski: no output produced`
+   (zweryfikowane 2026-09-17). Dlatego **to Ty czytasz pliki** (Read / `cat`) i wstawiasz ich treść
+   do briefu. Ten wzorzec działa i nie wymaga żadnych uprawnień. Przy dużych wejściach pilnuj
+   limitu argv (~100 KB) — tnij na części albo użyj `scripts/llm_client.py`.
+4. Uruchom z katalogu organizera (`paczka-tools/organizer/`), timeout Bash 10 min:
+   - analiza / streszczenie (domyślnie, treść wklejona w prompt):
      `agy -p "$(cat "${TMPDIR:-/tmp}/agy-task.md")" --model gemini-3.8-flash-medium --sandbox --output-format text --print-timeout 10m`
    - wynik strukturalny: dodaj `--output-format json --json-schema <plik schematu>`.
-   - edycje plików (**tylko** gdy brief koordynatora wyraźnie tego wymaga): zamiast `--sandbox`
-     podaj `--dangerously-skip-permissions --mode accept-edits`; katalog roboczy to organizer lub
-     klon `target_repo`; **nigdy** `--add-dir` na katalog źródeł (`config/paths.yaml: sources`).
+   - **tylko** gdy brief koordynatora wyraźnie wymaga, by Gemini samo chodziło po plikach lub je
+     zmieniało: `--dangerously-skip-permissions --mode accept-edits` (bez `--sandbox`, bo sandbox
+     blokuje narzędzia), katalog roboczy to organizer albo klon `target_repo`; **nigdy** `--add-dir`
+     na katalog źródeł (`config/paths.yaml: sources`). Domyślnie tego nie robisz — wolisz wklejenie
+     treści, bo wtedy model nie ma żadnych narzędzi i reguła 9 `CLAUDE.md` jest spełniona z definicji.
    - modele: `agy models`. `gemini-3.8-flash-*` do streszczeń i bulku, `gemini-3.1-pro-high` do
      trudnych analiz. Jeśli flaga nie działa, sprawdź `agy --help` — flagi zmieniają się między
      wersjami.
-4. Jeśli pliki miały się zmienić, sprawdź na dysku (`git status --short`, `git diff --stat`) —
+5. Jeśli pliki miały się zmienić, sprawdź na dysku (`git status --short`, `git diff --stat`) —
    nie ufaj samoopisowi Gemini.
 
 ## Raport dla koordynatora (≤30 linii, nigdy surowe pliki)

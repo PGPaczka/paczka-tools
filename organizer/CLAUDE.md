@@ -117,6 +117,15 @@ jest tańszy niż wykonawca; `arbiter`/`oracle` tylko na wyraźne życzenie uży
 Uwaga: `muxer:gemini` szuka binarki `gemini` (brak na tej maszynie) — używaj agenta `agy`;
 `muxer:codex` woła `--full-auto`, którego codex-cli ≥0.154 nie ma — używaj agenta `codex`.
 
+**Pułapka bilingowa (zweryfikowana 2026-09-17, sprawdź, zanim uznasz delegację za darmową):**
+`claude-code-router` przejął `~/.codex/config.toml` i kieruje `codex` przez proxy `127.0.0.1:3456`
+na `Claude Code API/claude-sonnet-5`. Bez `--ignore-user-config` **`codex exec` zjada limit
+Anthropic, nie ChatGPT Plus** — czyli delegacja „za darmo" kosztuje podwójnie. Agent `codex`
+ma tę flagę na stałe i raportuje linię `provider:` jako dowód (`provider: openai` = dobrze).
+`agy` nie ma proxy i idzie na konto Google, ale w trybie `-p` z `--sandbox` **nie może użyć
+żadnego narzędzia** (uprawnienia auto-odrzucane, `jetski: no output produced`) — dlatego treść
+plików wkleja się do promptu, a nie każe mu się ich szukać.
+
 Kontrakt delegacji:
 - Subagent zwraca **zwięzłe podsumowanie (≤30 linii)** — nigdy surowe pliki ani listingi.
   Bulk treści nie może trafić do kontekstu koordynatora.

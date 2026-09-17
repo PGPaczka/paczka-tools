@@ -17,17 +17,23 @@ Twoja praca: uruchomić CLI poprawnie i wiernie zrelacjonować wynik.
    słowem mutującym. Codex sam czyta `AGENTS.md` z katalogu roboczego. Brief zawiera: zadanie,
    ścieżki plików, ograniczenia, kryteria akceptacji oraz zdanie „zweryfikuj swoją pracę i podsumuj,
    co zmieniłeś".
-3. Uruchom z katalogu organizera (`paczka-tools/organizer/`), timeout Bash 10 min:
+3. **Zawsze podawaj `--ignore-user-config`.** Na tej maszynie `claude-code-router` przejął
+   `~/.codex/config.toml` (`model_provider = "claude-code-router"`, proxy `127.0.0.1:3456`,
+   `# CCR configured model = "Claude Code API/claude-sonnet-5"`) — **bez tej flagi `codex exec`
+   idzie na Claude Sonnet 5 i zjada limit Anthropic zamiast ChatGPT Plus**, czyli cały sens tego
+   agenta znika. Z flagą CLI raportuje `provider: openai` (zweryfikowane 2026-09-17).
+   W raporcie podaj linię `model:`/`provider:` z outputu — to dowód, że poszło na właściwe konto.
+4. Uruchom z katalogu organizera (`paczka-tools/organizer/`), timeout Bash 10 min:
    - analiza / odczyt / drugie zdanie (domyślnie):
-     `codex exec -s read-only --ephemeral -o "${TMPDIR:-/tmp}/codex-out.md" "$(cat "${TMPDIR:-/tmp}/codex-task.md")"`
+     `codex exec --ignore-user-config -s read-only --ephemeral -o "${TMPDIR:-/tmp}/codex-out.md" "$(cat "${TMPDIR:-/tmp}/codex-task.md")"`
    - edycje plików (**tylko** gdy brief koordynatora wyraźnie tego wymaga):
-     `codex exec -s workspace-write -o "${TMPDIR:-/tmp}/codex-out.md" "$(cat "${TMPDIR:-/tmp}/codex-task.md")"`
+     `codex exec --ignore-user-config -s workspace-write -o "${TMPDIR:-/tmp}/codex-out.md" "$(cat "${TMPDIR:-/tmp}/codex-task.md")"`
      Katalog roboczy to organizer lub klon `target_repo` (`-C <dir>`); **nigdy** `--add-dir` na
      katalog źródeł (`config/paths.yaml: sources`); **nigdy** `--dangerously-bypass-approvals-and-sandbox`.
    - wynik strukturalny: `--output-schema <plik schematu JSON>`.
    - model: domyślny z konta; `-m <model>` tylko gdy koordynator poda. Jeśli flaga nie działa,
      sprawdź `codex exec --help` — flagi zmieniają się między wersjami.
-4. Sprawdź, co naprawdę się stało: `git status --short`, `git diff --stat`. Nie ufaj samoopisowi
+5. Sprawdź, co naprawdę się stało: `git status --short`, `git diff --stat`. Nie ufaj samoopisowi
    Codexa — potwierdź, że wymienione pliki faktycznie się zmieniły.
 
 ## Raport dla koordynatora (≤30 linii, nigdy surowe pliki)

@@ -77,6 +77,11 @@ Uwagi:
 - Wynik pierwszego przebiegu na całości źródeł: 14 paczek, 48 049 plików,
   37,0 GiB, z czego 18 426 unikalnych treści i 17,9 GiB kopii (48,4%).
 
+`python scripts/llm_client.py --task classify|relate --prompt-file PLIK|-` — cienki
+CLI nad `orglib/llm_client.py` (backend anthropic/openai/`claude -p`/`codex exec`/`agy -p`
+z `config/thresholds.yaml: llm`, cache po sha256 promptu w `20_WORK/ai_cache.sqlite`);
+smoke test backendów, nieużywany w automatycznym cyklu per-przedmiot.
+
 ## Układ
 
 ```
