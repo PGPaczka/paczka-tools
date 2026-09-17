@@ -56,5 +56,5 @@ Legenda: `[ ]` do zrobienia · `[x]` zrobione · `[~]` w toku · ~~przekreślone
 ## E. Dokumentacja
 
 - [ ] E1. README: sekcja „Skrypty” z realnymi nazwami i kolejnością po A3–A6
-- [ ] E2. `docs/SOURCES_TREE.md` (generowany przez `scan.py`)
+- [x] E2. `docs/SOURCES_TREE.md` (generowany przez `scan.py`; pierwszy snapshot: 14 paczek, 9 540 katalogów, 48 049 plików, 37,0 GiB) (2026-09-17)
 - [ ] E3. `STATUS.md` (generowany: przedmioty × etapy + liczby)
