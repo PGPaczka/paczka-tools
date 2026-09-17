@@ -108,7 +108,7 @@ def test_iter_subjects_marks_profiles_and_streams(subjects: list[config.Subject]
     sbd = next(s for s in subjects if s.key == (5, "SBD"))
     pdiii7 = next(s for s in subjects if s.key == (7, "PDIII"))
 
-    assert ak7.profil == "Inteligentne_systemy_interaktywne"
+    assert ak7.profil == "Inteligentne_Systemy_Interaktywne"
     assert sbd.strumien == "Systemy"
     assert pdiii7.profil is None
     assert "PDII" in pdiii7.aliases
@@ -131,7 +131,17 @@ def test_no_duplicate_semester_skrot_keys(subjects: list[config.Subject]) -> Non
 
 
 def test_every_sem7_subject_has_known_katedra(subjects: list[config.Subject]) -> None:
-    allowed = {"KAIMS", "KASK", "KBD", "KISI", "KSG", "KT", "Wspolne"}
+    # grupa SEM7 to "{katedra}_{profil}" DOKŁADNIE jak katalog w repo (albo
+    # "Wspolne" bez profilu) — patrz Subject.grupa / ground truth SEM7/*.
+    allowed = {
+        "KAIMS_Algorytmy_I_Modelowanie_Systemów",
+        "KASK_Architektura_Systemów_Komputerowych",
+        "KBD_Bazy_Danych",
+        "KISI_Inteligentne_Systemy_Interaktywne",
+        "KSG_Systemy_Geoinformatyczne",
+        "KT_Teleinformatyka",
+        "Wspolne",
+    }
 
     for subject in subjects:
         if subject.semester == 7:
@@ -190,7 +200,10 @@ def test_target_dir_uses_grupa_for_sem5_sem6_sem7(subjects: list[config.Subject]
 
     assert sbd.target_dir == "paczka/SEM5/Systemy/SBD_Struktury_Baz_Danych"
     assert io.target_dir == "paczka/SEM5/Wspolne/IO_Inżynieria_Oprogramowania"
-    assert pgk.target_dir == "paczka/SEM7/KISI/PGK_Projektowanie_Gier_Komputerowych"
+    assert (
+        pgk.target_dir
+        == "paczka/SEM7/KISI_Inteligentne_Systemy_Interaktywne/PGK_Projektowanie_Gier_Komputerowych"
+    )
     assert pdiii.target_dir == "paczka/SEM7/Wspolne/PDIII_Projekt_Dyplomowy_Inżynierski_II"
 
 

@@ -5,8 +5,12 @@
 # niego stosuje. Zmieniasz strukturę TU, nie w kodzie.
 #
 # Katalog przedmiotu (z subjects.yaml):
-#   paczka/SEM{semester}/{skrot}_{nazwa}/                       (SEM1-4)
-#   paczka/SEM{semester}/{grupa}/{skrot}_{nazwa}/                (SEM5-7, grupa=strumień/katedra)
+#   paczka/SEM{semester}/{skrot}_{nazwa}/                          (SEM1-4)
+#   paczka/SEM{semester}/{grupa}/{skrot}_{nazwa}/                  (SEM5-7)
+#   grupa (SEM5/6) = strumień: Aplikacje | Systemy | Wspolne (domyślnie).
+#   grupa (SEM7)   = katedra: `{KOD}_{profil}` DOKŁADNIE jak w repo
+#     (profil = klucz pod subjects.yaml: semesters.7.profile, przepisany 1:1
+#     z nazwy folderu bez prefiksu katedry), albo `Wspolne` (bez profilu).
 # =====================================================================
 
 meta:
@@ -14,7 +18,14 @@ meta:
   group_levels: { 5: strumien, 6: strumien, 7: katedra }
   group_levels_values:
     strumien: [Aplikacje, Systemy, Wspolne]
-    katedra: [KAIMS, KASK, KBD, KISI, KSG, KT, Wspolne]
+    katedra:
+      - KAIMS_Algorytmy_I_Modelowanie_Systemów
+      - KASK_Architektura_Systemów_Komputerowych
+      - KBD_Bazy_Danych
+      - KISI_Inteligentne_Systemy_Interaktywne
+      - KSG_Systemy_Geoinformatyczne
+      - KT_Teleinformatyka
+      - Wspolne
   field_separator: "_"        # separator pól w nazwie pliku
   topic_separator: "-"        # separator przed tematem/nazwiskiem
   number_padding: 2           # numery dwucyfrowe z zerem wiodącym: 01, 02, ...

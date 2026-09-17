@@ -358,7 +358,7 @@ def test_content_under_multiple_paths_uses_smallest_path_deterministically(
     assert stats1.multi_path_content == 1
     sha = _sha(b"wspolna-tresc")
     row1 = _classifications(conn)[sha]
-    assert row1["subject_key"] == "AISD"
+    assert row1["subject_key"] == "AiSD"  # folder w starej pisowni (AISD), skrót dziś: AiSD
     assert row1["target_relative_path"] == "paczka/SEM2/AISD_Algorytmy_I_Struktury_Danych/wyklad/x.pdf"
 
     future = time.time() + 100

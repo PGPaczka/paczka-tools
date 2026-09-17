@@ -34,9 +34,12 @@
 # target_path: paczka/SEM{n}/{SKROT}_{Nazwa}/... (bez nawiasów; Magisterskie_SEM2 = "M2").
 #   SEM5 i SEM6 mają dodatkowy poziom STRUMIENIA: paczka/SEM{n}/{strumien}/{SKROT}_{Nazwa}
 #   (strumien: Aplikacje | Systemy | Wspolne — przedmioty bez `strumien` w YAML
-#   lądują pod Wspolne). SEM7 ma dodatkowy poziom KATEDRY zamiast strumienia:
-#   paczka/SEM7/{katedra}/{SKROT}_{Nazwa} (katedra przypisana profilowi w YAML;
-#   przedmioty spod klucza `wspolne` lądują pod Wspolne). Patrz
+#   lądują pod Wspolne). SEM7 ma dodatkowy poziom KATEDRY — w repo katalog
+#   katedry to `{katedra}_{profil}` (DOKŁADNIE jak w ground truth, np.
+#   `KAIMS_Algorytmy_I_Modelowanie_Systemów` — `profil` to klucz pod `profile`
+#   w YAML, przepisany 1:1 z nazwy folderu bez prefiksu katedry):
+#   paczka/SEM7/{katedra}_{profil}/{SKROT}_{Nazwa} (przedmioty spod klucza
+#   `wspolne`, bez profilu, lądują pod samym `Wspolne`). Patrz
 #   :attr:`orglib.config.Subject.grupa` / `TARGET_PATH_TEMPLATE_GROUPED`.
 # =====================================================================
 
@@ -52,20 +55,20 @@ semesters:
   1:
     - { skrot: WAI, nazwa: Wytwarzanie_Aplikacji_Internetowych, forms: [W, P] }
     - { skrot: ME,  nazwa: Matematyka_Elementarna,              forms: [W, C] }
-    - { skrot: HIH, nazwa: Hipertekst_I_Hipermedia,             forms: [W, L, P] }
+    - { skrot: HiH, nazwa: Hipertekst_i_Hipermedia,             forms: [W, L, P], aliases: [HIH] }
     - { skrot: AM,  nazwa: Analiza_Matematyczna,                forms: [W, C] }
     - { skrot: HDMI, nazwa: Humanistyka_Dla_Inżynierów,         forms: [W], aliases: [HDI] }
     - { skrot: PP,  nazwa: Podstawy_Programowania,              forms: [W, L, P] }
     - { skrot: AL,  nazwa: Algebra_Liniowa,                     forms: [W, C] }
 
   2:
-    - { skrot: PEIM, nazwa: Podstawy_Elektroniki_I_Metrologii,  forms: [W, L] }
+    - { skrot: PEiM, nazwa: Podstawy_Elektroniki_i_Metrologii,  forms: [W, L], aliases: [PEIM] }
     - { skrot: PF,   nazwa: Podstawy_Fizyki,                    forms: [W, C] }
     - { skrot: JAI,  nazwa: Język_Angielski_I,                  forms: [C], instancja: I }
     - { skrot: SO,   nazwa: Systemy_Operacyjne,                 forms: [W, L] }
     - { skrot: MD,   nazwa: Matematyka_Dyskretna,               forms: [W, C] }
     - { skrot: PO,   nazwa: Programowanie_Obiektowe,            forms: [W, L, P] }   # KOLIZJA z sem7 (Przetwarzanie_Obrazów)
-    - { skrot: AISD, nazwa: Algorytmy_I_Struktury_Danych,       forms: [W, L, P] }
+    - { skrot: AiSD, nazwa: Algorytmy_i_Struktury_Danych,       forms: [W, L, P], aliases: [AISD] }
     - { skrot: UC,   nazwa: Układy_Cyfrowe,                     forms: [W, L, P] }
     - { skrot: WFI,  nazwa: Wychowanie_Fizyczne_I,             forms: [C], instancja: I }
 
@@ -89,11 +92,11 @@ semesters:
     - { skrot: PR,     nazwa: Przetwarzanie_Rozproszone,              forms: [W, L, P] }
     - { skrot: SK,     nazwa: Sieci_Komputerowe,                      forms: [W] }        # KOLIZJA z sem6 (Sieci_Korporacyjne)
     - { skrot: JAIII,  nazwa: Język_Angielski_III,                    forms: [C], instancja: III, aliases: [JAI] }
-    - { skrot: SWIM,   nazwa: Systemy_Wbudowane_I_Mikroprocesory,     forms: [W, L] }
-    - { skrot: MPWI,   nazwa: Metody_Probabilistyczne_W_Informatyce,  forms: [W, C, L] }
+    - { skrot: SWiM,   nazwa: Systemy_Wbudowane_i_Mikroprocesory,     forms: [W, L], aliases: [SWIM] }
+    - { skrot: MPwI,   nazwa: Metody_Probabilistyczne_w_Informatyce,  forms: [W, C, L], aliases: [MPWI] }
 
   5:
-    - { skrot: PGI,  nazwa: Projekt_Grupowy_I,             forms: [P], instancja: I }
+    - { skrot: PGI,  nazwa: PROJEKT_GRUPOWY_I,             forms: [P], instancja: I }
     - { skrot: IO,   nazwa: Inżynieria_Oprogramowania,     forms: [W, L] }
     - { skrot: JAIV, nazwa: Język_Angielski_IV,            forms: [C], instancja: IV, aliases: [JAI] }
     - { skrot: SK-L, nazwa: Sieci_Komputerowe_-_Laboratorium, forms: [L] }
@@ -114,7 +117,7 @@ semesters:
     - { skrot: SIP, nazwa: Systemy_Informacji_Przestrzennej,        forms: [W, L], strumien: Aplikacje }
 
   6:
-    - { skrot: PGII, nazwa: Projekt_Grupowy_II,                 forms: [P], instancja: II, aliases: [PGI] }
+    - { skrot: PGII, nazwa: PROJEKT_GRUPOWY_II,                 forms: [P], instancja: II, aliases: [PGI] }
     - { skrot: ZBS,  nazwa: Zarządzanie_Bezpieczeństwem_Sieci,  forms: [W, L] }
     - { skrot: RPI,  nazwa: Realizacja_Projektu_Informatycznego, forms: [W, P] }
     - { skrot: ZFI,  nazwa: Zarządzanie_Firmą_Informatyczną,    forms: [W, P] }
@@ -143,35 +146,36 @@ semesters:
       - { skrot: PDIII, nazwa: Projekt_Dyplomowy_Inżynierski_II, forms: [P], instancja: II, aliases: [PDII] }
       - { skrot: P,     nazwa: Praktyka,                         forms: [] }
       - { skrot: SDIII, nazwa: Seminarium_Dyplomowe_Inżynierskie_II, forms: [S], instancja: II, aliases: [SDII] }
-    # Każdy profil niesie `katedra` (jednostka prowadząca, z niej poziom
-    # `SEM7/{katedra}/...` w repo) + `przedmioty` (lista jak w innych semestrach).
+    # Każdy profil niesie `katedra` (jednostka prowadząca) + `przedmioty` (lista
+    # jak w innych semestrach). Katalog w repo to `SEM7/{katedra}_{klucz_profilu}/...`
+    # — klucz profilu MUSI być przepisany 1:1 z nazwy folderu (bez prefiksu katedry).
     profile:
-      Architektura_systemów_komputerowych:
+      Architektura_Systemów_Komputerowych:
         katedra: KASK
         przedmioty:
           - { skrot: PAI,  nazwa: Projektowanie_Aplikacji_Internetowych, forms: [W, P] }
           - { skrot: "SI.", nazwa: Serwisy_Internetowe_.NET,            forms: [W, P] }   # skrót z kropką — zachować dokładnie
           - { skrot: NIAJ, nazwa: Narzędzia_I_Aplikacje_JEE,            forms: [W, L] }
-      Inteligentne_systemy_interaktywne:
+      Inteligentne_Systemy_Interaktywne:
         katedra: KISI
         przedmioty:
           - { skrot: PGK, nazwa: Projektowanie_Gier_Komputerowych, forms: [W, L] }
           - { skrot: PO,  nazwa: Przetwarzanie_Obrazów,            forms: [W, L] }   # KOLIZJA z sem2 PO (Programowanie_Obiektowe)
           - { skrot: DC,  nazwa: Dokumenty_Cyfrowe,                forms: [W, P] }
           - { skrot: AK,  nazwa: Animacja_Komputerowa,             forms: [W, L] }
-      Bazy_danych:
+      Bazy_Danych:
         katedra: KBD
         przedmioty:
           - { skrot: ZSBD, nazwa: Zarządzanie_Systemami_Baz_Danych,  forms: [W, L] }
           - { skrot: NBD,  nazwa: Nierelacyjne_Bazy_Danych,          forms: [W, L] }
           - { skrot: PSSO, nazwa: Projektowanie_Skalowalnych_Systemów_Obiektowych, forms: [W, L, P] }
           - { skrot: ABD,  nazwa: Aplikacje_Baz_Danych,             forms: [W, L] }
-      Algorytmy_i_modelowanie_systemów:
+      Algorytmy_I_Modelowanie_Systemów:
         katedra: KAIMS
         przedmioty:
           - { skrot: RAI,   nazwa: Realizacja_Aplikacji_Internetowych, forms: [W, L] }
           - { skrot: PLA,   nazwa: Programowanie_Lokalnych_Aplikacji,  forms: [W, P] }
-          - { skrot: JPNP,  nazwa: Języki_Programowania_Na_Platformie_.NET, forms: [W, L], aliases: ["JPNP."] }  # folder bez kropki
+          - { skrot: JPNP,  nazwa: Języki_Programowania_Na_Platformie_NET, forms: [W, L], aliases: ["JPNP."] }  # folder bez kropki przed NET
           - { skrot: WPAIT, nazwa: Wybrane_Problemy_Algorytmiczne_I_Technologiczne, forms: [W, S] }
           - { skrot: ZTO,   nazwa: Zaawansowane_Techniki_Obiektowe,    forms: [W, L] }
       Teleinformatyka:
@@ -181,7 +185,7 @@ semesters:
           - { skrot: UIAM, nazwa: Usługi_I_Aplikacje_Multimedialne,  forms: [W, P, S] }
           - { skrot: ASK,  nazwa: Administrowanie_Sieciami_Komputerowymi, forms: [W, L] }  # KOLIZJA z sem5 ASK (Systemami)
           - { skrot: SI,   nazwa: Sieci_IP,                          forms: [W, P] }        # KOLIZJA z sem4 SI (Sztuczna_Inteligencja)
-      Systemy_geoinformatyczne:
+      Systemy_Geoinformatyczne:
         katedra: KSG
         przedmioty:
           - { skrot: SNSGIG, nazwa: Systemy_Nawigacji_Satelitarnej_GPS_I_Galileo, forms: [W, L] }

@@ -133,11 +133,13 @@ class Subject:
         """Poziom grupujący pod semestrem: strumień (SEM5/6) albo katedra (SEM7).
 
         Domyślnie ``"Wspolne"``, gdy przedmiot nie ma przypisanego strumienia/
-        katedry (patrz ``config/subjects.yaml: meta.group_levels``). Dla
+        katedry (patrz ``config/subjects.yaml: meta.group_levels``). Dla SEM7
+        katalog w repo to DOKŁADNIE ``{katedra}_{profil}`` (ground truth, np.
+        ``KAIMS_Algorytmy_I_Modelowanie_Systemów``) — nie sama katedra. Dla
         semestrów 1-4 nieużywana — :attr:`target_dir` jej wtedy nie potrzebuje.
         """
         if self.semester == 7:
-            return self.katedra or _DEFAULT_GRUPA
+            return f"{self.katedra}_{self.profil}" if self.katedra else _DEFAULT_GRUPA
         return self.strumien or _DEFAULT_GRUPA
 
     @property
