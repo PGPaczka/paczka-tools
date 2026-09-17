@@ -1,7 +1,7 @@
 ---
 name: organizer-first-pass
-description: "Pierwszy deterministyczny przebieg Paczka Organizer. Claude: /organizer-first-pass; Codex: $organizer-first-pass; bez AI i bez apply."
-disable-model-invocation: true
+description: "Użyj przy przygotowaniu źródeł organizera: pierwszy skan, hashowanie, deduplikacja i indeks istniejącej paczki. Bez AI i bez apply; nie do samej pracy nad kodem."
+disable-model-invocation: false
 argument-hint: "[--from N]  (N = numer kroku, od którego wznowić; domyślnie 0)"
 ---
 
@@ -41,9 +41,9 @@ wracają tylko liczby i błędy; zapisz jedną linię do `reports/STATUS.md`.
 
 ## Wyjście i STOP
 Po kroku 7 pokaż użytkownikowi **≤20 linii**: liczby z `size_report.md`, ile poddrzew `duplicate_of`,
-ścieżki raportów. **Zatrzymaj się.** Następny workflow to `organizer-subject
-AKO 3` (Claude: `/organizer-subject`, Codex: `$organizer-subject`), uruchamiany
-osobno przez użytkownika.
+ścieżki raportów. Jeśli zlecone zadanie obejmuje planowanie konkretnego
+przedmiotu, dobierz `organizer-subject` bez wymagania ręcznej komendy.
+W przeciwnym razie **zatrzymaj się** — nie wybieraj sam nowego przedmiotu.
 
 ## Zakazy
 - Żadnych zmian w `<sources>` (hook i tak zablokuje). Żadnego `apply`. Żadnego AI na tym etapie.

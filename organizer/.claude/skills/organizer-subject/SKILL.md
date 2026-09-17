@@ -1,7 +1,7 @@
 ---
 name: organizer-subject
-description: "Cykl planowania jednego przedmiotu, zatrzymuje się przed review i apply. Claude: /organizer-subject; Codex: $organizer-subject."
-disable-model-invocation: true
+description: "Użyj do przygotowania planu uporządkowania lub migracji materiałów jednego wskazanego przedmiotu: ekstrakcja, klasyfikacja, plan i dry-run. Bez apply przed zgodą użytkownika."
+disable-model-invocation: false
 argument-hint: "SKROT SEMESTR   (np. AKO 3)"
 arguments: [skrot, semestr]
 ---
@@ -47,7 +47,9 @@ Potem wykonaj niezależny review i wróć do kroku.
 ## Wyjście i STOP (👤 bramka raz na przedmiot)
 Pokaż użytkownikowi **≤30 linii**: liczby (plików, % auto, review 0.70–0.90, unresolved), dry-run diff
 drzewa (skrót), ścieżka planu, ścieżka `reports/review/$skrot.html` jeśli są near-dupe.
-Zaproponuj workflow `organizer-review` (Claude: `/organizer-review`, Codex:
-`$organizer-review`) albo po akceptacji `organizer-ship`.
-**Nie wykonuj `apply`. Nie commituj w `<target_repo>`.** Commit `plan($skrot)` z `plan.jsonl` w
-`paczka-tools` — tak, tu wolno (to raport tekstowy).
+Dobierz `organizer-review`, aby przygotować przegląd i zebrać decyzje człowieka,
+bez wymagania ręcznej komendy. Po jawnej akceptacji konkretnego planu możesz
+dobrać `organizer-ship`; samo rozpoczęcie tego workflow nie jest akceptacją.
+**Nie wykonuj `apply`. Nie commituj w `<target_repo>`.** Commit `plan($skrot)` z `plan.jsonl`
+w `paczka-tools` wykonaj domyślnie po walidacji i przeglądzie, zgodnie z `AGENTS.md`;
+to zapis tekstowego planu, nie materiałów ani zgody na jego wykonanie.

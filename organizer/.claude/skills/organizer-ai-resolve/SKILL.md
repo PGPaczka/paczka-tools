@@ -1,6 +1,7 @@
 ---
 name: organizer-ai-resolve
-description: "Kontrakt AI Paczka Organizer — czysta funkcja manifest_slice.jsonl → linie plan.jsonl dla jednego przedmiotu. Claude: /organizer-ai-resolve; Codex: $organizer-ai-resolve."
+description: "Użyj jako klasyfikator, gdy otrzymasz manifest nierozstrzygniętych materiałów jednego przedmiotu po klasyfikacji deterministycznej. Zwróć decyzje JSONL; nie skanuj źródeł i nie wykonuj apply."
+disable-model-invocation: false
 context: fork
 agent: general-purpose
 model: haiku

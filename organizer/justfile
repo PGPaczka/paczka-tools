@@ -12,6 +12,9 @@ agent-setup:
 agent-doctor:
     bash scripts/agent/doctor.sh
 
+skills-check:
+    {{ python }} scripts/agent/validate_skills.py
+
 claude *args:
     bash scripts/agent/claude-interactive.sh {{ args }}
 

@@ -1,12 +1,18 @@
 ---
 name: organizer-ship
-description: "Finalizacja przedmiotu wyłącznie po jawnej akceptacji planu. Claude: /organizer-ship; Codex: $organizer-ship."
-disable-model-invocation: true
+description: "Użyj do wykonania i weryfikacji konkretnego planu migracji przedmiotu po jego jawnej akceptacji przez użytkownika. Bez zgody tylko sprawdź bramki i poproś o akceptację; nie wykonuj apply."
+disable-model-invocation: false
 argument-hint: "SKROT SEMESTR"
 arguments: [skrot, semestr]
 ---
 
 # organizer-ship — $skrot sem $semestr (tylko po akceptacji)
+
+Automatyczny wybór skillu nie jest zgodą na zmiany ani commit materiałów.
+Operacje w `<target_repo>` wykonuj tylko w zakresie jawnie zatwierdzonego
+procesu i po spełnieniu poniższych bramek. Lokalne commity kodu, konfiguracji,
+testów, dokumentacji i tekstowych raportów w `paczka-tools` są domyślne po
+walidacji. Push i PR nadal wymagają osobnego polecenia, zgodnie z `AGENTS.md`.
 
 ## Bramka — sprawdź WSZYSTKO, inaczej STOP
 1. Użytkownik w tej rozmowie napisał wprost, że plan `$skrot` jest zaakceptowany. Jeśli nie widzisz

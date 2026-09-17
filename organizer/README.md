@@ -110,6 +110,7 @@ zależne od hosta:
 ```bash
 just agent-setup     # tworzy ~/.codex/paczka-openai.config.toml; nie rusza bazowego config.toml
 just agent-doctor
+just skills-check   # metadane skilli + symlinki; uwzględnia rozszerzenia Claude
 just claude          # Claude Code + muxer + .claude/settings.json
 just codex           # Codex/OpenAI, organizer + 20_WORK writable
 just codex-read      # Codex read-only

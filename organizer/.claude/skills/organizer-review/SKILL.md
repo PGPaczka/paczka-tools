@@ -1,7 +1,7 @@
 ---
 name: organizer-review
-description: "Review planu jednego przedmiotu i zapis decyzji człowieka. Claude: /organizer-review; Codex: $organizer-review."
-disable-model-invocation: true
+description: "Użyj, gdy plan materiałów jednego przedmiotu jest gotowy do przeglądu lub użytkownik przekazuje decyzje o planie: pokaż różnice, niejasności i zapisz decyzje. Bez apply."
+disable-model-invocation: false
 argument-hint: "SKROT [SEMESTR]"
 arguments: [skrot, semestr]
 ---
@@ -26,5 +26,6 @@ Człowiek decyduje; Ty przygotowujesz materiał do decyzji i zapisujesz odpowied
 
 ## STOP
 Pokaż stan: ile decyzji zapisano, ile pozostało `unresolved` (zostają w kwarantannie, to OK),
-wynik walidatora. Zaproponuj workflow `organizer-ship` (Claude:
-`/organizer-ship`, Codex: `$organizer-ship`). Nie uruchamiaj go sam.
+wynik walidatora. Poproś o jawną akceptację konkretnego planu i czekaj, jeśli
+jeszcze jej nie ma. Po jej uzyskaniu możesz sam dobrać `organizer-ship`,
+bez wymagania od użytkownika nazwy skillu lub specjalnej komendy.

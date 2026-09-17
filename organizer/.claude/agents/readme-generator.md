@@ -14,6 +14,10 @@ model: haiku
 - Nie otwieraj binariów ze źródeł; pracujesz na kodzie, configu i tekstowych raportach.
 - Skrypty muszą być idempotentne i wznawialne (status w SQLite, UPSERT po sha256), zgodnie z
   `docs/ARCHITEKTURA_FINALv1.md`. Nic nie kasuje plików automatycznie.
+- Jako subagent przekazujesz sprawdzony diff koordynatorowi. Koordynator
+  domyślnie commituje zmiany dokumentacji lokalnie zgodnie z `AGENTS.md`;
+  ogólne uwagi poniżej o osobnym żądaniu commita dotyczą Twojej delegowanej
+  roli, nie obowiązków koordynatora. Push/PR wymagają osobnego polecenia.
 - Na koniec zwróć **zwięzłe podsumowanie (≤30 linii)**: co zmieniłeś (pliki), jak to sprawdzić,
   co zostało otwarte. Nigdy nie wklejaj całych plików do odpowiedzi — koordynator płaci za każdy token.
 

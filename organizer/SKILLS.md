@@ -8,6 +8,24 @@ Codex (kontrakt manifest→plan).
 
 Legenda: 🔧 = skrypt (bez AI) · 🤖 = używa AI · 👤 = wymaga człowieka.
 
+## Walidacja zainstalowanych skilli
+
+Uruchom `just skills-check` w `organizer/`. Sprawdzane są nagłówki YAML
+w `.claude/skills/organizer-*/SKILL.md` oraz symlinki w `.agents/skills/`.
+Ta sama kontrola działa w zwykłym `just test`.
+
+Agent ma sam dobierać procedury do zadania, bez ręcznego wpisywania ich nazw.
+We wszystkich pięciu skillach ustawiono `disable-model-invocation: false`
+dla Claude i `policy.allow_implicit_invocation: true` w `agents/openai.yaml`
+dla Codexa. Parametry wynikają z kontekstu rozmowy; brakujące agent doprecyzowuje.
+To nie jest zgoda na `apply` — akceptacja konkretnego planu nadal jest wymagana.
+
+`argument-hint` pozostaje podpowiedzią do opcjonalnego ręcznego wywołania.
+Nie usuwamy ustawień hosta dla zgodności z ogólnym `quick_validate.py` z skill-creator,
+który dopuszcza mniej pól. Walidator projektu sprawdza znane pola i ich typy,
+odrzuca literówki, powtórzone klucze i błędny YAML; nie zmienia plików.
+To kontrola statyczna, nie test wykonania procedur w Claude ani Codexie.
+
 ---
 
 ## 🔧 scan-inventory

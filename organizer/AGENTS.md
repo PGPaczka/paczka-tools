@@ -142,6 +142,23 @@ Codex widzi te same katalogi przez `.agents/skills/` — nie utrzymuj dwóch kop
 Treść skillu musi opisywać workflow i komendy projektu, a integracje konkretnego
 hosta traktować jako opcjonalne adaptery.
 
+Agent sam dobiera skille do zleconego zadania; użytkownik nie musi wpisywać
+slash command ani `$skill-name`. Parametry takie jak skrót, semestr i manifest
+ustal z jednoznacznego kontekstu zadania, a o brakujące zapytaj — nie wykonuj
+komend z niewypełnionymi placeholderami. Claude ma
+`disable-model-invocation: false`, a Codex
+`agents/openai.yaml: policy.allow_implicit_invocation: true`.
+Automatyczny wybór procedury nie rozszerza zakresu zadania: nadal wymagaj
+jawnej akceptacji konkretnego planu przed `apply`; nie rozpoczynaj sam nowego
+przedmiotu ani nie traktuj wyboru skillu jako zgody na commit materiałów,
+push lub PR. Lokalne commity zmian narzędzi reguluje sekcja „Git, stan i handoff”.
+
+Metadane współdzielonych skilli sprawdzaj przez `just skills-check` (również
+objęte `just test`). Projektowy walidator zna używane rozszerzenia Claude,
+w tym `argument-hint` i `disable-model-invocation`. Ogólny `quick_validate.py`
+z systemowego skill-creator ma węższą listę pól — jego błąd „unexpected keys”
+nie jest powodem do usuwania ustawień hosta. Nie zmieniaj globalnego walidatora.
+
 Jeśli host nie obsługuje skillu lub subagenta, wykonaj tę samą procedurę przez
 `just` i skrypty. Poprawność pipeline'u nie może zależeć od slash command.
 
@@ -169,9 +186,16 @@ zbędną rekurencyjną delegację.
 - `20_WORK/organizer.sqlite` jest operacyjnym źródłem prawdy poza gitem.
 - Do gita trafiają kod, config, prompty, tekstowe plany, ręczne decyzje,
   provenance i raporty przeznaczone do wersjonowania.
-- Kod/config/docs/testy: małe logiczne zmiany; nie commituj, jeśli użytkownik
-  tego nie zlecił w bieżącej sesji.
-- Materiały przedmiotu: commit dopiero po `verify`, na branchu przedmiotu.
+- Kod/config/skrypty/docs/testy oraz tekstowe raporty techniczne tego repo:
+  po testach i przeglądzie diffu **domyślnie wykonaj lokalny commit** małego,
+  logicznego zakresu, bez dodatkowego pytania. Użytkownik może jawnie zlecić
+  pozostawienie zmian bez commita. Nie dodawaj cudzych, niepowiązanych zmian,
+  sekretów ani danych lokalnych. W pracy delegowanej commit wykonuje koordynator.
+- Domyślne commity narzędzi **nie obejmują materiałów**, niezależnie od ich
+  położenia. Materiały przedmiotu: wyłącznie w dotychczas zatwierdzonym procesie,
+  po jawnej akceptacji planu przed `apply`, z commitem dopiero po pomyślnym
+  `verify`, na branchu przedmiotu. Nigdy razem z commitem narzędzi.
+- Push i utworzenie PR wymagają osobnego polecenia; merge robi użytkownik.
 - Nie cofaj ani nie nadpisuj niepowiązanych zmian użytkownika.
 
 Na starcie:
@@ -197,5 +221,7 @@ człowiekiem. Historia czatu nie jest źródłem prawdy.
 - Zaczynaj od testów najbliższych zmienionemu kodowi, potem szerszy zestaw.
 - Nie naprawiaj niepowiązanych błędów; zgłoś je oddzielnie.
 - Nie deklaruj powodzenia bez rzeczywiście uruchomionych kontroli.
+- Po walidacji i aktualizacji stanu zapisz zmiany narzędzi w lokalnych commitach
+  zgodnie z powyższą polityką; w podsumowaniu podaj ich identyfikatory.
 - Końcowy raport zawiera: zmienione pliki, wynik testów, nierozwiązane ryzyka
   i dokładny następny krok.
