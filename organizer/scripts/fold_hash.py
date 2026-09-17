@@ -72,6 +72,12 @@ Pary katalogów, które NIE są dokładnymi duplikatami, ale dzielą dużą czę
 („częściowe pokrycie” z sekcji 5), trafiają do ``reports/folder_overlap.csv``.
 Próg pochodzi z ``config/thresholds.yaml: folder_overlap.report_min_ratio``.
 
+Raportujemy wyłącznie pary NAJBARDZIEJ SZCZEGÓŁOWE: jeśli całe wspólne pokrycie
+pary ``(a, b)`` mieści się już w jakimś kandydacie pod ``a`` (albo pod ``b``), to
+``(a, b)`` jest tylko rozmytą wersją tamtej pary i wypada. Bez tej reguły raport
+tonie w parach z korzeniami paczek („gdzieś w tych 40 GB jest ten katalog”), które
+przez zawieranie zawsze mają ``ratio_min`` 1.0.
+
 Uruchamianie: ``python scripts/fold_hash.py [opcje]``.
 """
 
@@ -543,32 +549,51 @@ def _common_counts(
     return counts, skipped, increments
 
 
-def _drop_covered_by_parents(
-    kept: dict[tuple[str, str], OverlapPair], candidates: dict[str, set[str]]
-) -> list[OverlapPair]:
-    """Usuwa pary „niemaksymalne”: takie, których para rodziców mówi już to samo.
+def _candidate_ancestors(candidates: Mapping[str, set[str]]) -> dict[str, list[str]]:
+    """Dla każdego kandydata: jego właściwi przodkowie, którzy też są kandydatami."""
+    ancestors: dict[str, list[str]] = {}
+    for path in candidates:
+        parts = path_key(path)
+        ancestors[path] = [
+            prefix
+            for prefix in ("/".join(parts[:depth]) for depth in range(1, len(parts)))
+            if prefix in candidates
+        ]
+    return ancestors
 
-    Gdy ``(parent(a), parent(b))`` też jest raportowaną parą i ma co najmniej tyle
-    samo wspólnych treści, para ``(a, b)`` jest tylko szumem wewnątrz większego
-    pokrycia. Decyzje liczymy na zbiorze sprzed usuwania, więc wynik nie zależy od
-    kolejności przetwarzania.
+
+def _keep_most_specific(
+    kept: dict[tuple[str, str], OverlapPair], candidates: Mapping[str, set[str]]
+) -> list[OverlapPair]:
+    """Zostawia tylko NAJMNIEJSZE katalogi, które niosą całe pokrycie pary.
+
+    Parę ``(a, b)`` odrzucamy, gdy istnieje kandydat ``c`` leżący pod ``a``, dla
+    którego ``common(c, b) == common(a, b)`` (albo symetrycznie pod ``b``): całe
+    wspólne pokrycie siedzi już w ``c``, więc ``(a, b)`` mówi tylko „gdzieś w tym
+    wielkim katalogu”. To ta reguła odsiewa pary z korzeniem paczki, które przez
+    zawieranie zawsze miały ``ratio_min`` 1.0.
+
+    Zamiast dla każdej pary przeglądać jej potomków, idziemy raz po parach i dla
+    każdej unieważniamy pary z PRZODKAMI — koszt to O(pary × głębokość).
+    Świadek zawsze jest w ``kept``: ``common`` jest ten sam, a
+    ``min(|c|, |b|) <= min(|a|, |b|)``, więc ``ratio_min`` świadka nie może być
+    mniejszy i próg przechodzi razem z parą odrzucaną. Decyzje zbieramy na zbiorze
+    sprzed usuwania, więc wynik nie zależy od kolejności przetwarzania.
     """
-    survivors: list[OverlapPair] = []
-    for key, pair in kept.items():
-        parent_a = _parent_path(pair.folder_a)
-        parent_b = _parent_path(pair.folder_b)
-        if parent_a is None or parent_b is None:
-            survivors.append(pair)
-            continue
-        if parent_a not in candidates or parent_b not in candidates:
-            survivors.append(pair)
-            continue
-        parent_key = (parent_a, parent_b) if parent_a < parent_b else (parent_b, parent_a)
-        parent_pair = kept.get(parent_key)
-        if parent_pair is not None and parent_key != key and parent_pair.common >= pair.common:
-            continue
-        survivors.append(pair)
-    return survivors
+    ancestors = _candidate_ancestors(candidates)
+    dropped: set[tuple[str, str]] = set()
+    for (first, second), pair in kept.items():
+        for ancestor in ancestors[first]:
+            key = (ancestor, second) if ancestor < second else (second, ancestor)
+            other = kept.get(key)
+            if other is not None and other.common == pair.common:
+                dropped.add(key)
+        for ancestor in ancestors[second]:
+            key = (first, ancestor) if first < ancestor else (ancestor, first)
+            other = kept.get(key)
+            if other is not None and other.common == pair.common:
+                dropped.add(key)
+    return [pair for key, pair in kept.items() if key not in dropped]
 
 
 def overlap_pairs(
@@ -585,7 +610,8 @@ def overlap_pairs(
     Pokrycie liczymy na ZBIORACH unikalnych sha256 poddrzewa:
     ``ratio_min = wspólne / min(|A|, |B|)``, ``jaccard = wspólne / |A ∪ B|``.
     Pary przodek–potomek pomijamy (potomek z definicji zawiera się w przodku, więc
-    ``ratio_min`` byłby zawsze 1.0 i nic by nie wnosił). Wynik jest posortowany
+    ``ratio_min`` byłby zawsze 1.0 i nic by nie wnosił), a z pozostałych zostawiamy
+    tylko najbardziej szczegółowe (:func:`_keep_most_specific`). Wynik jest posortowany
     malejąco po ``ratio_min``, potem po liczbie wspólnych treści i po nazwach.
     Przy przekroczeniu ``max_increments`` zwraca wynik z ``aborted=True`` i pustą
     listą par — to nie jest błąd, tylko świadome odpuszczenie raportu.
@@ -616,7 +642,7 @@ def overlap_pairs(
             files_b=folders[second].file_count,
         )
 
-    survivors = _drop_covered_by_parents(kept, candidates)
+    survivors = _keep_most_specific(kept, candidates)
     survivors.sort(
         key=lambda pair: (
             -round(pair.ratio_min, 4),
@@ -693,18 +719,37 @@ def _selected_packages(conn: sqlite3.Connection, packages: Sequence[str]) -> lis
     return sorted(set(packages))
 
 
+def topmost_duplicates(duplicates: Mapping[str, str]) -> list[str]:
+    """Duplikaty, których żaden przodek NIE jest duplikatem (czyli korzenie zdublowanych drzew).
+
+    ``file_count`` i ``total_bytes`` katalogu są rekurencyjne, więc sumowanie ich po
+    wszystkich duplikatach liczyłoby zagnieżdżone poddrzewa po wielokroć (na realnej
+    bazie wychodziło 84 566 plików przy 48 049 istniejących). Do podsumowania bierzemy
+    więc wyłącznie duplikaty najwyższe w drzewie — ich poddrzewa są rozłączne.
+    """
+    duplicate_paths = set(duplicates)
+    topmost: list[str] = []
+    for path in sorted(duplicates):
+        parts = path_key(path)
+        ancestors = ("/".join(parts[:depth]) for depth in range(1, len(parts)))
+        if not any(ancestor in duplicate_paths for ancestor in ancestors):
+            topmost.append(path)
+    return topmost
+
+
 def _duplicate_totals(
     state: Mapping[str, FolderState], duplicates: Mapping[str, str]
-) -> tuple[int, int, int]:
-    """Zwraca (liczba grup, liczba plików, suma bajtów) dla katalogów-duplikatów.
+) -> tuple[int, int, int, int]:
+    """Zwraca (grupy, najwyższe duplikaty, pliki, bajty) — pliki i bajty bez podwójnego liczenia.
 
     Liczy z globalnego stanu, bo przejście 2 też jest globalne — przy ``--package``
     podsumowanie dedupu i tak dotyczy całej bazy.
     """
     groups = len(set(duplicates.values()))
-    files = sum(state[path].file_count for path in duplicates)
-    total_bytes = sum(state[path].total_bytes for path in duplicates)
-    return groups, files, total_bytes
+    topmost = topmost_duplicates(duplicates)
+    files = sum(state[path].file_count for path in topmost)
+    total_bytes = sum(state[path].total_bytes for path in topmost)
+    return groups, len(topmost), files, total_bytes
 
 
 @app.command()
@@ -716,7 +761,12 @@ def main(
         None, "--package", help="Ogranicz do tej paczki (można podać wielokrotnie)."
     ),
     overlap_csv: Optional[Path] = typer.Option(
-        None, "--overlap-csv", help="Plik raportu pokrycia (domyślnie reports/folder_overlap.csv)."
+        None,
+        "--overlap-csv",
+        help=(
+            "Plik raportu par o częściowym pokryciu treści, od najmniejszych "
+            "katalogów niosących całe pokrycie (domyślnie reports/folder_overlap.csv)."
+        ),
     ),
     no_overlap: bool = typer.Option(
         False, "--no-overlap", help="Nie licz i nie zapisuj raportu pokrycia."
@@ -749,7 +799,7 @@ def main(
         state = load_folder_state(conn)
         duplicates = duplicate_map({path: item.tree_hash for path, item in state.items()})
         write_duplicates(conn, state, duplicates)
-        groups, dup_files, dup_bytes = _duplicate_totals(state, duplicates)
+        groups, topmost, dup_files, dup_bytes = _duplicate_totals(state, duplicates)
 
         typer.echo(
             f"katalogi: razem {stats.total}, zhashowane {stats.hashed}, puste {stats.empty}, "
@@ -757,8 +807,8 @@ def main(
         )
         typer.echo(f"katalogi z błędem skanu: {stats.errors}")
         typer.echo(
-            f"duplikaty: grup {groups}, katalogów {len(duplicates)} "
-            f"(pliki {dup_files}, bajty {dup_bytes})"
+            f"duplikaty: grup {groups}, katalogów {len(duplicates)}, w tym najwyższych "
+            f"w drzewie {topmost} (pliki {dup_files}, bajty {dup_bytes})"
         )
 
         if no_overlap:

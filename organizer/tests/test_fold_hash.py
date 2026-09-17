@@ -438,6 +438,33 @@ def test_error_status_stays_sticky(conn: sqlite3.Connection) -> None:
     assert _rows(conn)["P1/a"]["status"] == "error"
 
 
+def test_topmost_duplicates_ignores_nested_ones(conn: sqlite3.Connection) -> None:
+    # Całe 'B' jest kopią 'A', więc duplikatem jest i 'B', i 'B/sub'.
+    # Do podsumowania liczy się tylko 'B' — inaczej te same pliki poszłyby dwa razy.
+    _seed_package(
+        conn,
+        "P1",
+        {
+            "A/sub/f1.txt": "s1",
+            "A/sub/f2.txt": "s2",
+            "B/sub/f1.txt": "s1",
+            "B/sub/f2.txt": "s2",
+        },
+    )
+
+    result = _process(conn)
+    duplicates = result["duplicates"]
+
+    assert sorted(duplicates) == ["P1/B", "P1/B/sub"]
+    assert fold_hash.topmost_duplicates(duplicates) == ["P1/B"]
+
+    state = fold_hash.load_folder_state(conn)
+    groups, topmost, files, total_bytes = fold_hash._duplicate_totals(state, duplicates)
+    assert (groups, topmost) == (2, 1)
+    assert files == 2  # 'B/sub' nie dokłada tych samych dwóch plików drugi raz
+    assert total_bytes == 2 * FILE_SIZE
+
+
 # --- idempotencja -------------------------------------------------------------
 
 
@@ -555,9 +582,11 @@ def test_overlap_skips_too_common_hashes(overlap_conn: sqlite3.Connection) -> No
     assert overlap.pairs == []
 
 
-def test_overlap_drops_pairs_covered_by_their_parents(conn: sqlite3.Connection) -> None:
+def test_overlap_keeps_only_the_most_specific_pair(conn: sqlite3.Connection) -> None:
     # x/inner i y/inner mają te same treści pod innymi nazwami (nie są dokładnymi
-    # duplikatami), a ich rodzice różnią się jednym dodatkowym plikiem.
+    # duplikatami), a ich rodzice różnią się jednym dodatkowym plikiem. Całe
+    # wspólne pokrycie siedzi w parze inner–inner, więc tylko ona ma trafić do
+    # raportu; pary z szerszymi katalogami to szum.
     _seed_package(
         conn,
         "P",
@@ -578,9 +607,34 @@ def test_overlap_drops_pairs_covered_by_their_parents(conn: sqlite3.Connection) 
         result["folders"], result["subtrees"], result["computed"], result["duplicates"], 0.50
     ).pairs
 
+    assert _pair_keys(pairs) == [("P/x/inner", "P/y/inner")]
+
+
+def test_overlap_drops_whole_package_root_in_favour_of_the_subfolder(
+    conn: sqlite3.Connection,
+) -> None:
+    # Realny kształt szumu: korzeń wielkiej paczki „zawiera” katalog przedmiotu,
+    # więc ratio_min wychodzi 1.0 i para przykrywa właściwe trafienie.
+    _seed_package(
+        conn,
+        "Paczki Infa",
+        {"sem3/UC/w1.pdf": "s1", "sem3/UC/w2.pdf": "s2", "sem5/inne/x.pdf": "s9"},
+    )
+    _seed_package(
+        conn,
+        "Paczka II",
+        {"Uklady Cyfrowe/wyklad1.pdf": "s1", "Uklady Cyfrowe/wyklad2.pdf": "s2"},
+    )
+    result = _process(conn)
+
+    pairs = fold_hash.overlap_pairs(
+        result["folders"], result["subtrees"], result["computed"], result["duplicates"], 0.50
+    ).pairs
+
     keys = _pair_keys(pairs)
-    assert ("P/x", "P/y") in keys
-    assert ("P/x/inner", "P/y/inner") not in keys
+    assert ("Paczka II/Uklady Cyfrowe", "Paczki Infa/sem3/UC") in keys
+    assert all("Paczki Infa" != key[0] and "Paczki Infa" != key[1] for key in keys)
+    assert all("Paczka II" != key[0] and "Paczka II" != key[1] for key in keys)
 
 
 def test_overlap_csv_is_sorted_and_formatted(tmp_path: Path, overlap_conn: sqlite3.Connection) -> None:
