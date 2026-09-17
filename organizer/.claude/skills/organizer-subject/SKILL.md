@@ -1,6 +1,6 @@
 ---
 name: organizer-subject
-description: "Cykl per przedmiot Paczka Organizer (docs/ARCHITEKTURA_FINALv1.md §13B, kroki 1–7) — issue+branch, extract, klasyfikacja deterministyczna, AI dla unresolved, build plan, validate. Zatrzymuje się PRZED review; nigdy nie robi apply. Użycie: /organizer-subject SKROT SEMESTR (np. AKO 3)."
+description: "Cykl planowania jednego przedmiotu, zatrzymuje się przed review i apply. Claude: /organizer-subject; Codex: $organizer-subject."
 disable-model-invocation: true
 argument-hint: "SKROT SEMESTR   (np. AKO 3)"
 arguments: [skrot, semestr]
@@ -22,7 +22,7 @@ Jeśli para nie istnieje w `subjects.yaml` — STOP i zapytaj.
    --checkout`. Zapisz numer issue do `reports/subject.$skrot.$semestr.json`.
 2. **extract-text**: `scripts/extract_text.py --semester $semestr --skrot $skrot` — tylko poddrzewa
    `unique` przypisane do przedmiotu (fuzzy po komponentach ścieżki, aliasy). OCR tylko na żądanie.
-   Uruchom przez `muxer:runner`; do kontekstu wraca tylko licznik plików + błędy.
+   Uruchom przez `just`/skrypt; do kontekstu wraca tylko licznik plików + błędy.
 3. **classify-deterministic**: `scripts/classify.py --semester $semestr --skrot $skrot` → wpisy
    `classifications` (method=deterministic/heuristic) + kolejka `unresolved`. Sprawdź `forms`
    (np. ME bez laboratoriów).
@@ -39,13 +39,15 @@ Jeśli para nie istnieje w `subjects.yaml` — STOP i zapytaj.
    istnienie sha256, target pod `paczka/` i zgodny z `config/syntax.yaml`, brak kolizji, bramka
    confidence, relacje, **dry-run diff drzewa**. Exit≠0 → napraw przyczynę (wróć do 3), nie obchodź.
 
-Brakujący skrypt → najpierw zleć `python-pro` (Sonnet) albo, gdy limit Pro jest wyczerpany, agentowi
-`codex` (`codex exec -s workspace-write`; brief: kontrakt z ARCHITEKTURA §6–8, `syntax.yaml`,
-`thresholds.yaml`, ścieżki z `paths.yaml`), potem `muxer:reviewer`, potem wróć do kroku.
+Brakujący skrypt → zaimplementuj go coding agentem w bieżącym hoście albo
+zleć dostępnemu subagentowi. Brief musi zawierać kontrakt z ARCHITEKTURA §6–8,
+`syntax.yaml`, `thresholds.yaml`, ścieżki z `paths.yaml` i kryteria testów.
+Potem wykonaj niezależny review i wróć do kroku.
 
 ## Wyjście i STOP (👤 bramka raz na przedmiot)
 Pokaż użytkownikowi **≤30 linii**: liczby (plików, % auto, review 0.70–0.90, unresolved), dry-run diff
 drzewa (skrót), ścieżka planu, ścieżka `reports/review/$skrot.html` jeśli są near-dupe.
-Zaproponuj: `/organizer-review $skrot` (gdy jest co przeglądać) albo `/organizer-ship $skrot`.
+Zaproponuj workflow `organizer-review` (Claude: `/organizer-review`, Codex:
+`$organizer-review`) albo po akceptacji `organizer-ship`.
 **Nie wykonuj `apply`. Nie commituj w `<target_repo>`.** Commit `plan($skrot)` z `plan.jsonl` w
 `paczka-tools` — tak, tu wolno (to raport tekstowy).

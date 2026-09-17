@@ -1,6 +1,6 @@
 ---
 name: organizer-review
-description: "Review planu jednego przedmiotu Paczka Organizer — generuje diff HTML near-dupe i miniatury, prezentuje pozycje 0.70–0.90 i unresolved, zbiera decyzje człowieka do reports/manual_decisions.jsonl (conf=1.0), re-waliduje plan. Użycie: /organizer-review SKROT [SEMESTR]."
+description: "Review planu jednego przedmiotu i zapis decyzji człowieka. Claude: /organizer-review; Codex: $organizer-review."
 disable-model-invocation: true
 argument-hint: "SKROT [SEMESTR]"
 arguments: [skrot, semestr]
@@ -13,8 +13,8 @@ Człowiek decyduje; Ty przygotowujesz materiał do decyzji i zapisujesz odpowied
 ## Kroki
 1. Wczytaj `reports/plan.$skrot.$semestr.jsonl` (+ `.ai.jsonl`, jeśli jest). Nie czytaj plików źródłowych.
 2. `scripts/review_report.py --semester $semestr --skrot $skrot` → `reports/review/$skrot.html`
-   (`difflib.HtmlDiff` na wyciągniętym tekście par near-dupe + miniatury obrazów). Brak skryptu → zleć
-   `python-pro`, potem wróć.
+   (`difflib.HtmlDiff` na wyciągniętym tekście par near-dupe + miniatury obrazów). Brak skryptu →
+   zaimplementuj coding agentem, zweryfikuj testami i wróć.
 3. Podziel pozycje na 3 listy i pokaż **każdą w ≤15 wierszach** (sha256 skrócone do 8 znaków,
    nazwa, proponowany target, confidence, reason):
    a) `needs_review` 0.70–0.90, b) `quarantine`/unresolved, c) pary z relacją do potwierdzenia
@@ -26,4 +26,5 @@ Człowiek decyduje; Ty przygotowujesz materiał do decyzji i zapisujesz odpowied
 
 ## STOP
 Pokaż stan: ile decyzji zapisano, ile pozostało `unresolved` (zostają w kwarantannie, to OK),
-wynik walidatora. Zaproponuj `/organizer-ship $skrot $semestr`. Nie uruchamiaj go sam.
+wynik walidatora. Zaproponuj workflow `organizer-ship` (Claude:
+`/organizer-ship`, Codex: `$organizer-ship`). Nie uruchamiaj go sam.

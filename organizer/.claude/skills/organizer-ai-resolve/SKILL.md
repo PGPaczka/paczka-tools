@@ -1,6 +1,6 @@
 ---
 name: organizer-ai-resolve
-description: "Kontrakt AI Paczka Organizer — czysta funkcja manifest_slice.jsonl → linie plan.jsonl (resolve-ambiguous + relate-cluster) dla JEDNEGO przedmiotu. Uruchamiana w tanim, izolowanym kontekście; nie dotyka filesystemu poza zapisem wyniku. Użycie: /organizer-ai-resolve SKROT SEMESTR [manifest_path]."
+description: "Kontrakt AI Paczka Organizer — czysta funkcja manifest_slice.jsonl → linie plan.jsonl dla jednego przedmiotu. Claude: /organizer-ai-resolve; Codex: $organizer-ai-resolve."
 context: fork
 agent: general-purpose
 model: haiku
@@ -36,7 +36,7 @@ Twoje jedyne wyjście to poprawny JSONL. **Nie zgadujesz** — niska pewność =
 ## Wyjście
 Dopisz (append) do `reports/plan.$skrot.$semestr.ai.jsonl` po jednej linii na sha256:
 ```json
-{"schema_version":1,"source_sha256":"…","action":"copy|quarantine|skip|media","target_rel":"…","category":"wyklad|kolokwia|opracowania|laboratoria|cwiczenia|projekt|ksiazki|inne","year":"2024|null","related_to":null,"relation":null,"confidence":0.0,"method":"llm","model":"haiku","reason":"≤120 znaków, po polsku","needs_review":false}
+{"schema_version":1,"source_sha256":"…","action":"copy|quarantine|skip|media","target_rel":"…","category":"wyklad|kolokwia|opracowania|laboratoria|cwiczenia|projekt|ksiazki|inne","year":"2024|null","related_to":null,"relation":null,"confidence":0.0,"method":"llm","model":"<rzeczywisty model>","reason":"≤120 znaków, po polsku","needs_review":false}
 ```
 Na końcu zwróć **≤10 linii**: ile linii zapisałeś, rozkład akcji, ile `needs_review`, ścieżka pliku.
 Żadnego innego wyjścia. Żadnych zmian w innych plikach.

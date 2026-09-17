@@ -1,0 +1,74 @@
+set shell := ["bash", "-euo", "pipefail", "-c"]
+
+python := ".venv/bin/python"
+
+default:
+    @just --list
+
+# Interaktywne sesje agentów
+agent-setup:
+    bash setup/install-agent-profiles.sh
+
+agent-doctor:
+    bash scripts/agent/doctor.sh
+
+claude *args:
+    bash scripts/agent/claude-interactive.sh {{ args }}
+
+codex *args:
+    bash scripts/agent/codex-interactive.sh {{ args }}
+
+codex-read *args:
+    bash scripts/agent/codex-interactive.sh --read-only -- {{ args }}
+
+codex-ship *args:
+    bash scripts/agent/codex-interactive.sh --ship -- {{ args }}
+
+handoff:
+    {{ python }} scripts/agent/checkpoint.py
+
+# Wspólne API deterministycznego pipeline'u
+test *args:
+    {{ python }} -m pytest {{ args }}
+
+db-init:
+    {{ python }} scripts/db_admin.py init
+
+scan *args:
+    {{ python }} scripts/scan.py {{ args }}
+
+hash *args:
+    {{ python }} scripts/hash_files.py {{ args }}
+
+fold-hash *args:
+    {{ python }} scripts/fold_hash.py {{ args }}
+
+dedup-report *args:
+    {{ python }} scripts/dedup_report.py {{ args }}
+
+scan-target *args:
+    {{ python }} scripts/scan_target.py {{ args }}
+
+llm task prompt_file *args:
+    {{ python }} scripts/llm_client.py --task {{ task }} --prompt-file {{ prompt_file }} {{ args }}
+
+# Stabilne nazwy kolejnych etapów. Zaczną działać, gdy odpowiadające im skrypty z TODO B1-B14 powstaną.
+subject-prepare semester skrot *args:
+    @test -f scripts/prepare_subject.py || { echo "Brak scripts/prepare_subject.py (TODO B1)" >&2; exit 2; }
+    {{ python }} scripts/prepare_subject.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
+
+subject-plan semester skrot *args:
+    @test -f scripts/build_plan.py || { echo "Brak scripts/build_plan.py (TODO B7)" >&2; exit 2; }
+    {{ python }} scripts/build_plan.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
+
+subject-review semester skrot *args:
+    @test -f scripts/review_report.py || { echo "Brak scripts/review_report.py (TODO B9)" >&2; exit 2; }
+    {{ python }} scripts/review_report.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
+
+subject-apply semester skrot *args:
+    @test -f scripts/apply.py || { echo "Brak scripts/apply.py (TODO B10)" >&2; exit 2; }
+    {{ python }} scripts/apply.py reports/plan.{{ skrot }}.{{ semester }}.jsonl {{ args }}
+
+subject-verify semester skrot *args:
+    @test -f scripts/verify.py || { echo "Brak scripts/verify.py (TODO B11)" >&2; exit 2; }
+    {{ python }} scripts/verify.py reports/plan.{{ skrot }}.{{ semester }}.jsonl {{ args }}

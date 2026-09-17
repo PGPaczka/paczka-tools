@@ -1,6 +1,6 @@
 ---
 name: organizer-ship
-description: "Finalizacja przedmiotu Paczka Organizer PO akceptacji planu — snapshot, apply (kopiowanie do paczka/ w klonie celu), verify, provenance + README, media do 90_MEDIA, commity apply/docs na branchu subject/SKROT, PR z Closes #NN. Wymaga jawnej zgody użytkownika. Użycie: /organizer-ship SKROT SEMESTR."
+description: "Finalizacja przedmiotu wyłącznie po jawnej akceptacji planu. Claude: /organizer-ship; Codex: $organizer-ship."
 disable-model-invocation: true
 argument-hint: "SKROT SEMESTR"
 arguments: [skrot, semestr]
@@ -15,7 +15,10 @@ arguments: [skrot, semestr]
 3. `<target_repo>` jest na branchu `subject/$skrot` (nie `master`), working tree czyste.
 4. Wszystkie `needs_review` rozstrzygnięte albo świadomie zostawione jako `quarantine`.
 
-## Kroki (każdy przez `muxer:runner`, do kontekstu tylko liczby i błędy)
+## Kroki
+
+Uruchamiaj przez `just` lub skrypty; do kontekstu wprowadzaj tylko liczby i
+błędy.
 1. **snapshot**: `scripts/apply.py --snapshot` (`cp -al` katalogu przedmiotu w `paczka/` do `<work>/snapshots/`).
 2. **apply**: `scripts/apply.py reports/plan.$skrot.$semestr.jsonl` — kopiuje z CAS/źródeł do
    `<target_repo>/paczka/…`; idempotentne; kolizja → log, nie nadpisuje. Media → `<media>/$skrot/…`
@@ -23,7 +26,8 @@ arguments: [skrot, semestr]
 3. **verify**: `scripts/verify.py reports/plan.$skrot.$semestr.jsonl` — hash celu == źródła,
    kompletność. Błąd → STOP, nic nie commituj, pokaż raport.
 4. **docs**: `scripts/provenance.py --semester $semestr --skrot $skrot` → `reports/provenance.jsonl`
-   (tu) + `README.md` przedmiotu w `paczka/SEM$semestr/($skrot)_…/` (`readme-generator`, haiku).
+   (tu) + `README.md` przedmiotu w `paczka/SEM$semestr/($skrot)_…/`. Możesz użyć
+   dostępnego agenta dokumentacyjnego, ale wynik musi zostać zweryfikowany.
 5. **git w `<target_repo>`** (branch `subject/$skrot`):
    - `git add paczka/SEM$semestr/...` → commit `apply($skrot): materiały sem$semestr` 
    - `git add` README/nagrania.txt → commit `docs($skrot): provenance + README`

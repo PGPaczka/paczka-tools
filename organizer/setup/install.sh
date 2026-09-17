@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# install.sh — jednorazowa, idempotentna instalacja środowiska Paczka Organizer + Claude Code.
+# install.sh — idempotentna instalacja środowiska Paczka Organizer i adapterów agentów.
 #
 # Stawia: plugin muxer, status line, jq/rmlint/tesseract (opt-in apt), just, katalogi workspace,
-# venv organizera, ustawienia lokalne Claude Code z bezwzględnymi ścieżkami.
+# venv organizera, ustawienia Claude Code i profil interaktywnego Codexa/OpenAI.
 # Co i dlaczego: setup/PLUGINS.md. Uruchamiaj z dowolnego miejsca; można wielokrotnie.
 #
 #   bash setup/install.sh                 # wszystko poza apt i chmod
@@ -40,6 +40,8 @@ for c in git python3; do command -v "$c" >/dev/null || die "brak: $c"; done
 ok "git $(git --version | awk '{print $3}'), python $(python3 --version | awk '{print $2}')"
 if command -v claude >/dev/null; then ok "claude $(claude --version 2>/dev/null | head -1)"; else
   warn "brak 'claude' w PATH — pomijam pluginy (jak --no-plugins)"; NO_PLUGINS=1; fi
+if command -v codex >/dev/null; then ok "codex $(codex --version 2>/dev/null | tail -1)"; else
+  warn "brak 'codex' w PATH — just codex nie zadziała"; fi
 command -v gh >/dev/null && ok "gh $(gh --version | head -1 | awk '{print $3}')" || warn "brak gh — skille subject-start/ship nie zadziałają"
 
 # ------------------------------------------------------------- 1. paths.yaml
@@ -125,8 +127,9 @@ fm += f"\n# źródło: VoltAgent/awesome-claude-code-subagents categories/{rel};
 pre = """
 ## Kontekst projektu (Paczka Organizer) — czytaj najpierw
 
-- Pracujesz w `paczka-tools/organizer/`. Zanim cokolwiek zrobisz, przeczytaj `CLAUDE.md` i `AGENTS.md`
-  z tego katalogu; ścieżki do katalogów zewnętrznych są TYLKO w `config/paths.yaml`.
+- Pracujesz w `paczka-tools/organizer/`. Najpierw przeczytaj kanoniczne `AGENTS.md`;
+  `CLAUDE.md` zawiera wyłącznie adapter Claude Code. Ścieżki do katalogów
+  zewnętrznych są TYLKO w `config/paths.yaml`.
 - `00_SOURCES` jest READ-ONLY. Nigdy nie zapisuj, nie przenoś, nie kasuj tam niczego.
 - Nie otwieraj binariów ze źródeł; pracujesz na kodzie, configu i tekstowych raportach.
 - Skrypty muszą być idempotentne i wznawialne (status w SQLite, UPSERT po sha256), zgodnie z
@@ -177,6 +180,10 @@ p.write_text(json.dumps(d, indent=2, ensure_ascii=False) + "\n", encoding="utf-8
 print("   ✔", p)
 PY
 
+# ------------------------------------------------------------- 6b. Codex profile
+say "6b/8 profil interaktywnego Codexa/OpenAI"
+bash "$SETUP_DIR/install-agent-profiles.sh"
+
 # --------------------------------------------------------------------- 7. venv
 say "7/8 venv organizera"
 if [ ! -x "$ORGANIZER/.venv/bin/python" ]; then python3 -m venv "$ORGANIZER/.venv" && ok "venv utworzony"; else ok "venv istnieje"; fi
@@ -185,12 +192,14 @@ if [ ! -x "$ORGANIZER/.venv/bin/python" ]; then python3 -m venv "$ORGANIZER/.ven
 
 # ------------------------------------------------------------- 8. lock sources
 say "8/8 ochrona 00_SOURCES"
-if [ "$LOCK_SOURCES" = 1 ] && [ -d "$SRC" ]; then chmod -R a-w "$SRC" && ok "chmod -R a-w $SRC"; else ok "hook .claude/hooks/guard-sources.py aktywny w sesji; --lock-sources dołoży chmod"; fi
+if [ "$LOCK_SOURCES" = 1 ] && [ -d "$SRC" ]; then chmod -R a-w "$SRC" && ok "chmod -R a-w $SRC"; else ok "wspólny hook .agents/hooks/guard-sources.py aktywny; --lock-sources dołoży chmod"; fi
 
 say "gotowe"
 cat <<TXT
    Następny krok:
-     cd "$ORGANIZER" && claude
-   W sesji: /mux (tabela routingu), potem mały test z setup/PLUGINS.md → sprawdź raport kosztów.
-   Skille: /organizer-first-pass, /organizer-subject AK 3, /organizer-review, /organizer-ship.
+     cd "$ORGANIZER"
+     just agent-doctor
+     just claude       # domyślny koordynator
+     just codex        # interaktywny OpenAI, niezależny od globalnego CCR
+   Claude: /organizer-subject AKO 3; Codex: \$organizer-subject AKO 3.
 TXT
