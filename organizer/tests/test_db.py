@@ -145,6 +145,103 @@ def test_upsert_rejects_bad_identifiers(conn: sqlite3.Connection) -> None:
         db.upsert(conn, "content", {"sha256": "x"}, conflict=("nie_ma_takiej",))
 
 
+def test_upsert_many_handles_mixed_column_sets(conn: sqlite3.Connection) -> None:
+    _seed_package(conn)
+    rows = [
+        {
+            "source_package": "P1",
+            "source_relative_path": "a.pdf",
+            "folder_path": "P1",
+            "size_bytes": 10,
+        },
+        {
+            "source_package": "P1",
+            "source_relative_path": "b.pdf",
+            "folder_path": "P1",
+            "size_bytes": 20,
+            "extension": "pdf",
+        },
+    ]
+
+    written = db.upsert_many(
+        conn, "files", rows, conflict=("source_package", "source_relative_path")
+    )
+
+    stored = {
+        row["source_relative_path"]: row
+        for row in conn.execute("SELECT * FROM files ORDER BY source_relative_path")
+    }
+    assert written == 2
+    assert stored["a.pdf"]["extension"] is None
+    assert stored["b.pdf"]["extension"] == "pdf"
+    assert stored["b.pdf"]["size_bytes"] == 20
+
+
+def test_upsert_many_updates_existing_rows(conn: sqlite3.Connection) -> None:
+    _seed_package(conn)
+    _seed_file(conn, relpath="a.pdf", size_bytes=10)
+
+    db.upsert_many(
+        conn,
+        "files",
+        # kolumny NOT NULL (folder_path) muszą być w wierszu — INSERT sprawdza je
+        # zanim dojdzie do rozstrzygnięcia konfliktu
+        [
+            {
+                "source_package": "P1",
+                "source_relative_path": "a.pdf",
+                "folder_path": "P1",
+                "size_bytes": 99,
+            }
+        ],
+        conflict=("source_package", "source_relative_path"),
+    )
+
+    rows = conn.execute("SELECT size_bytes FROM files").fetchall()
+    assert [row["size_bytes"] for row in rows] == [99]
+
+
+def test_upsert_many_of_nothing_writes_nothing(conn: sqlite3.Connection) -> None:
+    assert db.upsert_many(conn, "files", [], conflict=("source_package",)) == 0
+
+
+def test_upsert_many_is_atomic(conn: sqlite3.Connection) -> None:
+    _seed_package(conn)
+    rows = [
+        {
+            "source_package": "P1",
+            "source_relative_path": "dobry.pdf",
+            "folder_path": "P1",
+            "size_bytes": 10,
+        },
+        # brak size_bytes (NOT NULL) — ten wiersz wywali cały wsad
+        {"source_package": "P1", "source_relative_path": "zly.pdf", "folder_path": "P1"},
+    ]
+
+    with pytest.raises(sqlite3.IntegrityError):
+        db.upsert_many(conn, "files", rows, conflict=("source_package", "source_relative_path"))
+
+    assert conn.execute("SELECT COUNT(*) AS n FROM files").fetchone()["n"] == 0
+
+
+def test_upsert_many_unknown_column_rolls_back_whole_batch(conn: sqlite3.Connection) -> None:
+    _seed_package(conn)
+    rows = [
+        {
+            "source_package": "P1",
+            "source_relative_path": "a.pdf",
+            "folder_path": "P1",
+            "size_bytes": 10,
+        },
+        {"source_package": "P1", "source_relative_path": "b.pdf", "nie_ma_takiej": 1},
+    ]
+
+    with pytest.raises(sqlite3.OperationalError):
+        db.upsert_many(conn, "files", rows, conflict=("source_package", "source_relative_path"))
+
+    assert conn.execute("SELECT COUNT(*) AS n FROM files").fetchone()["n"] == 0
+
+
 def test_relations_reject_self_reference(conn: sqlite3.Connection) -> None:
     _seed_content(conn, "a" * 64)
 

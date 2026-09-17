@@ -15,9 +15,10 @@ Legenda: `[ ]` do zrobienia · `[x]` zrobione · `[~]` w toku · ~~przekreślone
 - [x] A0. Bootstrap skali dublowania: `rmlint -D` + `ncdu` na źródłach (tylko raport) → `reports/bootstrap_rmlint.txt`: 47 991 plików, 29 548 kopii, 17,94 GB dubli (~45%); pełne artefakty w `20_WORK/` (2026-09-17)
 - [x] A3. `scripts/scan.py` — stat źródeł → `source_packages`, `folders`, `files` (status `discovered`), `structural_signature`; skip niezmienionych poddrzew na re-runie; generuje `docs/SOURCES_TREE.md` (2026-09-17)
 - [x] A4. `scripts/hash_files.py` — sha256 → `files.sha256`, `content` (content_kind z `orglib/kinds.py`), status `hashed`; wznawialny, `--retry-errors`, containment ścieżek (2026-09-17)
-- [ ] A5. `scripts/fold_hash.py` — `tree_hash` / `content_set_hash` → `folders.duplicate_of` (dwa przejścia, FK) + `reports/folder_overlap.csv` (próg z `thresholds.yaml`)
-- [ ] A6. `scripts/dedup_report.py` — unique vs duplicate (liczby, bajty, per paczka) → `reports/dedup_summary.md`, `reports/inventory.jsonl`
+- [x] A5. `scripts/fold_hash.py` — `tree_hash` / `content_set_hash` → `folders.duplicate_of` (dwa przejścia, FK) + `reports/folder_overlap.csv` (próg z `thresholds.yaml`) (2026-09-17)
+- [x] A6. `scripts/dedup_report.py` — unique vs duplicate (liczby, bajty, per paczka) → `reports/dedup_summary.md`, `reports/inventory.jsonl` (2026-09-17)
 - [ ] A7. Skan istniejącej `paczka/` w `target_repo` = ground truth (lock; hash + ścieżka docelowa → `applied`/klasyfikacja `manual`, conf=1.0)
+- [ ] A9. **Decyzja użytkownika:** istniejąca `paczka/` w `target_repo` używa `SEM3/AKO_Architektura_Komputerów` (bez nawiasów, alias AKO), `paczka/SEM1/sources/`, `paczka/ogolne/`, `Magisterskie_SEM2/<Nazwa bez skrótu>` — a `syntax.yaml`/`config.TARGET_PATH_TEMPLATE` zakłada `({SKROT})_{Nazwa}`. Ground truth ma pierwszeństwo (reguła 2): albo zmienić szablon w configu na `{SKROT}_{Nazwa}`, albo świadomie przemianować w repo docelowym. Do rozstrzygnięcia przed B3/B7 (classify/plan). Wykryte 2026-09-17 przy A7.
 - [x] ~~A8. `config/taxonomy.yaml`~~ — zbędny: `syntax.yaml` (kategorie, foldery, formy, media) JEST taksonomią; architektura §3/§13 poprawiona (2026-09-17)
 
 ## B. Skrypty cyklu per-przedmiot

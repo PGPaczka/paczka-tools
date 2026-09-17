@@ -12,7 +12,7 @@ import re
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
-from typing import Any, Mapping, Sequence
+from typing import Any, Iterable, Mapping, Sequence
 
 #: Wersja DDL w schema.sql. Baza z wyższą wersją jest odrzucana.
 SCHEMA_VERSION = 1
@@ -174,6 +174,41 @@ def upsert(
     sql = _upsert_sql(table, columns, conflict)
     with conn:
         conn.execute(sql, [row[c] for c in columns])
+
+
+def upsert_many(
+    conn: sqlite3.Connection,
+    table: str,
+    rows: Iterable[Mapping[str, Any]],
+    *,
+    conflict: Sequence[str],
+) -> int:
+    """Wsadowy UPSERT wielu wierszy w JEDNEJ transakcji; zwraca liczbę wierszy.
+
+    Wiersze grupuje po ZBIORZE kolumn (nazwy sortowane, więc kolejność kluczy
+    w słowniku nie mnoży grup); każda grupa = jedno ``executemany``. Wiersze
+    o różnych kolumnach można mieszać — tak jak w :func:`upsert`, aktualizowane są
+    wyłącznie kolumny obecne w danym wierszu. Cały wsad jest atomowy: błąd
+    w dowolnym wierszu wycofuje całość (skan 50k plików nie może zostawić bazy
+    w połowie zapisanej).
+    """
+    groups: dict[tuple[str, ...], list[list[Any]]] = {}
+    count = 0
+    for row in rows:
+        columns = tuple(sorted(row.keys()))
+        groups.setdefault(columns, []).append([row[c] for c in columns])
+        count += 1
+    if not groups:
+        return 0
+    # SQL budujemy PRZED transakcją: zła nazwa kolumny ma polecieć, zanim
+    # cokolwiek zapiszemy.
+    batches = [
+        (_upsert_sql(table, columns, conflict), params) for columns, params in groups.items()
+    ]
+    with conn:
+        for sql, params in batches:
+            conn.executemany(sql, params)
+    return count
 
 
 def upsert_file(conn: sqlite3.Connection, row: Mapping[str, Any]) -> None:

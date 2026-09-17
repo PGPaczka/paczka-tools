@@ -45,12 +45,16 @@ def content_set_hash(hashes: Iterable[str]) -> str:
 
 
 def structural_signature(entries: Iterable[tuple[str, int, int]]) -> str:
-    """Tani podpis struktury katalogu: sha256 z posortowanych (relpath, size_bytes, mtime_ns).
+    """Tani podpis struktury katalogu: sha256 z posortowanych (relpath, size_bytes, mtime).
 
-    Serializacja: ``f"{relpath}\\0{size}\\0{mtime_ns}\\n"``. Liczony bez czytania
+    ``mtime`` to liczba całkowita — sekundy albo nanosekundy, byle spójnie w całym
+    projekcie; organizer używa SEKUND (``st_mtime_ns // 1_000_000_000``), bo nośniki
+    o gorszej granulacji czasu inaczej udawałyby zmianę przy każdym skanie.
+
+    Serializacja: ``f"{relpath}\\0{size}\\0{mtime}\\n"``. Liczony bez czytania
     zawartości plików — służy do szybkiego odsiewania par przed hashowaniem.
     """
     digest = hashlib.sha256()
-    for relpath, size_bytes, mtime_ns in sorted(entries):
-        digest.update(f"{relpath}\0{size_bytes}\0{mtime_ns}\n".encode("utf-8"))
+    for relpath, size_bytes, mtime in sorted(entries):
+        digest.update(f"{relpath}\0{size_bytes}\0{mtime}\n".encode("utf-8"))
     return digest.hexdigest()
