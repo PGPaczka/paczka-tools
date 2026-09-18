@@ -68,6 +68,17 @@ Nie hardkoduj `../../…` w Pythonie, promptach, skillach ani testach.
 Wspólny guard źródeł: `.agents/hooks/guard-sources.py`. Claude wywołuje go z
 `.claude/settings.json`, a Codex z repozytoryjnego `.codex/hooks.json`.
 
+Guard blokuje mutację źródeł także wtedy, gdy nie wygląda ona jak `rm`: kod
+podany interpreterowi wprost (`python3 -c`, `perl -e`, `node -e`, heredoc na
+stdin), `find -delete`, zapis wskazany flagą (`cp -t`, `sort -o`) i wymuszone
+nadpisanie `>|`. Czysty odczyt źródeł przechodzi — łącznie z `tar -xf`
+rozpakowującym **ze** źródeł gdzie indziej i `grep -f` czytającym stamtąd wzorce.
+Obie strony tego kompromisu pilnuje `tests/test_agent_guard.py`; przy zmianach
+w hooku dopisuj tam zarówno próbę obejścia, jak i wariant odczytu, który ma
+nadal działać. Guard jest ostatnią barierą, nie pierwszą: dopasowuje ścieżki po
+tekście komendy, więc świadomie zaciemniony zapis (zmienna, `base64`, własny
+skrypt) go ominie — to nie jest zaproszenie do próbowania (reguła 14).
+
 ## Model operacyjny
 
 Pracuj w pętli **jeden przedmiot = jedno zadanie**, z jedną bramką człowieka:
@@ -117,6 +128,10 @@ just codex-read      # Codex read-only
 just codex-ship      # Codex z target_repo/media writable, tylko po akceptacji
 just agent-doctor
 ```
+
+Argumenty dopisuje się bez `--` (`just codex-read "streść HANDOFF"`) — recepty
+`codex-read`/`codex-ship` dodają go same, a drugi psuje wywołanie. Rozpisana
+instrukcja startu jest w `README.md`, sekcja „Agenci interaktywni”.
 
 `just codex` wymaga profilu `paczka-openai`, tworzonego przez
 `just agent-setup`. Launcher odmawia startu, jeśli profil nie wskazuje

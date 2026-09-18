@@ -11,7 +11,10 @@ just claude
 ```
 
 Launcher ustawia katalog roboczy na `paczka-tools/organizer/`; projektowe
-uprawnienia, hooki i plugin muxer są w `.claude/settings.json`.
+uprawnienia, hooki i plugin muxer są w `.claude/settings.json`. Argumenty idą
+wprost do CLI (`just claude --resume`, `just claude -p "pytanie"`). Pełna
+instrukcja startu obu agentów — z trybami sandboxu Codeksa i sposobem
+potwierdzenia konta — jest w `README.md`, sekcja „Agenci interaktywni”.
 
 ## Claude workspace
 
