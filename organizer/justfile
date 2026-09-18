@@ -47,6 +47,14 @@ env-check *args:
 cli-check *args:
     {{ python }} -m pytest -m cli_contract {{ args }}
 
+# Kontrola STANU (nie kodu): spójność operacyjnego indeksu.
+index-check *args:
+    {{ python }} scripts/doctor.py index {{ args }}
+
+# Kontrola STANU: czy źródła są nadal takie, jakie zapisał skan (reguła twarda nr 1).
+sources-check *args:
+    {{ python }} scripts/doctor.py sources {{ args }}
+
 # Pełny łańcuch etapów na syntetycznej paczce (styki między skryptami).
 e2e *args:
     {{ python }} -m pytest -m e2e {{ args }}

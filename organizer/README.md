@@ -45,7 +45,8 @@ dozwolone wyłącznie przy braku lokalnych DANYCH, nigdy przy braku sprawności.
 | Środowisko | `environment` | realne biblioteki i binarki, wersje minimalne | brak/zepsuta zależność |
 | Kontrakt CLI | `cli_contract` | argv backendów AI kontra parser prawdziwego CLI | zła albo źle umieszczona flaga |
 | E2E | `e2e` | cały łańcuch etapów na syntetycznej paczce | rozjazd styku między skryptami |
-| Sonda | `probe` | realne dane lokalne (`target_repo`) | zepsuty config; brak danych = skip |
+| Sonda | `probe` | realny STAN: spójność indeksu, niezmienność źródeł, `target_repo` | naruszony niezmiennik; brak danych = skip |
+| Własności | *(brak)* | granica ścieżek dla KAŻDEGO wejścia (Hypothesis) | wejście, które ucieka poza korzeń |
 
 ```bash
 just test        # wszystko (~35 s)
@@ -54,7 +55,16 @@ just env-check   # realne zależności
 just cli-check   # zgodność z zewnętrznymi CLI (bez promptów, bez kosztu)
 just e2e         # pełny łańcuch na syntetycznej paczce
 just probe       # sondy na Twoich realnych danych
+just index-check # spójność operacyjnego indeksu (kontrola STANU, nie kodu)
+just sources-check # czy źródła są nadal takie, jakie zapisał skan
 ```
+
+Dwie ostatnie recepty nie są testami kodu — sprawdzają **stan** dwóch rzeczy,
+których nie da się odtworzyć tanio: `organizer.sqlite` (budowany przyrostowo
+przez wiele przebiegów) i `00_SOURCES`. Guard w hookach pilnuje *zamiaru*
+(blokuje komendę), `sources-check` sprawdza *skutek* — także zmiany wprowadzone
+poza agentami. Obie kontrole czytają bazę w trybie `mode=ro` i kończą kodem 1,
+gdy znajdą naruszenie; pełny przebieg na 48 tys. plików trwa poniżej 2 s.
 
 Każda z tych warstw powstała po konkretnej wpadce, nie „na zapas":
 
@@ -76,6 +86,12 @@ z kodu jest pusta, bo jej skrócenie skraca też zestaw przypadków.
 Nowe zależności i nowe zewnętrzne narzędzia dopisuj razem z kontrolą w warstwie
 `environment` albo `cli_contract` — i sprawdź mutacyjnie, że po ich usunięciu
 testy naprawdę czerwienieją.
+
+Świadomie **nie** ma tu: progu pokrycia (mierzy wykonane linie, nie to, czy
+asercje cokolwiek znaczą — 615 zielonych testów przy niepilnowanej serializacji
+hashy jest tego dowodem), snapshotów generowanych raportów (są w gicie, więc
+diff widać przy commicie), benchmarków (etapy uruchamiane ręcznie i rzadko) ani
+testów chaosu (WAL i transakcje partiami już to trzymają).
 
 ## Skrypty (pierwszy przebieg)
 

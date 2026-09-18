@@ -126,19 +126,11 @@ def _warn(message: str) -> None:
     typer.echo(f"uwaga: {message}", err=True)
 
 
-def _mtime_seconds(mtime_ns: int) -> int:
-    """Czas modyfikacji w PEŁNYCH sekundach (w dół).
-
-    Cały skan — ``files.modified_date`` i podpis strukturalny — pracuje na tej
-    samej, sekundowej rozdzielczości. Inaczej dysk z gorszą granulacją mtime
-    (FAT/exFAT, kopie przez sieć) przy każdym przebiegu udawałby zmianę.
-    """
-    return mtime_ns // 1_000_000_000
-
-
-def _mtime_iso(mtime_seconds: int) -> str:
-    """ISO-8601 UTC 'Z' z czasu modyfikacji w sekundach; format jak db.now_iso()."""
-    return datetime.fromtimestamp(mtime_seconds, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+#: Reguła zaokrąglania mtime i format ISO żyją w ``orglib.db``, bo korzysta z nich
+#: także kontrola niezmienności źródeł (``orglib.integrity``). Dwie kopie tej samej
+#: reguły rozjechałyby się przy pierwszej zmianie granulacji.
+_mtime_seconds = db.mtime_seconds
+_mtime_iso = db.mtime_iso
 
 
 def _is_encodable(name: str) -> bool:

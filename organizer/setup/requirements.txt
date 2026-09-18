@@ -20,6 +20,7 @@ jsonschema         # walidacja linii planu wg prompts/plan_line.schema.json (val
 anthropic          # backend AI (Claude) — dla llm_client
 openai             # backend AI (Codex) — dla llm_client
 pytest             # testy
+hypothesis         # własności granicy ścieżek (tests/test_path_safety_properties.py)
 # Stare formaty binarne (.doc/.ppt/.pps) czyta systemowy pakiet catdoc
 # (catdoc, catppt) — instaluje go setup/install.sh --with-apt. Jego brak nie
 # jest błędem: extract_text.py raportuje wtedy metodę 'no_converter'.

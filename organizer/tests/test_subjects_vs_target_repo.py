@@ -14,6 +14,7 @@ Sprawdza w OBIE strony:
 
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -106,3 +107,59 @@ def test_every_real_subject_dir_maps_back_to_a_subject() -> None:
         "katalogi w repo bez odpowiadającego przedmiotu w subjects.yaml:\n"
         + "\n".join(leftovers)
     )
+
+
+# --------------------------------------------------------------------------- #
+# Stan realnego workspace'u: indeks i niezmienność źródeł
+# --------------------------------------------------------------------------- #
+
+
+def _real_index() -> Path | None:
+    """Ścieżka do realnego indeksu albo ``None``, gdy nie ma go NA DYSKU."""
+    paths = config.load_paths()
+    return paths.work_db if paths.work_db.is_file() else None
+
+
+def test_real_index_is_internally_consistent() -> None:
+    """Operacyjny indeks musi spełniać więzy, których schemat nie wyraża.
+
+    Baza powstaje przyrostowo przez wiele etapów i przebiegów rozłożonych na
+    tygodnie — to jedyne miejsce, w którym sprawdzamy jej STAN, a nie kod, który
+    ją zapisuje. Pomijamy tylko wtedy, gdy bazy jeszcze nie ma (świeży klon).
+    """
+    from orglib import integrity
+
+    database = _real_index()
+    if database is None:
+        pytest.skip("brak lokalnego indeksu — uruchom first-pass")
+    paths = config.load_paths()
+    conn = sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
+    try:
+        findings = integrity.index_findings(conn, work_root=paths.work)
+    finally:
+        conn.close()
+    powazne = [f for f in findings if f.severity in ("error", "warning")]
+    assert not powazne, "\n".join(str(f) for f in powazne)
+
+
+def test_real_sources_were_not_modified() -> None:
+    """Reguła twarda nr 1 sprawdzona na SKUTKU, nie na zamiarze.
+
+    Guard w hookach blokuje komendy; ta sonda porównuje dysk z tym, co zapisał
+    skan. Wykrywa również zmiany wprowadzone poza agentami.
+    """
+    from orglib import integrity
+
+    database = _real_index()
+    paths = config.load_paths()
+    if database is None or not paths.sources.is_dir():
+        pytest.skip("brak lokalnego indeksu albo katalogu źródeł")
+    conn = sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
+    try:
+        findings = integrity.sources_findings(conn, paths.sources)
+    finally:
+        conn.close()
+    naruszenia = [f for f in findings if f.severity == "error"]
+    assert not naruszenia, "\n".join(str(f) for f in naruszenia)

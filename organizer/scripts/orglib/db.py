@@ -63,6 +63,22 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def mtime_seconds(mtime_ns: int) -> int:
+    """Czas modyfikacji w PEŁNYCH sekundach (w dół).
+
+    Cały potok — ``files.modified_date``, podpis strukturalny i kontrola
+    niezmienności źródeł — pracuje na tej samej, sekundowej rozdzielczości.
+    Inaczej dysk o gorszej granulacji mtime (FAT/exFAT, kopie przez sieć) przy
+    każdym porównaniu udawałby zmianę.
+    """
+    return mtime_ns // 1_000_000_000
+
+
+def mtime_iso(seconds: int) -> str:
+    """ISO-8601 UTC 'Z' z czasu modyfikacji w sekundach; format jak :func:`now_iso`."""
+    return datetime.fromtimestamp(seconds, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def folder_path_for(source_package: str, source_relative_path: str) -> str:
     """Wylicza ``files.folder_path`` z paczki i ścieżki pliku względem katalogu paczki.
 
