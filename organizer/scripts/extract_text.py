@@ -221,6 +221,11 @@ def main(
     ocr_pages: int = typer.Option(
         textextract.DEFAULT_OCR_MAX_PAGES, "--ocr-pages", help="Ile stron PDF poddać OCR."
     ),
+    legacy_charset: str = typer.Option(
+        textextract.DEFAULT_LEGACY_CHARSET,
+        "--legacy-charset",
+        help="Kodowanie źródłowe starych .doc/.ppt/.pps (konwerter catdoc).",
+    ),
     force: bool = typer.Option(
         False, "--force", help="Przeekstrahuj treść, nawet jeśli tekst jest już na dysku."
     ),
@@ -309,6 +314,7 @@ def main(
             ocr_images=ocr_images,
             ocr_lang=ocr_lang,
             ocr_max_pages=ocr_pages,
+            legacy_charset=legacy_charset,
         )
         if extraction.ocr_done:
             ocr_count += 1

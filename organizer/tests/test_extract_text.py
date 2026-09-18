@@ -277,9 +277,9 @@ def test_duplicate_folder_subtree_is_skipped(conn: sqlite3.Connection, paths: co
     assert "wyekstrahowane pliki: 2" in result.stdout
 
 
-@pytest.mark.parametrize(("suffix", "kind"), [(".zip", "archive"), (".doc", "docx"), (".png", "image")])
+@pytest.mark.parametrize(("suffix", "kind"), [(".zip", "archive"), (".rtf", "docx"), (".png", "image")])
 def test_no_text_is_success(conn: sqlite3.Connection, paths: config.Paths, suffix: str, kind: str) -> None:
-    """Archiwum, stary Word i obraz bez OCR kończą etap bez pliku tekstu."""
+    """Archiwum, format bez czytnika i obraz bez OCR kończą etap bez pliku tekstu."""
     payload = _png_bytes() if kind == "image" else b"brak obslugi tekstu"
     file_id = _seed_file(conn, paths, relpath=f"plik{suffix}", payload=payload, kind=kind)
     result = _run(paths)
@@ -435,11 +435,13 @@ def test_cli_passes_extraction_options_and_limits_text(
     extract = Mock(wraps=textextract.extract)
     monkeypatch.setattr(textextract, "extract", extract)
     result = _run(paths, "--max-chars", "5", "--max-pages", "1", "--no-ocr",
-                  "--ocr-images", "--ocr-lang", "eng", "--ocr-pages", "1")
+                  "--ocr-images", "--ocr-lang", "eng", "--ocr-pages", "1",
+                  "--legacy-charset", "cp1252")
     assert result.exit_code == 0, result.output
     extract.assert_called_once_with(
         paths.sources / "P1" / "tekst.txt", "text", max_chars=5, max_pages=1,
         ocr=False, ocr_images=True, ocr_lang="eng", ocr_max_pages=1,
+        legacy_charset="cp1252",
     )
     row = _file(conn, file_id)
     output = paths.work_extracted_text / f"{row['sha256']}.txt"
@@ -454,3 +456,40 @@ def test_summary_lists_extraction_methods(conn: sqlite3.Connection, paths: confi
     result = _run(paths)
     assert result.exit_code == 0, result.output
     assert "metody: text=1, unsupported=1" in result.stdout
+
+
+def test_legacy_document_goes_through_converter(
+    conn: sqlite3.Connection, paths: config.Paths, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Stary .doc jest czytany konwerterem, z jawnym kodowaniem źródłowym."""
+    file_id = _seed_file(conn, paths, relpath="stary.doc", payload=b"binarny doc", kind="docx")
+    monkeypatch.setattr(textextract.shutil, "which", lambda name: f"/usr/bin/{name}")
+    run = Mock(return_value=SimpleNamespace(
+        returncode=0, stdout="Wykład z podstaw elektroniki".encode("utf-8"), stderr=b""
+    ))
+    monkeypatch.setattr(textextract.subprocess, "run", run)
+
+    result = _run(paths, "--legacy-charset", "cp1250")
+
+    assert result.exit_code == 0, result.output
+    row = _file(conn, file_id)
+    assert row["status"] == "extracted"
+    assert row["normalized_text_hash"] == textextract.normalized_text_hash("Wykład z podstaw elektroniki")
+    assert "metody: converter=1" in result.stdout
+    argv = run.call_args.args[0]
+    assert argv[0] == "catdoc"
+    assert argv[1:3] == ["-s", "cp1250"]
+
+
+def test_legacy_document_without_converter_is_visible(
+    conn: sqlite3.Connection, paths: config.Paths, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Brak pakietu catdoc widać w podsumowaniu; plik i tak kończy etap bez błędu."""
+    file_id = _seed_file(conn, paths, relpath="stary.doc", payload=b"binarny doc", kind="docx")
+    monkeypatch.setattr(textextract.shutil, "which", lambda name: None)
+    result = _run(paths)
+    assert result.exit_code == 0, result.output
+    assert _file(conn, file_id)["status"] == "extracted"
+    assert _content(conn, _file(conn, file_id)["sha256"])["extracted_text_path"] is None
+    assert "metody: no_converter=1" in result.stdout
+    assert "błędy: 0" in result.stdout

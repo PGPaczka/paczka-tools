@@ -438,6 +438,9 @@ def test_legacy_binary_uses_external_converter(
     assert result == textextract.Extraction("Wykład 3\n", "converter")
     argv = run.call_args.args[0]
     assert argv[0] == binary
+    # Bez jawnego kodowania źródłowego catdoc zakłada cp1252 i polskie znaki
+    # zamieniają się w krzaki — sprawdzone na realnym pliku ze źródeł.
+    assert argv[1:5] == ["-s", textextract.DEFAULT_LEGACY_CHARSET, "-d", "utf-8"]
     assert Path(argv[-1]).is_absolute()
     assert run.call_args.kwargs["timeout"] > 0
 

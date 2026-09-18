@@ -83,9 +83,12 @@ Uwagi:
   → openpyxl, `.xls` → xlrd, `.odt`/`.ods`/`.odp` → odfpy, `.csv` i tekst/kod →
   wprost (UTF-8, awaryjnie cp1250), obrazy → phash (+ OCR na żądanie).
   Stare formaty binarne `.doc`/`.ppt`/`.pps` wymagają **systemowego** pakietu
-  `catdoc` (`catdoc`, `catppt`) — bez niego wynik ma metodę `no_converter`
-  widoczną w podsumowaniu przebiegu, a doinstalowanie pakietu i ponowny
-  `just extract --force` domykają temat bez zmian w kodzie.
+  `catdoc` (`catdoc`, `catppt`; instaluje go `setup/install.sh --with-apt`) —
+  bez niego wynik ma metodę `no_converter` widoczną w podsumowaniu przebiegu,
+  a doinstalowanie pakietu i ponowny `just extract --force` domykają temat bez
+  zmian w kodzie. Konwerter dostaje jawne kodowanie źródłowe `--legacy-charset`
+  (domyślnie `cp1250`): bez tego `catdoc` zakłada cp1252 i polskie znaki
+  zamieniają się w krzaki (sprawdzone na realnym pliku ze źródeł).
 - Kody wyjścia `scan.py`: `0` pełny skan, `3` skan częściowy (coś pominięto —
   nieczytelny katalog, nazwa spoza UTF-8, błąd stat), `1` zły katalog źródeł
   lub nieznana paczka, `2` sprzeczne opcje.

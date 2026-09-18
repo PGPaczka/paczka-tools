@@ -86,6 +86,14 @@ LEGACY_CONVERTERS: dict[str, str] = {
     ".pps": "catppt",
 }
 
+#: Kodowanie ŹRÓDŁOWE zakładane dla starych formatów 8-bitowych.
+#: Sprawdzone na realnym pliku ze źródeł: bez tego catdoc zakłada cp1252 i polskie
+#: znaki zamieniają się w krzaki („Zminimalizowaæ funkcjê” zamiast
+#: „Zminimalizować funkcję”). Dla .ppt/.pps flaga jest obojętna (PowerPoint trzyma
+#: tekst w UTF-16), ale podajemy ją jednolicie. Korpus jest polski — gdyby kiedyś
+#: przyszły materiały zachodnie, jest opcja ``--legacy-charset``.
+DEFAULT_LEGACY_CHARSET: str = "cp1250"
+
 #: Limit czasu jednego wywołania zewnętrznego konwertera.
 _CONVERTER_TIMEOUT_S: int = 60
 
@@ -419,7 +427,7 @@ def _xls_text(path: Path, max_chars: int) -> str:
     return "\n".join(parts)
 
 
-def _converter_text(path: Path, binary: str) -> str | None:
+def _converter_text(path: Path, binary: str, charset: str) -> str | None:
     """Tekst ze starego formatu binarnego przez zewnętrzny konwerter (pakiet ``catdoc``).
 
     Zwraca ``None``, gdy konwertera NIE MA w systemie — brak czytnika dla formatu
@@ -431,7 +439,7 @@ def _converter_text(path: Path, binary: str) -> str | None:
         return None
     try:
         completed = subprocess.run(  # noqa: S603 - stała nazwa binarki, bez powłoki
-            [binary, "-d", "utf-8", str(Path(os.path.abspath(path)))],
+            [binary, "-s", charset, "-d", "utf-8", str(Path(os.path.abspath(path)))],
             capture_output=True,
             timeout=_CONVERTER_TIMEOUT_S,
             check=False,
@@ -469,6 +477,7 @@ def extract(
     ocr_lang: str = DEFAULT_OCR_LANG,
     ocr_max_pages: int = DEFAULT_OCR_MAX_PAGES,
     ocr_min_chars: int = DEFAULT_OCR_MIN_CHARS,
+    legacy_charset: str = DEFAULT_LEGACY_CHARSET,
 ) -> Extraction:
     """Zwraca głowę tekstu dla jednej treści zgodnie z jej ``content_kind``.
 
@@ -482,7 +491,8 @@ def extract(
     tysięcy i OCR całości kosztowałby godziny bez związku z klasyfikacją.
 
     Stare formaty binarne Microsoftu (``.doc``, ``.ppt``, ``.pps``) idą przez
-    zewnętrzny konwerter z pakietu ``catdoc``. Jego brak w systemie NIE jest
+    zewnętrzny konwerter z pakietu ``catdoc``, z kodowaniem źródłowym
+    ``legacy_charset`` (domyślnie cp1250 — patrz :data:`DEFAULT_LEGACY_CHARSET`). Jego brak w systemie NIE jest
     awarią pliku: wynik ma wtedy metodę ``no_converter``, widoczną w podsumowaniu
     przebiegu, więc doinstalowanie pakietu i ponowny przebieg z ``--force``
     domykają temat bez zmian w kodzie.
@@ -519,7 +529,7 @@ def extract(
         return Extraction(cut, method if normalize_text(cut) else "empty", truncated=truncated)
 
     if suffix in LEGACY_CONVERTERS and content_kind in ("docx", "pptx", "xlsx"):
-        converted = _converter_text(path, LEGACY_CONVERTERS[suffix])
+        converted = _converter_text(path, LEGACY_CONVERTERS[suffix], legacy_charset)
         if converted is None:
             return Extraction("", "no_converter")
         cut, truncated = _cut(converted, max_chars)
