@@ -1,0 +1,9 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+name: plan deterministyczny (B3) odcina te treści od płatnego modelu (B5)
+file: scripts/ai_resolve.py
+find: '        if sha in seen or sha in resolved:'
+replace: '        if sha in seen:'
+tests:
+- tests/test_classify_cli.py
+- tests/test_ai_resolve.py

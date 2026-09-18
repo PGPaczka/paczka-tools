@@ -1,0 +1,8 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+name: artefaktem kompilacji jest treść, której KAŻDA kopia nim jest
+file: scripts/orglib/classify.py
+find: '    if paths and all(is_ignored(path, rules) for path in paths):'
+replace: '    if paths and any(is_ignored(path, rules) for path in paths):'
+tests:
+- tests/test_classify.py

@@ -28,6 +28,7 @@ import yaml
 from typer.testing import CliRunner
 
 import ai_resolve
+import classify
 import dedup_report
 import extract_text
 import fold_hash
@@ -75,7 +76,8 @@ def workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> config.Paths:
     config_dir.mkdir()
     (config_dir / "paths.yaml").write_text(yaml.safe_dump(data), encoding="utf-8")
     paths = config.load_paths(config_dir)
-    for module in (scan, hash_files, fold_hash, dedup_report, extract_text, prepare_subject):
+    for module in (scan, hash_files, fold_hash, dedup_report, extract_text,
+                   prepare_subject, classify):
         monkeypatch.setattr(module.config, "load_paths", lambda: paths, raising=False)
     monkeypatch.setattr(config, "load_paths", lambda config_dir=None: paths)
     monkeypatch.setattr(config, "ORGANIZER_ROOT", tmp_path / "organizer")
@@ -203,6 +205,57 @@ def test_manifest_carries_text_head_from_the_extract_stage(pipeline: config.Path
     assert "architektura" in wyklad["text_head"].lower()
     # Provenance: obie kopie treści są wymienione, mimo że przerabialiśmy jedną.
     assert len(wyklad["source_paths"]) == 2
+
+
+def test_deterministic_stage_decides_what_ai_never_sees(pipeline: config.Paths) -> None:
+    """Kontrakt B1 -> B3 -> B5: model dostaje DOKŁADNIE to, czego reguły nie rozstrzygnęły.
+
+    Styk, którego nie widać w testach pojedynczych skryptów: plan deterministyczny
+    jest dla `ai_resolve` listą „tego już nie pytaj”, a `unresolved.jsonl` ma
+    zachować kształt manifestu, żeby dało się go podać modelowi wprost.
+    """
+    out_dir = pipeline.work / "manifest"
+    _stage(
+        prepare_subject.app, "--semester", "3", "--skrot", "AKO",
+        "--db", str(pipeline.work_db), "--out-dir", str(out_dir),
+    )
+    manifest_path = out_dir / "manifest_slice.jsonl"
+    _stage(
+        classify.app, "--semester", "3", "--skrot", "AKO",
+        "--db", str(pipeline.work_db), "--manifest", str(manifest_path),
+        "--out-dir", str(out_dir),
+    )
+    # Schemat czytamy przez ai_resolve, bo `config.ORGANIZER_ROOT` jest w tym teście
+    # przestawiony na katalog tymczasowy — ścieżka do repo jest zamrożona przy imporcie.
+    import jsonschema
+
+    schema = ai_resolve.load_schema()
+    plan = [
+        json.loads(line)
+        for line in (out_dir / "plan.det.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert plan, "etap deterministyczny nie rozstrzygnął niczego"
+    for row in plan:
+        jsonschema.validate(row, schema)
+
+    by_name = {
+        Path(row["target_rel"]).name: row for row in plan if row["action"] == "copy"
+    }
+    assert by_name["lab1.docx"]["category"] == "laboratoria"
+    assert by_name["wyklad1.pdf"]["category"] == "wyklad"
+
+    manifest = ai_resolve.read_jsonl(manifest_path)
+    unresolved = ai_resolve.read_jsonl(out_dir / "unresolved.jsonl")
+    resolved = ai_resolve.existing_hashes(out_dir / "plan.det.jsonl")
+    queue = ai_resolve.select_rows(manifest, resolved=resolved, take_all=False, only_review=False)
+
+    assert {row["sha256"] for row in queue} == {row["sha256"] for row in unresolved}
+    assert resolved.isdisjoint({row["sha256"] for row in unresolved})
+    # Archiwum bez sygnału w nazwie i bez tekstu to typowa resztka dla modelu.
+    assert any(
+        row["source_path"].endswith("archiwum.zip") for row in unresolved
+    ), [row["source_path"] for row in unresolved]
 
 
 def test_ai_resolve_consumes_manifest_and_writes_valid_plan(

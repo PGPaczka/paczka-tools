@@ -1,0 +1,8 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+name: sygnał kategorii bierze katalog NAJBLIŻSZY plikowi, nie dowolny na ścieżce
+file: scripts/orglib/classify.py
+find: '            weight = rules.weight_folder if depth == nearest else weak'
+replace: '            weight = rules.weight_folder'
+tests:
+- tests/test_classify.py

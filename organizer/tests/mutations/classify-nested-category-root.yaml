@@ -1,0 +1,22 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+# Przywraca pierwotną, błędną wersję mapy: klucz brany z PIERWSZEGO segmentu folderu.
+# Wtedy `inne/książki` (priorytet 80) przejmuje klucz `inne` przed kategorią `inne`
+# (priorytet 90), więc ground truth z katalogu `inne/` dostaje kategorię `ksiazki`.
+name: kategoria zagnieżdżona (inne/książki) nie przejmuje swojego korzenia (inne)
+file: scripts/orglib/classify.py
+find: |-2
+          mapping: dict[str, str] = {}
+          for spec in self.categories:
+              if len(PurePosixPath(spec.folder).parts) == 1:
+                  mapping.setdefault(fold(spec.folder), spec.name)
+          for spec in self.categories:
+              mapping.setdefault(fold(spec.folder), spec.name)
+          return mapping
+replace: |-2
+          mapping: dict[str, str] = {}
+          for spec in self.categories:
+              mapping.setdefault(fold(PurePosixPath(spec.folder).parts[0]), spec.name)
+          return mapping
+tests:
+- tests/test_classify.py
