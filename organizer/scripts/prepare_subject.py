@@ -74,24 +74,18 @@ def default_output(subject: config.Subject, subjects: Sequence[config.Subject]) 
 
 
 def _check_output(output: Path, database: Path, paths: config.Paths) -> None:
-    resolved = output.resolve()
-    for protected in (paths.sources, paths.target_repo, paths.media):
-        if resolved.is_relative_to(protected.resolve()) or Path(
-            os.path.abspath(output)
-        ).is_relative_to(Path(os.path.abspath(protected))):
-            raise ValueError(f"zapis raportu w chronionym drzewie jest zabroniony: {output}")
-        # SQLite mode=ro może potrzebować plików pomocniczych WAL/SHM.
-        # Baza operacyjna nie może z tego powodu leżeć w drzewie materiałów.
-        if database.resolve().is_relative_to(protected.resolve()) or Path(
-            os.path.abspath(database)
-        ).is_relative_to(Path(os.path.abspath(protected))):
-            raise ValueError(f"baza w chronionym drzewie jest zabroniona: {database}")
-    if resolved == database.resolve() or (
+    """Bramka zapisu manifestu: wspólna część w config.check_output_target, reszta o bazie."""
+    config.check_output_target(output, paths)
+    # SQLite mode=ro może potrzebować plików pomocniczych WAL/SHM.
+    # Baza operacyjna nie może z tego powodu leżeć w drzewie materiałów.
+    try:
+        config.check_output_target(database, paths, symlink_ok=True)
+    except ValueError:
+        raise ValueError(f"baza w chronionym drzewie jest zabroniona: {database}")
+    if output.resolve() == database.resolve() or (
         output.exists() and database.exists() and output.samefile(database)
     ):
         raise ValueError("manifest nie może nadpisać bazy danych")
-    if output.is_symlink():
-        raise ValueError(f"plik wyjściowy nie może być symlinkiem: {output}")
 
 
 def _write_atomic(rows: list[dict], output: Path) -> None:

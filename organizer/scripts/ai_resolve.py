@@ -299,12 +299,13 @@ def _append_atomic(row: dict[str, Any], output: Path) -> None:
 
 
 def _check_output(output: Path, paths: config.Paths) -> None:
-    resolved = Path(os.path.abspath(output))
-    for protected in (paths.sources, paths.target_repo, paths.media):
-        if resolved.is_relative_to(Path(os.path.abspath(protected))):
-            raise ValueError(f"zapis planu w chronionym drzewie jest zabroniony: {output}")
-    if output.is_symlink():
-        raise ValueError(f"plik wyjściowy nie może być symlinkiem: {output}")
+    """Bramka zapisu planu — wspólna z innymi etapami (patrz config.check_output_target).
+
+    Wcześniej była tu osobna kopia, która NIE rozwijała dowiązań symbolicznych,
+    więc katalog wskazujący na drzewo materiałów przechodził (bliźniacza kontrola
+    w prepare_subject.py blokowała ten sam przypadek).
+    """
+    config.check_output_target(output, paths)
 
 
 def _thresholds() -> tuple[float, float]:

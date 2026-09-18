@@ -122,6 +122,40 @@ def resolve_within_sources(
     return normalized
 
 
+def check_output_target(
+    output: Path, paths: Paths, *, extra: Iterable[Path] = (), symlink_ok: bool = False
+) -> None:
+    """Odrzuca zapis raportu/planu do drzew materiałów — także przez symlink.
+
+    Wspólna bramka dla wszystkich etapów zapisujących pliki tekstowe
+    (``prepare_subject``, ``ai_resolve``, kolejne). Powstała po tym, jak dwie
+    kopie tej kontroli rozjechały się w praktyce: jedna rozwijała dowiązania
+    symboliczne, druga nie, więc katalog będący dowiązaniem do ``00_SOURCES``
+    przechodził przez jedną z nich. Sprawdzamy OBA warianty ścieżki:
+    ``realpath`` (łapie dowiązanie) i ``abspath`` (łapie ``..`` bez rozwijania).
+
+    ``symlink_ok`` wyłącza zakaz samego pliku-dowiązania: cel zapisu nim być
+    nie może, ale np. baza operacyjna wskazana dowiązaniem jest w porządku.
+    """
+    output = Path(output)
+    candidates = [Path(os.path.abspath(output))]
+    try:
+        candidates.append(output.resolve())
+    except OSError:  # pragma: no cover - ścieżka nie do rozwiązania na tym systemie
+        pass
+    for protected in (paths.sources, paths.target_repo, paths.media, *extra):
+        protected_forms = {Path(os.path.abspath(protected))}
+        try:
+            protected_forms.add(Path(protected).resolve())
+        except OSError:  # pragma: no cover
+            pass
+        for candidate in candidates:
+            if any(candidate.is_relative_to(form) for form in protected_forms):
+                raise ValueError(f"zapis w chronionym drzewie jest zabroniony: {output}")
+    if not symlink_ok and output.is_symlink():
+        raise ValueError(f"plik wyjściowy nie może być symlinkiem: {output}")
+
+
 def load_thresholds(config_dir: Path | None = None) -> dict[str, Any]:
     """Wczytuje progi decyzyjne z ``config/thresholds.yaml``."""
     return load_yaml("thresholds", config_dir)

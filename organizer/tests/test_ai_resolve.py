@@ -19,6 +19,7 @@ from typing import Any
 import jsonschema
 import pytest
 
+import ai_resolve
 from ai_resolve import (
     allowed_categories,
     build_prompt,
@@ -532,3 +533,62 @@ def test_normalize_decision_still_validates_against_canonical_constraints(normal
     # Wariant wire_schema usuwa pattern; normalizacja nadal musi go egzekwować.
     with pytest.raises(jsonschema.ValidationError, match="does not match"):
         normalize(decision, row={"sha256": "niepoprawny-hash"})
+
+
+# --------------------------------------------------------------------------- #
+# Bramka zapisu planu (audyt 2026-09-18: nie rozwijała dowiązań symbolicznych)
+# --------------------------------------------------------------------------- #
+
+
+def _paths_for(tmp_path) -> config.Paths:
+    """Atrapa workspace'u: wszystkie korzenie w tmp_path, nic realnego."""
+    roots = {name: tmp_path / name for name in ("sources", "work", "media", "target")}
+    for root in roots.values():
+        root.mkdir(exist_ok=True)
+    return config.Paths(
+        sources=roots["sources"], work=roots["work"], media=roots["media"],
+        target_repo=roots["target"], target_paczka=roots["target"] / "paczka",
+        work_db=roots["work"] / "organizer.sqlite",
+        work_extracted_text=roots["work"] / "text",
+        work_thumbnails=roots["work"] / "thumbs",
+    )
+
+
+@pytest.mark.parametrize("protected", ["sources", "target", "media"])
+def test_plan_output_in_protected_tree_is_rejected(tmp_path, protected: str) -> None:
+    """Zapis planu wprost do drzewa materiałów jest odrzucany."""
+    paths = _paths_for(tmp_path)
+    target = getattr(paths, {"sources": "sources", "target": "target_repo", "media": "media"}[protected])
+    with pytest.raises(ValueError, match="chronionym drzewie"):
+        ai_resolve._check_output(target / "plan.ai.jsonl", paths)
+
+
+@pytest.mark.parametrize("protected", ["sources", "target", "media"])
+def test_plan_output_through_symlinked_directory_is_rejected(tmp_path, protected: str) -> None:
+    """Katalog-dowiązanie do drzewa materiałów też jest odrzucany.
+
+    To była realna dziura: bramka w ai_resolve używała samego `abspath`, więc
+    dowiązanie ją omijało, choć bliźniacza kontrola w prepare_subject blokowała
+    ten sam przypadek.
+    """
+    paths = _paths_for(tmp_path)
+    target = getattr(paths, {"sources": "sources", "target": "target_repo", "media": "media"}[protected])
+    link = tmp_path / f"skrot-{protected}"
+    link.symlink_to(target, target_is_directory=True)
+    with pytest.raises(ValueError, match="chronionym drzewie"):
+        ai_resolve._check_output(link / "plan.ai.jsonl", paths)
+
+
+def test_plan_output_as_symlink_file_is_rejected(tmp_path) -> None:
+    """Sam plik wyjściowy nie może być dowiązaniem (zapis poszedłby gdzie indziej)."""
+    paths = _paths_for(tmp_path)
+    link = tmp_path / "plan.ai.jsonl"
+    link.symlink_to(tmp_path / "gdzie-indziej.jsonl")
+    with pytest.raises(ValueError, match="symlinkiem"):
+        ai_resolve._check_output(link, paths)
+
+
+def test_plan_output_outside_materials_is_allowed(tmp_path) -> None:
+    """Zwykły katalog raportów przechodzi — bramka nie może blokować pracy."""
+    paths = _paths_for(tmp_path)
+    ai_resolve._check_output(tmp_path / "reports" / "AKO" / "plan.ai.jsonl", paths)
