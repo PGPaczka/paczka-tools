@@ -176,7 +176,7 @@ CLI nad `orglib/llm_client.py` (backend anthropic/openai/`claude -p`/`codex exec
 z `config/thresholds.yaml: llm`, cache po sha256 promptu w `20_WORK/ai_cache.sqlite`);
 smoke test backendów, nieużywany w automatycznym cyklu per-przedmiot.
 
-## Skrypty cyklu per-przedmiot — gotowe B1, B2, B3, B5, B6
+## Skrypty cyklu per-przedmiot — gotowe B1, B2, B3, B5, B6, B8
 
 Po pierwszym przebiegu przygotuj wycinek z **istniejącego indeksu SQLite**:
 
@@ -249,6 +249,22 @@ deterministyczny `relations.jsonl` (ślad w gicie, wsad dla review B9 i dla pól
 `related_to`/`relation` w planie B7). Zapis jest **podmianą własnego wycinka** —
 kasuje wyłącznie wiersze z `detection_method` zaczynającym się od `near_dupe:`
 i tylko dla par z przetwarzanego zakresu, więc decyzje ręczne (B14) zostają.
+
+Zanim cokolwiek ruszy materiały, plan przechodzi przez bramkę:
+
+```bash
+just subject-validate 3 AKO            # kod 0 = przechodzi, 2 = ODRZUCONY
+just subject-validate 3 AKO --strict   # ostrzeżenia też blokują
+```
+
+`scripts/validate_plan.py` sprawdza schemat linii, bezpieczeństwo ścieżek, kolizje
+celów, zgodność kategorii ze ścieżką, bramkę pewności z `thresholds.yaml`, nadpisanie
+materiału ułożonego ręcznie (tabela `applied`) oraz to, czy nazwa **powstanie na
+Windowsie** — repo klonują studenci, więc znak `<>:"|?*`, nazwa zastrzeżona (`CON`,
+`COM1`…), końcowa kropka/spacja i ścieżka dłuższa niż 240 znaków są twardym błędem.
+Wypisuje też dry-run diff: ile plików w ilu katalogach plan dołożyłby do paczki.
+Ustalenia lądują w `validation.jsonl` obok planu. Niezgodność nazwy z konwencją
+(`lab_3` zamiast `lab_03`) jest **ostrzeżeniem**, bo da się ją poprawić automatycznie.
 
 Opcje `--db PLIK` i `--out-dir KATALOG` pozwalają jawnie wskazać indeks oraz
 dokładny katalog wyjściowy. Domyślna baza pochodzi z `config/paths.yaml`.
