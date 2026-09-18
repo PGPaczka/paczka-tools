@@ -2,9 +2,11 @@
 
 ## Kontekst ręczny
 
-- Cel bieżącej pracy: sekcja B TODO — skrypty cyklu per-przedmiot. Domknięte B3 (klasyfikacja deterministyczna + heurystyka) i B3a (dopasowanie `syntax.yaml` do ground truth). Nie ruszano pilotażu ani materiałów.
+- Cel bieżącej pracy: sekcja B TODO — skrypty cyklu per-przedmiot. Domknięte B3/B3a (klasyfikacja), **B6 (relacje podobieństwa)** i **B8 (walidacja planu)**. Nie ruszano pilotażu ani materiałów.
 - Aktywny przedmiot `(semestr, skrót, grupa)`: brak — praca narzędziowa. Etap extract sprawdzony smoke testem na syntetycznej paczce w scratchpadzie (PDF tekstowy, PDF-skan, PNG, DOCX, PPTX, TXT, ZIP), nie na realnych źródłach.
-- Ostatni zakończony krok: B3. Nowe pliki: `scripts/classify.py`, `scripts/orglib/classify.py`, `tests/test_classify.py`, `tests/test_classify_cli.py`, 5 specyfikacji w `tests/mutations/`; recepta `just subject-classify SEM SKROT`.
+- Ostatni zakończony krok: B8. Nowe pliki w tej sesji: `scripts/{classify,near_dupe,validate_plan}.py`, `scripts/orglib/{classify,near_dupe,plan_lint}.py`, sześć plików testów, 10 specyfikacji mutacji; recepty `just subject-classify|subject-relate|subject-validate`.
+- **W TLE CHODZI `just extract` na realnych źródłach** (uruchomiony 2026-09-19 ok. 01:50). Postęp sprawdzasz zapytaniem o `files.status`; przy ostatnim pomiarze 18 600/48 049, tempo ~3,3 pliku/s, 32 błędy (nierozpoznane skany — czekają na `--retry-errors`). **Dopóki ten przebieg pisze do bazy, nie rób migracji schematu** (B7) ani innych zapisów do realnego indeksu. Po zakończeniu: `just index-check`, potem `just subject-relate 3 AKO` na komplecie podpisów.
+- Etap extract **nigdy wcześniej nie przeszedł po realnych źródłach** — wszystkie 48 049 plików stały na `hashed`, zero podpisów, brak katalogu `extracted_text/`. Dlatego klasyfikacja AKO liczona w tej sesji szła BEZ ani jednej głowy tekstu, a B6 na realnych danych znalazł na razie tyle relacji, ile pozwoliły gotowe podpisy.
 - Kontrakt B2: wejście = pliki w statusie `hashed` (bez poddrzew `duplicate_of`), wyjście = `20_WORK/extracted_text/{sha256}.txt` + `content.extracted_text_path`/`ocr_done` + `files.normalized_text_hash`/`simhash`/`perceptual_hash`, status `extracted`. Praca liczona RAZ NA TREŚĆ: druga kopia sha256 i ponowny przebieg biorą tekst z dysku (smoke: 1,6 s → 0,2 s), `--force` wymusza ponowną ekstrakcję. Ścieżka w bazie jest zapisywana względem `work`, więc przeniesienie workspace'u jej nie psuje.
 - Decyzje B2 do zapamiętania (były świadome, nie przypadkowe):
   1. **OCR wchodzi tylko, gdy realnie dołożył treści.** Krótki, ale poprawny PDF (< 120 znaków po normalizacji) uruchamia tesseract, lecz jego wynik jest odrzucany, jeśli nie jest dłuższy od warstwy tekstowej. Bez tego poprawne, jednostronicowe PDF-y dostawały szum z OCR (zobaczone na smoke teście, poprawione).
@@ -44,20 +46,20 @@
 - Uruchamianie agentów interaktywnie: rozpisane w `README.md`, sekcja „Agenci interaktywni” (pierwsza konfiguracja, `just claude`, trzy tryby sandboxu Codeksa, przekazywanie argumentów **bez** `--`, potwierdzanie konta). `AGENTS.md` i `CLAUDE.md` tylko tam odsyłają — nie duplikuj tej treści.
 - Zakazy dla następnego agenta: nie wykonuj apply bez jawnej zgody na konkretny plan; nie dodawaj sources jako writable root; nie przywracaj `--ignore-user-config` w delegacji Codeksa; nie przestawiaj `classify`/`relate` z powrotem na `claude_cli` bez decyzji użytkownika; nie commituj materiałów razem z narzędziami.
 - Wykonane testy: `just test` **851/851** (+81 dla B3: 64 kontraktu silnika reguł, 16 CLI, 1 nowy styk e2e), `just mutate-check` **15/15**, `just index-check` czysto, `just skills-check` 5/5. Poprzedni stan: `just test` 770/770 (w tym 38 kontroli środowiska i 114 dla B2/B2b w `tests/test_textextract.py` + `tests/test_extract_text.py`, 6 dla `text_head` i 5 dla `refresh-kinds`); `just skills-check` 5/5. Smoke test etapu extract na syntetycznej paczce: 7 plików / 7 treści, 6 z tekstem, OCR 2, 0 błędów; drugi przebieg 6 treści z dysku.
-- Następna dokładna czynność: **B6 — `scripts/near_dupe.py`** (simhash/MinHash/phash → `relations`, progi z `thresholds.yaml: near_duplicate`; nigdy nie kasuje) albo **B7 — `scripts/build_plan.py`** (scalenie `plan.det.jsonl` + `plan.ai.jsonl` w `plan.jsonl` z `_meta` i `plan_hash`). Wejście B7 jest gotowe: oba pliki mają ten sam schemat linii, a klucz to `source_sha256`.
+- Następna dokładna czynność: **B7 — `scripts/build_plan.py`**, ale dopiero PO zakończeniu przebiegu extract (B7 robi migrację schematu 1→2, opis przy B7 w `TODO.md`). B7 ma trzy zadania: scalić `plan.det.jsonl` + `plan.ai.jsonl` w `plan.jsonl` (`_meta`, `plan_hash`), przenieść decyzje do bazy z eksportem do JSONL (decyzja użytkownika 2026-09-19) i **rozstrzygnąć kolizje celów**.
+- **Kolizje celów — zmierzone, czeka na decyzję użytkownika o sposobie rozwiązania.** `just subject-validate 3 AKO` odrzucił plan AKO: 40 ścieżek docelowych, w które trafiają 184 różne treści. Rozkład: 24 ścieżki po 2 treści, ale są też po 17 i po 23. Wzorzec jest jednoznaczny — to katalogi rozwiązań zadań: `…/kolokwium2/Zadanie 23/main.c`, `…/Laby/2019/lab_5/5.4/main.c`, `…/funkcjarekurencja/main.c`. Nazwa pliku (`main.c`, `func.asm`) nie niesie informacji, niesie ją KATALOG źródłowy.
 - Blokery / otwarte decyzje: brak. Znane, świadome ograniczenia: `.rtf` nadal bez czytnika, OCR idzie przez `pytesseract` + rasteryzację PyMuPDF (nie `ocrmypdf`), OCR obrazów jest opt-in (`--ocr-images`).
 - Git: lokalne commity narzędzi, bez push i bez PR. Materiałów nie dotykano; `paczka/` w repo docelowym nietknięta (pomiary ground truth były wyłącznie odczytem).
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-09-19T01:46:47+02:00
+- Odświeżono: 2026-09-19T01:59:23+02:00
 - Branch: `master`
-- Commit: `d311cb8`
+- Commit: `437e419`
 - Git status:
   ```text
-  M TODO.md
-   M reports/HANDOFF.md
+  M reports/HANDOFF.md
   ?? reports/AKO/
   ```
-- Pierwsze otwarte TODO: - [ ] B6. `scripts/near_dupe.py` — simhash/MinHash/phash → `relations` (near_duplicate / older_version / related); nigdy nie kasuje
+- Pierwsze otwarte TODO: - [ ] B7. `scripts/build_plan.py` → `reports/{SKROT}/plan.jsonl` (schema_version, `_meta`, plan_hash)
 <!-- END AUTO -->
