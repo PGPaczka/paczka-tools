@@ -2,34 +2,28 @@
 
 ## Kontekst ręczny
 
-- Cel bieżącej pracy: rozpoczęcie sekcji B od kompletnego B1 — skryptu wycinka manifestu i testów. Zakończony spójny zakres, nie cały cykl B1–B14.
-- Aktywny przedmiot `(semestr, skrót, grupa)`: brak — implementacja narzędzi na syntetycznych danych; nie uruchamiano pilotażu ani operacyjnej bazy.
-- Ostatni zakończony krok: `scripts/prepare_subject.py`, `scripts/orglib/subject_manifest.py` oraz działający `just subject-prepare`. Baza tylko SELECT, `mode=ro` i `query_only`; bez skanu źródeł, zmian statusów, ground truth, AI ani apply.
-- Kontrakt B1: manifest v1 ma jeden rekord/SHA-256, pełne `source_paths`, osobne `matched_source_paths`, zdrowego reprezentanta spoza dowolnego przodka `duplicate_of` w `source_path` (albo null + review). Rozmiar pochodzi od reprezentanta; niespójności kopii trafiają do review. To lista kandydatów, nie klasyfikacja.
-- Dopasowanie: tokeny skrótu/aliasu/nazwy, normalizacja polskich znaków i separatorów; jawny semestr/grupa zawęża, brak lub konflikt daje review. Priorytet pełnej nazwy/skrótu/aliasu działa w obrębie semestru. `magisterskie` poza zakresem D3. Brak fuzzy; nieznane nazwy nadal wymagają aliasów/przeglądu.
-- Ścieżki raportów: dla unikalnego skrótu `reports/{SKROT}/manifest_slice.jsonl`; powtarzany skrót izolowany przez `reports/SEM{semester}/{grupa}/{SKROT}/manifest_slice.jsonl`. Jawny `--out-dir` jest dokładnym katalogiem i wymaga od operatora rozdzielenia raportów. README opisuje pełny kontrakt.
-- Bezpieczeństwo zapisu: atomowa podmiana manifestu, bez nadpisania DB (także hardlink), bez pliku-symlinku i bez zapisu w chronionych drzewach również przez symlinki. Baza nie może leżeć w drzewie materiałów ze względu na pomocnicze pliki SQLite WAL/SHM. Ścieżki pochodzenia w indeksie odrzucają traversal.
-- Wykonane testy: bazowy zestaw przed zmianami 293/293; nowe jednostkowe i CLI 59/59; końcowy `just test` 352/352; `just skills-check` 5/5; `just --fmt --check`, `git diff --check` i `just subject-prepare 3 AKO --help` bez błędów. Wszystkie nowe testy wyłącznie na syntetycznych indeksach w tmp_path. Nie wykonywano testu na realnych materiałach.
-- Skille/delegacja: wykorzystano procedurę implementacji brakującego skryptu ze skillu `organizer-subject`, bez rozpoczynania jego workflow materiałów. Żądane słabsze subagenty nie wykonały pracy: Sonnet odrzucony przez konfigurację reasoning, dwa uruchomienia Fable zakończone `401 Unauthorized` routera; model odziedziczony nieobsługiwany przez narzędzie delegacji. Kod, testy i review wykonał koordynator lokalnie; nie zmieniano routera ani uwierzytelnienia. Niezależny review subagenta pozostaje niewykonany.
-- Następna dokładna czynność: B2 — zaimplementować `scripts/extract_text.py` i testy PDF/DOCX/PPTX, cache oraz opcjonalnego OCR. Konsumować manifest v1 po SHA-256, nie ekstrahować z poddrzew duplicate_of; respektować null reprezentanta/review, przed otwarciem ponownie sprawdzać containment źródła i hash. Ścieżki cache tylko z configu; nadal bez apply.
-- Blokery / otwarte decyzje: brak blokera dla dalszego kodowania lokalnego. Delegacja wymaga naprawy dostępności/autoryzacji modeli poza zakresem B1. Dalsze etapy B2–B14 (poza B4) i e2e nadal niegotowe.
+- Cel bieżącej pracy: weryfikacja warstwy agent-agnostic po przebudowie (Claude/Codex/Gemini) oraz przestawienie pracy klasyfikacyjnej z limitu koordynatora na konto ChatGPT. Domknięte B5. Nie ruszano pilotażu ani materiałów.
+- Aktywny przedmiot `(semestr, skrót, grupa)`: brak — praca narzędziowa; `ai_resolve.py` sprawdzony end-to-end na syntetycznym manifeście w scratchpadzie (SEM1/HiH), nie na realnych źródłach.
+- Ostatni zakończony krok: commit `eb96ca4`. B5 kompletne — `scripts/ai_resolve.py`, `prompts/classify_ambiguous.md`, `prompts/relate_cluster.md`, recepta `just subject-ai-resolve`, 77 testów w `tests/test_ai_resolve.py`.
+- Polityka kosztowa (nowa, wiążąca): `thresholds.yaml: llm` kieruje `classify` i `relate` na `codex_cli`/`gpt-6-astra`. Koordynator uruchamia klasyfikator i **ocenia** wynik; nie klasyfikuje w sesji i nie forkuje do tego podagenta. `just claude` nie nadpisuje już `PACZKA_LLM_RELATE_BACKEND` — wcześniej samo uruchomienie sesji przenosiło `relate` z powrotem na limit Anthropic. Skierowanie na Claude to świadoma decyzja: `PACZKA_LLM_RELATE_BACKEND=claude_cli just claude`.
+- Kontrakt B5: wejście `manifest_slice.jsonl`, wyjście `plan.ai.jsonl` obok manifestu, jedna linia na sha256, walidowana wobec `prompts/plan_line.schema.json`. Progi `confidence` z `thresholds.yaml` są wiążące i nadpisują deklarację modelu (`< review_min` → `quarantine`, `< auto_apply` → `needs_review`). Kategoria musi wynikać z form przedmiotu (`subjects.yaml: forms` × `syntax.yaml: categories.*.forms`). `source_sha256` zawsze z manifestu — model nie może podmienić tożsamości treści. Przebieg wznawialny: sha256 obecne w wyjściu są pomijane.
+- Pułapka do zapamiętania: tryb strukturalny OpenAI odrzuca kanoniczny schemat (`'required' … Missing 'year'`, brak wsparcia dla `pattern`/`minimum`). `wire_schema()` robi wariant „po drucie”; walidacja lokalna zostaje przy oryginale. Nie wysyłaj kanonicznego schematu wprost do `--output-schema`.
+- Infrastruktura: `claude-code-router` usunięty z bazowego `~/.codex/config.toml` (kopia `~/.codex/config.toml.pre-ccr-removal-20260918-105323`). Powód krytyczny: obejście proxy flagą `--ignore-user-config` odcina `[hooks.state]`, przez co Codex **przestaje uruchamiać** `.codex/hooks.json` — guard `00_SOURCES` milczy (test różnicowy: bez flagi w logu jest `hook: PreToolUse`, z flagą nie ma). Delegacja używa teraz `-c model_provider="openai"`. Nie przywracaj tej flagi.
+- Wykonane testy: `just test` 430/430; `tests/test_ai_resolve.py` 77/77; `just skills-check` 5/5; `just agent-doctor` bez błędów (dochodzi kontrola `agy` i wykrywanie nawrotu proxy — zweryfikowane na kopii configu sprzed czyszczenia). Żywe CLI: `claude -p`, `agy -p`, `codex exec` (provider: openai), `just codex` i `just codex-read` wstają jako TUI pod pty. Cache AI zweryfikowany (drugie wywołanie `cached=true`, 0.0 s).
+- Skille/delegacja: testy `ai_resolve` napisał Codex (`codex exec -s workspace-write`, zero tokenów Anthropic). Jego raport nie został wzięty na wiarę — przy przeglądzie wyszło, że wkleił zamrożoną kopię `plan_line.schema.json` do pliku testowego; zastąpiono ją `load_schema()` i dołożono test pilnujący, że stub `syntax.yaml` nie rozjedzie się z realnym plikiem.
+- Następna dokładna czynność: B2 — `scripts/extract_text.py` i testy PDF/DOCX/PPTX, cache, opcjonalny OCR. To odblokuje `text_head` w manifeście, bez którego `ai_resolve.py` klasyfikuje głównie po nazwie i wrzuca nieczytelne skany do `quarantine`.
+- Blokery / otwarte decyzje: **otwarte** — `guard-sources.py` łapie mutacje po słowach powłoki, więc przepuszcza `python3 -c "shutil.rmtree('00_SOURCES/x')"`, `os.remove(...)` oraz `find 00_SOURCES -delete` (zweryfikowane podaniem ładunków wprost do hooka; nic nie wykonano). Blokuje `rm`, `mv`, `xargs rm`. Fix to ~10 linii plus testy, ale zwiększy liczbę fałszywych blokad — czeka na decyzję użytkownika.
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
-- Git: zakres B1 z tym handoffem przeznaczony do lokalnego commita narzędzi po przeglądzie; bez push/PR. Sekcja AUTO jest snapshotem sprzed tego commita. Poprzedni stan infrastruktury/skilli jest w `99250e8`; brak odziedziczonych zmian roboczych.
-- Zakazy dla następnego agenta: nie wykonuj apply bez jawnej zgody na konkretny plan; nie dodawaj sources jako writable root; nie zmieniaj routera w ramach B2; nie commituj materiałów razem z narzędziami.
+- Git: `eb96ca4` to lokalny commit narzędzi (19 plików), bez push i bez PR. Drzewo czyste. Materiałów nie dotykano.
+- Zakazy dla następnego agenta: nie wykonuj apply bez jawnej zgody na konkretny plan; nie dodawaj sources jako writable root; nie przywracaj `--ignore-user-config` w delegacji Codeksa; nie przestawiaj `classify`/`relate` z powrotem na `claude_cli` bez decyzji użytkownika; nie commituj materiałów razem z narzędziami.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-09-18T01:57:49+02:00
+- Odświeżono: 2026-09-18T11:18:43+02:00
 - Branch: `master`
-- Commit: `99250e8`
+- Commit: `eb96ca4`
 - Git status:
   ```text
-  M README.md
-   M TODO.md
-   M justfile
-  ?? scripts/orglib/subject_manifest.py
-  ?? scripts/prepare_subject.py
-  ?? tests/test_prepare_subject.py
-  ?? tests/test_subject_manifest.py
+  (clean)
   ```
 - Pierwsze otwarte TODO: - [ ] B2. `scripts/extract_text.py` — głowa tekstu (PDF/DOCX/PPTX, OCR awaryjnie) do `20_WORK/extracted_text/{sha256}.txt`, `normalized_text_hash`, `simhash`, `phash`; tylko unique, status `extracted`
 <!-- END AUTO -->
