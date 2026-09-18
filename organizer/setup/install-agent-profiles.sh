@@ -9,7 +9,7 @@ PROFILE="$CODEX_HOME/$PROFILE_NAME.config.toml"
 mkdir -p "$CODEX_HOME"
 cat >"$PROFILE" <<EOF
 # Generowane przez paczka-tools/organizer/setup/install-agent-profiles.sh.
-# Profil interaktywnego Codexa niezależny od claude-code-router.
+# Profil interaktywnego Codexa niezależny od bazowego ~/.codex/config.toml.
 model_provider = "openai"
 model = "$MODEL"
 model_reasoning_effort = "high"

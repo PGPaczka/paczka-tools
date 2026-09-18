@@ -59,6 +59,11 @@ llm task prompt_file *args:
 subject-prepare semester skrot *args:
     {{ python }} scripts/prepare_subject.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
 
+# B5: resztki po klasyfikacji deterministycznej idą do modelu z thresholds.yaml: llm
+# (domyślnie codex_cli = limit ChatGPT, nie limit koordynatora). Wznawialne.
+subject-ai-resolve semester skrot *args:
+    {{ python }} scripts/ai_resolve.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
+
 # Stabilne nazwy dalszych etapów — czekają na skrypty z TODO B2-B14.
 subject-plan semester skrot *args:
     @test -f scripts/build_plan.py || { echo "Brak scripts/build_plan.py (TODO B7)" >&2; exit 2; }

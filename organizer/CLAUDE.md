@@ -24,7 +24,25 @@ uprawnienia, hooki i plugin muxer są w `.claude/settings.json`.
 ## Polityka koordynatora i muxera
 
 Claude jest domyślnym interaktywnym koordynatorem projektu. Fable/Opus podejmuje
-decyzje architektoniczne i ocenia wyniki; objętościową pracę deleguj:
+decyzje architektoniczne i ocenia wyniki; objętościową pracę deleguj.
+
+**Zasada kosztowa: limit Anthropic idzie na myślenie, nie na przepisywanie.**
+Praca klasyfikacyjna i powtarzalna — taka, której efekt widać w wyniku jednego
+wywołania `-p` i da się sprawdzić wobec schematu — ma trafiać na konto OpenAI
+(`codex_cli`) albo Google (`agy_cli`), a Claude ma ją **zlecać i oceniać**, nie
+wykonywać. Konkretnie:
+
+- klasyfikacja resztek przedmiotu → `just subject-ai-resolve SEM SKROT`
+  (skrypt `scripts/ai_resolve.py`, backend z `config/thresholds.yaml: llm`);
+  skill `/organizer-ai-resolve` jest tylko opakowaniem na tę komendę i **nie wolno**
+  mu klasyfikować pozycji w sesji ani forkować do tego podagenta;
+- jednorazowe zadanie tekstowe wg gotowego wzorca → agent `codex` (OpenAI)
+  albo `agy` (Gemini);
+- ocena wyniku, decyzje o strukturze, rozstrzyganie sporów → zostaje w Opusie.
+
+Gdy jakość taniego backendu nie wystarcza, eskaluj **jawnie** i powiedz o tym
+użytkownikowi z przykładami — wybór droższego modelu to jego decyzja kosztowa,
+nie Twoja wygoda.
 
 | Zadanie | Agent | Model |
 |---|---|---|
@@ -44,10 +62,18 @@ użytkownika. Delegowany agent zwraca maksymalnie 30 linii podsumowania.
 
 ## Zewnętrzny Codex z sesji Claude
 
-Na tej maszynie `claude-code-router` zarządza bazowym
-`~/.codex/config.toml`. Dlatego każda delegacja OpenAI przez `codex exec` musi
-używać `--ignore-user-config`; agent `.claude/agents/codex.md` i
-`scripts/orglib/llm_client.py` mają tę flagę na stałe.
+Bazowy `~/.codex/config.toml` jest czysty: `model_provider = "openai"`. Bloki
+`claude-code-router` zostały z niego usunięte 2026-09-18 (router nie działał, a jego
+wpisy psuły Codeksa: `codex doctor` nie mógł dosięgnąć `127.0.0.1:3456`, a podstawiony
+katalog modeli powodował ostrzeżenie o braku metadanych `gpt-6-astra`). Kopia
+sprzed zmiany leży w `~/.codex/config.toml.pre-ccr-removal-*`.
+
+Delegacja OpenAI używa więc `codex exec -c model_provider="openai"`, a **nie**
+`--ignore-user-config`. Ta flaga odcina `[hooks.state]`, przez co Codex przestaje
+uruchamiać `.codex/hooks.json` i guard chroniący `00_SOURCES` milknie — sprawdzone
+różnicowo. Jawne `-c model_provider=...` chroni konto tak samo, a hooki zostają.
+Tak robi agent `.claude/agents/codex.md` i backend `codex_cli`
+w `scripts/orglib/llm_client.py`.
 
 Nie używaj `muxer:codex`: jego historyczna komenda nie odpowiada obecnemu CLI.
 Do delegacji używaj agenta projektu `codex`.
@@ -66,7 +92,8 @@ z tej sesji nie wrócą niejawnie do Claude dla zadania `relate`.
 
 Agent `agy` w trybie headless z sandboxem nie może samodzielnie używać narzędzi.
 Treść wejściową wklejaj do promptu; duże wsady obsługuje
-`scripts/orglib/llm_client.py`. Nie używaj nieistniejącego `muxer:gemini`.
+`scripts/orglib/llm_client.py`. Nie używaj `muxer:gemini`: sam agent istnieje, ale
+szuka binarki `gemini`, której na tej maszynie nie ma — Gemini stoi tu pod `agy`.
 
 ## Skille Claude
 

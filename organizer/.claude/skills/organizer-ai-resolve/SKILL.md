@@ -1,43 +1,67 @@
 ---
 name: organizer-ai-resolve
-description: "Użyj jako klasyfikator, gdy otrzymasz manifest nierozstrzygniętych materiałów jednego przedmiotu po klasyfikacji deterministycznej. Zwróć decyzje JSONL; nie skanuj źródeł i nie wykonuj apply."
+description: "Użyj, gdy manifest jednego przedmiotu ma pozycje nierozstrzygnięte po klasyfikacji deterministycznej: uruchom klasyfikator AI (scripts/ai_resolve.py) i oceń jego decyzje. Sam nie klasyfikujesz i nie wykonujesz apply."
 disable-model-invocation: false
-context: fork
-agent: general-purpose
-model: haiku
-argument-hint: "SKROT SEMESTR [ścieżka manifest_slice.jsonl]"
-arguments: [skrot, semestr, manifest]
-allowed-tools: Read, Write(reports/**)
+argument-hint: "SKROT SEMESTR [--limit N]"
+arguments: [skrot, semestr]
+allowed-tools: Bash, Read, Write(reports/**)
 ---
 
 # organizer-ai-resolve — $skrot sem $semestr
 
-Jesteś klasyfikatorem resztek. Dostajesz **tylko** to, czego skrypty nie umiały rozstrzygnąć.
-Twoje jedyne wyjście to poprawny JSONL. **Nie zgadujesz** — niska pewność = `needs_review` albo
-`quarantine`.
+Jesteś **koordynatorem**, nie klasyfikatorem. Masowa klasyfikacja resztek idzie do
+backendu z `config/thresholds.yaml: llm` (domyślnie `codex_cli` = limit ChatGPT), a nie
+do Twojej sesji — to jest cel tego skilla. **Nie klasyfikuj pozycji samodzielnie** i nie
+forkuj do tego podagenta: jedna i druga droga zjada limit koordynatora, który ma iść na
+myślenie o planie, a nie na przepisywanie nazw plików.
 
-## Wejście
-- Manifest: `$manifest` (domyślnie `reports/manifest_slice.$skrot.$semestr.jsonl`). Każda linia:
-  `{sha256, source_paths[], filename, extension, size_bytes, text_head}` (text_head ≤ 2 KB).
-- Zasady: `AGENTS.md` (12 reguł), struktura docelowa `config/syntax.yaml`, przedmiot
-  z `config/subjects.yaml` (sekcja semestru $semestr, skrót $skrot, jego `forms`).
-- Przeczytaj te trzy pliki **raz**, na początku.
+## Krok 1 — zobacz, co w ogóle jest do zrobienia
 
-## Zasady decyzji
-1. Kategoria musi być dozwolona przez `forms` przedmiotu (np. brak `L` → nigdy `laboratoria`).
-2. `target_rel` = `paczka/SEM$semestr/($skrot)_{nazwa}/<kategoria>/<nazwa wg syntax.yaml>`;
-   numery dwucyfrowe, rok 4 cyfry, diakrytyki w nazwach folderów zachowane.
-3. Confidence: ≥0.90 gdy nazwa+treść jednoznaczne; 0.70–0.90 gdy tylko jedno z nich; <0.70 →
-   `action: quarantine`, `needs_review: true`.
-4. Podobne pliki to **relacja** (`near_duplicate`, `older_version`, `original_exam`,
-   `processed_version`), nigdy duplikat i nigdy `is_outdated: true` (to decyzja człowieka).
-5. Media (rozszerzenia z `syntax.yaml: media`) → `action: media`, target `90_MEDIA/$skrot/…`.
-6. Ta sama treść (sha256) = jedna decyzja. Nie pisz dwa razy o tym samym hashu.
-
-## Wyjście
-Dopisz (append) do `reports/plan.$skrot.$semestr.ai.jsonl` po jednej linii na sha256:
-```json
-{"schema_version":1,"source_sha256":"…","action":"copy|quarantine|skip|media","target_rel":"…","category":"wyklad|kolokwia|opracowania|laboratoria|cwiczenia|projekt|ksiazki|inne","year":"2024|null","related_to":null,"relation":null,"confidence":0.0,"method":"llm","model":"<rzeczywisty model>","reason":"≤120 znaków, po polsku","needs_review":false}
+```bash
+just subject-ai-resolve $semestr $skrot --dry-run
 ```
-Na końcu zwróć **≤10 linii**: ile linii zapisałeś, rozkład akcji, ile `needs_review`, ścieżka pliku.
-Żadnego innego wyjścia. Żadnych zmian w innych plikach.
+
+Wypisze przedmiot, liczbę pozycji w manifeście, liczbę do rozstrzygnięcia i backend.
+Brak manifestu = najpierw `just subject-prepare $semestr $skrot`.
+
+Gdy pozycji jest dużo, zacznij od próbki: dodaj `--limit 10`, oceń jakość decyzji
+(krok 3) i dopiero potem puść resztę. Skrypt jest wznawialny — sha256 już zapisane
+w `plan.ai.jsonl` są pomijane, więc druga część przebiegu nie płaci za pierwszą.
+
+## Krok 2 — uruchom klasyfikator
+
+```bash
+just subject-ai-resolve $semestr $skrot
+```
+
+Wynik: `plan.ai.jsonl` obok manifestu, jedna linia na sha256, zgodna z
+`prompts/plan_line.schema.json`. Skrypt sam waliduje każdą linię wobec schematu,
+wymusza progi z `thresholds.yaml` i odrzuca kategorie spoza form przedmiotu — pozycje,
+których nie dało się domknąć, trafiają na listę błędów zamiast do planu.
+
+Niezerowy kod wyjścia oznacza, że część pozycji się nie powiodła. Przeczytaj wypisane
+błędy: to zwykle brak `text_head` (nie zrobiono ekstrakcji) albo model uparcie
+proponuje kategorię niedozwoloną dla tego przedmiotu.
+
+## Krok 3 — oceń wynik (to jest Twoja właściwa praca)
+
+Przejrzyj `plan.ai.jsonl` i odpowiedz człowiekowi **≤10 linii**:
+
+1. ile decyzji zapisano, rozkład `action`, ile `needs_review`;
+2. czy jakaś decyzja z `confidence` ≥ 0.90 wygląda podejrzanie — typowo: `target_rel`
+   niezgodny z `config/syntax.yaml`, rok wzięty z nazwy katalogu zamiast z treści,
+   kategoria `inne` przy oczywistym wykładzie;
+3. co wymaga decyzji człowieka, zanim plan pójdzie dalej.
+
+Nie poprawiaj decyzji modelu edycją `plan.ai.jsonl` w ciemno. Jeśli klasa błędów się
+powtarza, popraw **prompt** (`prompts/classify_ambiguous.md`) albo próg
+w `thresholds.yaml` i puść przebieg ponownie na tę próbkę — inaczej ten sam błąd wróci
+przy następnym przedmiocie.
+
+## Granice
+
+- Nie uruchamiasz `apply` ani niczego, co dotyka materiałów. Ten skill kończy się na
+  pliku `plan.ai.jsonl` i Twojej ocenie.
+- Nie skanujesz `00_SOURCES`. Wejściem jest manifest, nie źródła.
+- Nie zmieniasz backendu na `claude_cli` „żeby było lepiej”. Gdy jakość nie wystarcza,
+  zgłoś to człowiekowi z przykładami — wybór modelu to jego decyzja kosztowa.

@@ -72,12 +72,16 @@ przedmiotu (np. ME nie ma laboratoriów).
 **Wyjście:** wpisy `classifications` (method=deterministic/heuristic), kolejka
 `unresolved`.
 
-## 🤖 ai-resolve-ambiguous
+## 🤖 ai-resolve-ambiguous — **zaimplementowane**: `just subject-ai-resolve SEM SKROT`
 **Kiedy:** dla `unresolved` jednego przedmiotu; tanie, wsadowe.
 **Wejście:** `manifest_slice.jsonl` (nazwa+ścieżka+głowa tekstu ~1–2 KB), zasady.
-**Kroki:** model proponuje kategorię/ścieżkę + confidence + reason. Cache po
-sha256. Backend przez `llm_client` (Claude/Codex).
-**Wyjście:** dopisane linie do `plan.jsonl` (method=llm).
+**Kroki:** `scripts/ai_resolve.py` buduje prompt z `prompts/classify_ambiguous.md`,
+woła backend przez `llm_client` (domyślnie `codex_cli` — limit ChatGPT, nie limit
+koordynatora), waliduje odpowiedź wobec `prompts/plan_line.schema.json` i wymusza
+progi z `thresholds.yaml`. Cache po sha256; przebieg wznawialny.
+**Wyjście:** `plan.ai.jsonl` obok manifestu (method=llm).
+**Uwaga:** koordynator uruchamia i **ocenia**, nie klasyfikuje sam — patrz skill
+`/organizer-ai-resolve` i „Zasada kosztowa" w `CLAUDE.md`.
 
 ## 🤖 relate-cluster
 **Kiedy:** relacje wymagające zestawienia (zdjęcie egzaminu ↔ opracowanie,

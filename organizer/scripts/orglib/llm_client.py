@@ -16,10 +16,16 @@ Backendy
   system prompt prosi o czysty JSON.
 - ``claude_cli`` — ``claude -p --permission-mode plan --output-format json [--model M]``,
   prompt przez stdin, stdout to JSON z polem ``result`` (tekst odpowiedzi modelu).
-- ``codex_cli`` — ``codex --ignore-user-config exec -s read-only --ephemeral
+- ``codex_cli`` — ``codex exec -c model_provider="openai" -s read-only --ephemeral
   --skip-git-repo-check -C {cwd}
   [-m M] [--output-schema plik.json] -o {out.txt} -``, prompt przez stdin (argument
   ``-``); odpowiedź czyta się z pliku ``-o`` (stdout bywa zaśmiecony logiem sesji).
+  ``-c model_provider="openai"`` wymusza konto OpenAI nawet gdyby ktoś ponownie
+  przestawił bazowy ``~/.codex/config.toml`` na proxy (np. ``claude-code-router``) —
+  wywołanie ma iść na limit ChatGPT, nigdy na limit Anthropic. Świadomie *nie*
+  używamy ``--ignore-user-config``: ta flaga odcina też ``[hooks.state]``, przez co
+  Codex przestaje uruchamiać ``.codex/hooks.json`` (guard ``00_SOURCES``) —
+  zweryfikowane 2026-09-18.
 - ``agy_cli`` (Antigravity CLI = Gemini) — ``agy -p {prompt} [--model M] --sandbox
   --output-format json [--json-schema plik.json] --print-timeout {N}m``. Prompt idzie
   WYŁĄCZNIE przez argv — ``-p``/``--prompt`` zawsze konsumuje następny token jako
@@ -27,7 +33,11 @@ Backendy
   smoke testem: ``--input-format text`` na stdin zwraca błąd „took --input-format
   as its prompt”). Dlatego prompt > ``_AGY_MAX_PROMPT_BYTES`` podnosi :class:`LLMError`
   zamiast ryzykować limit długości argv systemu. Stdout to JSON z polami
-  ``status`` (musi być ``"SUCCESS"``) i ``response`` (tekst odpowiedzi).
+  ``status`` (musi być ``"SUCCESS"``) i ``response`` (tekst odpowiedzi). Uwaga:
+  ``status="SUCCESS"`` *nie* gwarantuje odpowiedzi — gdy model sięgnie po narzędzie
+  (``read_file``/``command``), sandbox headless auto-odrzuca żądanie i ``agy`` zwraca
+  ``response: ""`` z niepustym ``denied_actions``. Traktujemy to jako :class:`LLMError`
+  z czytelnym komunikatem, a nie jako „brak JSON-a w odpowiedzi”.
 
 Wszystkie trzy CLI zweryfikowane smoke testem (2026-09-17, konta zalogowane,
 trywialny prompt ``Odpowiedz wyłącznie JSON: {"ok": true}``, sandboxy jak wyżej):
@@ -406,13 +416,14 @@ class LLMClient:
     def _call_codex_cli(
         self, *, prompt: str, model: str | None, timeout_s: int, schema: dict[str, Any] | None
     ) -> str:
-        """``codex --ignore-user-config exec -s read-only ...``, prompt na stdin; wynik z ``-o``."""
+        """``codex exec -c model_provider="openai" -s read-only ...``; wynik z ``-o``."""
         with tempfile.TemporaryDirectory(prefix="llm_client_codex_") as tmp_dir:
             out_path = Path(tmp_dir) / "out.txt"
             argv = [
                 "codex",
-                "--ignore-user-config",
                 "exec",
+                "-c",
+                'model_provider="openai"',
                 "-s",
                 "read-only",
                 "--ephemeral",
@@ -471,6 +482,20 @@ class LLMClient:
             response = payload.get("response")
             if not isinstance(response, str):
                 raise LLMError("agy -p: odpowiedź nie ma pola tekstowego 'response'")
+            if not response.strip():
+                # status=SUCCESS + pusty response = model sięgnął po narzędzie,
+                # a sandbox headless odrzucił żądanie (nie ma jak zapytać użytkownika).
+                denied = payload.get("denied_actions") or []
+                names = ", ".join(
+                    str(item.get("action")) for item in denied if isinstance(item, Mapping)
+                )
+                hint = (
+                    f" — sandbox odrzucił narzędzia: {names}; wklej potrzebną treść"
+                    " do promptu zamiast liczyć na to, że model sam przeczyta pliki"
+                    if names
+                    else ""
+                )
+                raise LLMError(f"agy -p: pusta odpowiedź mimo status=SUCCESS{hint}")
             return response
 
     # -- Backendy API (SDK importowane leniwie) ----------------------------

@@ -200,6 +200,6 @@ cat <<TXT
      cd "$ORGANIZER"
      just agent-doctor
      just claude       # domyślny koordynator
-     just codex        # interaktywny OpenAI, niezależny od globalnego CCR
+     just codex        # interaktywny OpenAI na profilu paczka-openai
    Claude: /organizer-subject AKO 3; Codex: \$organizer-subject AKO 3.
 TXT

@@ -120,16 +120,29 @@ just agent-doctor
 
 `just codex` wymaga profilu `paczka-openai`, tworzonego przez
 `just agent-setup`. Launcher odmawia startu, jeśli profil nie wskazuje
-`model_provider = "openai"`. Dzięki temu globalny `claude-code-router` może
-pozostać aktywny dla delegacji z Claude, ale interaktywny Codex używa OpenAI.
+`model_provider = "openai"`. Profil jest niezależny od tego, co ktoś ustawi
+w bazowym `~/.codex/config.toml`, więc interaktywny Codex zawsze idzie na OpenAI.
+
+Do bazowego configu Codeksa nie wolno wpuszczać proxy przekierowującego ruch na
+inne konto (np. `claude-code-router`): delegacja z Claude szłaby wtedy po cichu
+na limit Anthropic, a obejście tego flagą `--ignore-user-config` wyłącza razem
+z konfiguracją użytkownika sekcję `[hooks.state]` — czyli guard `00_SOURCES`
+w Codeksie. Zamiast flagi wymuszaj konto jawnie: `-c model_provider="openai"`.
 
 Nigdy nie dodawaj `sources` jako writable root Codexa. Tryb `codex-ship` dodaje
 wyłącznie `work`, `target_repo` i `media`.
 
-Launchery ustawiają też backend trudnego zadania `relate`:
+Backend zadań AI bierze się z `config/thresholds.yaml: llm` — domyślnie zarówno
+`classify`, jak i `relate` idą na `codex_cli`: praca klasyfikacyjna ma obciążać
+konto ChatGPT, a limit koordynatora zostawać na planowanie i ocenę wyników.
+Koordynator, który klasyfikuje materiały we własnej sesji zamiast uruchomić
+`just subject-ai-resolve`, łamie tę zasadę.
 
-- `just claude` → `PACZKA_LLM_RELATE_BACKEND=claude_cli`;
-- `just codex` → `PACZKA_LLM_RELATE_BACKEND=codex_cli`.
+`just codex` ustawia `PACZKA_LLM_RELATE_BACKEND=codex_cli` (zgodnie z domyślną
+polityką). `just claude` **nie** nadpisuje backendu — inaczej samo uruchomienie
+sesji Claude po cichu przenosiłoby `relate` na limit Anthropic. Skierowanie
+zadania na Claude jest świadomą decyzją człowieka na jedną sesję:
+`PACZKA_LLM_RELATE_BACKEND=claude_cli just claude`.
 
 To jawny override procesu, nie automatyczny fallback. Użytkownik może go
 nadpisać własną zmienną `PACZKA_LLM_<TASK>_BACKEND` lub

@@ -17,17 +17,21 @@ Twoja praca: uruchomić CLI poprawnie i wiernie zrelacjonować wynik.
    słowem mutującym. Codex sam czyta `AGENTS.md` z katalogu roboczego. Brief zawiera: zadanie,
    ścieżki plików, ograniczenia, kryteria akceptacji oraz zdanie „zweryfikuj swoją pracę i podsumuj,
    co zmieniłeś".
-3. **Zawsze podawaj `--ignore-user-config`.** Na tej maszynie `claude-code-router` przejął
-   `~/.codex/config.toml` (`model_provider = "claude-code-router"`, proxy `127.0.0.1:3456`,
-   `# CCR configured model = "Claude Code API/claude-sonnet-5"`) — **bez tej flagi `codex exec`
-   idzie na Claude Sonnet 5 i zjada limit Anthropic zamiast ChatGPT Plus**, czyli cały sens tego
-   agenta znika. Z flagą CLI raportuje `provider: openai` (zweryfikowane 2026-09-17).
+3. **Zawsze podawaj `-c model_provider="openai"`, nigdy `--ignore-user-config`.**
+   Bazowy `~/.codex/config.toml` jest czysty (`model_provider = "openai"`, blokady
+   `claude-code-router` usunięte 2026-09-18), więc flaga `--ignore-user-config` nie jest
+   już do niczego potrzebna — a jest **szkodliwa**: odcina sekcję `[hooks.state]`, przez co
+   Codex przestaje uruchamiać `.codex/hooks.json`, czyli **guard chroniący `00_SOURCES`
+   przestaje działać** (zweryfikowane różnicowo 2026-09-18: bez flagi w logu jest
+   `hook: PreToolUse`, z flagą go nie ma). Jawne `-c model_provider="openai"` daje to samo
+   zabezpieczenie konta co dawna flaga — gdyby ktoś znów przestawił bazowy config na proxy,
+   wywołanie i tak pójdzie na OpenAI — ale zachowuje hooki i zaufanie projektu.
    W raporcie podaj linię `model:`/`provider:` z outputu — to dowód, że poszło na właściwe konto.
 4. Uruchom z katalogu organizera (`paczka-tools/organizer/`), timeout Bash 10 min:
    - analiza / odczyt / drugie zdanie (domyślnie):
-     `codex exec --ignore-user-config -s read-only --ephemeral -o "${TMPDIR:-/tmp}/codex-out.md" "$(cat "${TMPDIR:-/tmp}/codex-task.md")"`
+     `codex exec -c model_provider="openai" -s read-only --ephemeral -o "${TMPDIR:-/tmp}/codex-out.md" "$(cat "${TMPDIR:-/tmp}/codex-task.md")"`
    - edycje plików (**tylko** gdy brief koordynatora wyraźnie tego wymaga):
-     `codex exec --ignore-user-config -s workspace-write -o "${TMPDIR:-/tmp}/codex-out.md" "$(cat "${TMPDIR:-/tmp}/codex-task.md")"`
+     `codex exec -c model_provider="openai" -s workspace-write -o "${TMPDIR:-/tmp}/codex-out.md" "$(cat "${TMPDIR:-/tmp}/codex-task.md")"`
      Katalog roboczy to organizer lub klon `target_repo` (`-C <dir>`); **nigdy** `--add-dir` na
      katalog źródeł (`config/paths.yaml: sources`); **nigdy** `--dangerously-bypass-approvals-and-sandbox`.
    - wynik strukturalny: `--output-schema <plik schematu JSON>`.

@@ -83,7 +83,7 @@ CLI nad `orglib/llm_client.py` (backend anthropic/openai/`claude -p`/`codex exec
 z `config/thresholds.yaml: llm`, cache po sha256 promptu w `20_WORK/ai_cache.sqlite`);
 smoke test backendów, nieużywany w automatycznym cyklu per-przedmiot.
 
-## Skrypty cyklu per-przedmiot — gotowe B1
+## Skrypty cyklu per-przedmiot — gotowe B1, B5
 
 Po pierwszym przebiegu przygotuj wycinek z **istniejącego indeksu SQLite**:
 
@@ -98,6 +98,21 @@ just subject-prepare 3 AKO --help
 `scripts/prepare_subject.py` nie otwiera materiałów, nie wywołuje AI i nie
 modyfikuje statusów ani klasyfikacji, w tym ground truth. Baza jest otwierana
 w trybie SQLite `mode=ro` / `query_only`, bez inicjalizacji schematu.
+
+Pozycje, których deterministyka nie rozstrzygnęła, domyka klasyfikator AI:
+
+```bash
+just subject-ai-resolve 3 AKO --dry-run    # co poszłoby do modelu i jakim backendem
+just subject-ai-resolve 3 AKO --limit 10   # próbka: oceń jakość, zanim puścisz resztę
+just subject-ai-resolve 3 AKO              # reszta; sha256 już zapisane są pomijane
+```
+
+`scripts/ai_resolve.py` zapisuje `plan.ai.jsonl` obok manifestu — jedna linia na
+sha256, walidowana wobec `prompts/plan_line.schema.json`. Progi `confidence`
+z `config/thresholds.yaml` są wiążące: deklaracja modelu nie przepchnie pozycji
+obok review. Backend bierze się z `thresholds.yaml: llm` (domyślnie `codex_cli`),
+więc klasyfikacja nie obciąża limitu koordynatora. Skrypt nie dotyka materiałów
+i nie wykonuje `apply`.
 Opcje `--db PLIK` i `--out-dir KATALOG` pozwalają jawnie wskazać indeks oraz
 dokładny katalog wyjściowy. Domyślna baza pochodzi z `config/paths.yaml`.
 Raport zapisuje się atomowo; błąd pozostawia poprzedni raport. Zapis pod
@@ -175,11 +190,13 @@ just handoff         # odświeża automatyczną część reports/HANDOFF.md
 
 Wspólne zasady są w `AGENTS.md`, wspólny kontrakt przekazania stanu w
 `reports/HANDOFF.md`, a deterministyczne operacje w `justfile` i `scripts/`.
-Globalny `claude-code-router` może pozostać aktywny: launcher Codexa wymaga
-osobnego profilu `paczka-openai` z `model_provider = "openai"`.
-Launchery ustawiają także backend `relate` per host (`claude_cli` dla Claude,
-`codex_cli` dla Codexa), więc przełączenie sesji nie wymaga edycji
-`config/thresholds.yaml`.
+Launcher Codeksa wymaga osobnego profilu `paczka-openai`
+z `model_provider = "openai"`, więc jest odporny na to, co ktoś ustawi w bazowym
+`~/.codex/config.toml`. Backend zadań AI bierze się z `config/thresholds.yaml: llm`
+— domyślnie `classify` i `relate` idą na `codex_cli`, więc praca klasyfikacyjna
+obciąża konto ChatGPT, a limit koordynatora zostaje na planowanie i ocenę.
+`just claude` tego nie nadpisuje; skierowanie zadania na Claude to świadoma
+decyzja na jedną sesję: `PACZKA_LLM_RELATE_BACKEND=claude_cli just claude`.
 
 Codex ma projektowe subagenty w `../.codex/agents/`: `explorer`, `runner`,
 `reviewer`, `python_pro`, `sql_pro`, `test_automator`,

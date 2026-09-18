@@ -29,13 +29,16 @@ llm:
   #   PACZKA_LLM_RELATE_BACKEND  / PACZKA_LLM_RELATE_MODEL
   # Launcher `just codex` ustawia domyślnie RELATE_BACKEND=codex_cli,
   # a `just claude` RELATE_BACKEND=claude_cli.
-  backend: agy_cli           # domyślny backend, gdy zadanie nie ma własnego
+  # Polityka kosztowa: praca klasyfikacyjna idzie na limit ChatGPT Plus, a Claude/Opus
+  # tylko planuje, ocenia wynik i zatwierdza. Żadne zadanie pipeline'u nie zjada
+  # domyślnie limitu Anthropic.
+  backend: codex_cli         # domyślny backend, gdy zadanie nie ma własnego
   classify:                  # masowe classify_one — tanio, setki wywołań
-    backend: agy_cli
-    model: gemini-3.8-flash-medium
+    backend: codex_cli
+    model: gpt-6-astra
   relate:                    # relate_cluster / trudne resztki — mocniejszy model, mało wywołań
-    backend: claude_cli
-    model: sonnet
+    backend: codex_cli
+    model: gpt-6-astra
   max_text_head_bytes: 2048  # ile tekstu na plik wysyłamy do modelu
   timeout_s: 300             # limit na jedno wywołanie CLI/API
   cache: true                # cache decyzji po (sha256, zadanie, hash promptu) w work/ai_cache.sqlite

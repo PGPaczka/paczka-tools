@@ -18,6 +18,7 @@ check_command git
 check_command python3
 check_command claude
 check_command codex
+check_command agy
 check_command just
 
 profile="${CODEX_PROFILE:-paczka-openai}"
@@ -26,6 +27,22 @@ if [ -f "$profile_file" ] && grep -Eq 'model_provider[[:space:]]*=[[:space:]]*"o
   echo "OK   profil Codexa: $profile_file (OpenAI)"
 else
   echo "BRAK/popraw profil Codexa: $profile_file"
+  failed=1
+fi
+
+# Bazowy config Codeksa musi wskazywać OpenAI. Proxy w tym miejscu (np. przejęcie
+# przez claude-code-router) przekierowuje delegację na cudze konto, a obejście jej
+# flagą --ignore-user-config wyłącza [hooks.state], czyli guard 00_SOURCES. Patrz
+# TODO C15.
+base_config="${CODEX_HOME:-$HOME/.codex}/config.toml"
+if [ ! -f "$base_config" ]; then
+  echo "WARN brak $base_config — codex użyje wbudowanych domyślnych"
+elif grep -Eq '^[[:space:]]*model_provider[[:space:]]*=[[:space:]]*"openai"' "$base_config"; then
+  echo "OK   bazowy config Codexa: model_provider=\"openai\""
+else
+  provider="$(grep -E '^[[:space:]]*model_provider[[:space:]]*=' "$base_config" | head -1)"
+  echo "BŁĄD bazowy config Codexa nie wskazuje OpenAI (${provider:-brak model_provider})"
+  echo "     delegacja poszłaby na cudze konto; wyczyść $base_config"
   failed=1
 fi
 

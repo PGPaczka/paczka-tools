@@ -308,7 +308,13 @@ def test_codex_cli_sandbox_flags_stdin_prompt_and_reads_output_file(tmp_path: Pa
     assert result.data == {"ok": True}
     [call] = runner.calls
     argv = call["argv"]
-    assert argv[:3] == ["codex", "--ignore-user-config", "exec"]
+    assert argv[:2] == ["codex", "exec"]
+    # Provider wymuszony jawnie: wywołanie ma iść na konto OpenAI nawet gdyby ktoś
+    # przestawił bazowy ~/.codex/config.toml na proxy (np. claude-code-router).
+    assert "-c" in argv and argv[argv.index("-c") + 1] == 'model_provider="openai"'
+    # --ignore-user-config odcina [hooks.state], przez co Codex przestaje uruchamiać
+    # .codex/hooks.json (guard 00_SOURCES) — nie wolno go tu wprowadzić z powrotem.
+    assert "--ignore-user-config" not in argv
     assert "-s" in argv and argv[argv.index("-s") + 1] == "read-only"
     assert "--ephemeral" in argv
     assert "--skip-git-repo-check" in argv
@@ -382,6 +388,28 @@ def test_agy_cli_status_failure_raises(tmp_path: Path) -> None:
 
     with pytest.raises(LLMError):
         client.complete("classify", "prompt")
+
+
+def test_agy_cli_empty_response_after_denied_tool_raises_with_hint(tmp_path: Path) -> None:
+    # Realny kształt odpowiedzi agy 1.2.5: sandbox headless auto-odrzuca `read_file`,
+    # a CLI i tak raportuje status=SUCCESS z pustym `response` (zweryfikowane 2026-09-18).
+    payload = json.dumps(
+        {
+            "status": "SUCCESS",
+            "response": "",
+            "denied_actions": [{"action": "read_file", "display_name": "GrepSearch"}],
+        }
+    )
+    runner = RecordingRunner(stdout=payload)
+    cfg = _cfg(default_backend="agy_cli", cache=False)
+    client = LLMClient(cfg, cwd=tmp_path, cache_path=None, runner=runner)
+
+    with pytest.raises(LLMError) as excinfo:
+        client.complete("classify", "prompt", json=True)
+
+    message = str(excinfo.value)
+    assert "pusta odpowiedź" in message
+    assert "read_file" in message  # diagnoza, a nie mylące „brak JSON w odpowiedzi”
 
 
 def test_agy_cli_prompt_too_large_for_argv_raises_without_calling_runner(tmp_path: Path) -> None:
