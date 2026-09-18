@@ -273,6 +273,33 @@ człowiekiem. Historia czatu nie jest źródłem prawdy.
 - Zaczynaj od testów najbliższych zmienionemu kodowi, potem szerszy zestaw.
 - Nie naprawiaj niepowiązanych błędów; zgłoś je oddzielnie.
 - Nie deklaruj powodzenia bez rzeczywiście uruchomionych kontroli.
+
+**Każdy znaleziony błąd, którego testy nie złapały, kończy się nowym testem.**
+Reguła jest wiążąca i dotyczy tak samo błędu zgłoszonego przez użytkownika, jak
+znalezionego przez agenta, w cudzym i we własnym kodzie. Kolejność jest zawsze ta
+sama:
+
+1. **najpierw test, potem poprawka** — napisz test odtwarzający dokładnie ten
+   przypadek i zobacz, że jest CZERWONY. Test, którego nie widziałeś czerwonego,
+   niczego nie dowodzi (patrz pułapka niżej);
+2. dopiero potem popraw kod i sprawdź, że test jest zielony;
+3. wybierz warstwę adekwatną do przyczyny (README, „Testy: pięć warstw"):
+   kontrakt kodu dla logiki, `environment` dla brakującej biblioteki lub binarki,
+   `cli_contract` dla argumentów zewnętrznego CLI, `e2e` dla styku między
+   etapami, `probe` dla stanu realnych danych;
+4. gdy błąd dotyczył kontraktu wartego pilnowania na stałe (separator, lista
+   słów, kolejność reguł, pole w kontrakcie międzyetapowym), dopisz mutację do
+   `tests/mutations/*.yaml` i sprawdź `just mutate-check` — ma wyjść `WYKRYTE`;
+5. w opisie testu napisz, **po jakiej wpadce powstał**. To jedyna forma, w której
+   ta wiedza przetrwa; komentarz „sprawdza X" nie mówi, dlaczego X jest ważne.
+
+Nie wolno „naprawić" błędu samą zmianą testu ani zawęzić asercji, żeby przeszła
+(decyzja użytkownika: *jeśli coś nie działa, ma być czerwone*). Pułapki, na które
+ten projekt już się nadział, więc nie sprawdzaj ich ponownie własnym kosztem:
+test przez cały potok potrafi nie pilnować zabezpieczenia, bo dostaje dane
+oczyszczone przez wcześniejszy etap (sprawdzaj też jednostkowo, na surowym
+wejściu), a parametryzacja po liście z implementacji jest pusta, gdy ktoś tę
+listę skróci (wypisuj wartości w teście wprost).
 - Po walidacji i aktualizacji stanu zapisz zmiany narzędzi w lokalnych commitach
   zgodnie z powyższą polityką; w podsumowaniu podaj ich identyfikatory.
 - Końcowy raport zawiera: zmienione pliki, wynik testów, nierozwiązane ryzyka
