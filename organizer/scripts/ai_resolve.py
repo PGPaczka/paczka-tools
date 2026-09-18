@@ -11,9 +11,10 @@ Kontrakt:
   opisuje jedną **treść** (sha256), nie jeden plik;
 - wyjście — ``plan.ai.jsonl`` obok manifestu, jedna linia na sha256, zgodna z
   ``prompts/plan_line.schema.json``;
-- AI dostaje tylko to, czego deterministyka nie rozstrzygnęła (``needs_review: true``
-  w manifeście albo brak wpisu w planie deterministycznym). ``--all`` łamie tę zasadę
-  świadomie i tylko na żądanie człowieka.
+- AI dostaje tylko to, czego deterministyka nie rozstrzygnęła: gdy obok manifestu leży
+  ``plan.det.jsonl`` z ``classify.py`` (B3), wysyłamy dokładnie te treści, których w nim
+  NIE MA; bez tego pliku — pozycje z ``needs_review`` w manifeście. ``--all`` łamie tę
+  zasadę świadomie i tylko na żądanie człowieka.
 
 Skrypt jest wznawialny: sha256 już obecne w pliku wyjściowym są pomijane, więc przerwany
 przebieg można dokończyć bez duplikowania decyzji ani ponownego płacenia za te same
@@ -146,11 +147,17 @@ def select_rows(
     *,
     resolved: set[str],
     take_all: bool,
+    only_review: bool = True,
 ) -> list[dict[str, Any]]:
     """Wybiera pozycje do wysłania modelowi; zachowuje kolejność manifestu.
 
     Deduplikacja po sha256 jest twarda: jedna treść = jedna decyzja, nawet gdy
     manifest wymienia ją w kilku liniach (reguła 6 skilla ai-resolve).
+
+    ``only_review`` zawęża wybór do pozycji z ``needs_review`` w manifeście i jest
+    domyślne, gdy nie ma planu deterministycznego (B3). **Gdy plan B3 istnieje,
+    wołający wyłącza ten filtr**: to klasyfikator, a nie manifest, powiedział już,
+    czego nie rozstrzygnął — a resztę i tak odsiewa ``resolved``.
     """
     selected: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -160,7 +167,7 @@ def select_rows(
             raise ValueError(f"pozycja manifestu bez sha256: {row!r}")
         if sha in seen or sha in resolved:
             continue
-        if not take_all and not row.get("needs_review"):
+        if not take_all and only_review and not row.get("needs_review"):
             continue
         seen.add(sha)
         selected.append(row)
@@ -326,6 +333,12 @@ def resolve(
     output: Optional[Path] = typer.Option(
         None, "--output", help="Domyślnie plan.ai.jsonl obok manifestu."
     ),
+    det_plan: Optional[Path] = typer.Option(
+        None, "--det-plan", help="Plan deterministyczny z classify.py; domyślnie plan.det.jsonl obok manifestu."
+    ),
+    ignore_det_plan: bool = typer.Option(
+        False, "--ignore-det-plan", help="Nie czytaj planu deterministycznego (wszystko liczy się jako nierozstrzygnięte)."
+    ),
     task: str = typer.Option("classify", "--task", help="Zadanie z thresholds.yaml: llm."),
     limit: Optional[int] = typer.Option(None, "--limit", min=1, help="Najwyżej N pozycji."),
     take_all: bool = typer.Option(
@@ -352,9 +365,18 @@ def resolve(
         out_path = output or manifest_path.parent / "plan.ai.jsonl"
         _check_output(out_path, paths)
 
+        # Plan deterministyczny (B3) jest wiążącą listą „tego już nie pytaj modelu”.
+        # Bez niego zostaje węższy wybór po `needs_review` z manifestu.
+        det_path = det_plan or manifest_path.parent / "plan.det.jsonl"
+        det_hashes: set[str] = set()
+        if not ignore_det_plan and det_path.is_file():
+            det_hashes = existing_hashes(det_path)
+
         rows = read_jsonl(manifest_path)
-        resolved = existing_hashes(out_path)
-        selected = select_rows(rows, resolved=resolved, take_all=take_all)
+        resolved = existing_hashes(out_path) | det_hashes
+        selected = select_rows(
+            rows, resolved=resolved, take_all=take_all, only_review=not det_hashes
+        )
         if limit is not None:
             selected = selected[:limit]
 
@@ -375,6 +397,7 @@ def resolve(
     typer.echo(
         f"przedmiot: SEM{subject.semester}/{subject.grupa}/{subject.skrot} · "
         f"manifest: {len(rows)} · do rozstrzygnięcia: {len(selected)} · "
+        f"rozstrzygnięte regułami (B3): {len(det_hashes)} · "
         f"już rozstrzygnięte: {len(resolved)} · backend: {task_cfg.backend}/{model_hint}"
     )
     if dry_run:

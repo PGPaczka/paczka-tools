@@ -101,6 +101,11 @@ llm task prompt_file *args:
 subject-prepare semester skrot *args:
     {{ python }} scripts/prepare_subject.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
 
+# B3: klasyfikacja deterministyczna + heurystyka. Zero kosztu AI, zero zmian w bazie.
+# Wynik: plan.det.jsonl (decyzje) i unresolved.jsonl (to, co idzie do B5) obok manifestu.
+subject-classify semester skrot *args:
+    {{ python }} scripts/classify.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
+
 # B5: resztki po klasyfikacji deterministycznej idą do modelu z thresholds.yaml: llm
 # (domyślnie codex_cli = limit ChatGPT, nie limit koordynatora). Wznawialne.
 subject-ai-resolve semester skrot *args:
