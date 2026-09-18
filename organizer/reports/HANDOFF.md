@@ -21,7 +21,7 @@
   2. **Katalog bliższy plikowi wygrywa z dalszym.** `Ćwiczenia/2018/kolokwium2/zad.c` to kolokwium leżące w dziale ćwiczeń, a nie remis. Płytsze trafienie liczy się o `conflict_penalty` słabiej i zostaje w grze, gdyby `forms` wykluczyły bliższą kategorię.
   3. **`missing_semester` z manifestu nie dławi już wszystkiego.** Zbija pewność tylko wtedy, gdy w ścieżce nie pada żadna nazwa przedmiotu jednoznaczna w całym katalogu (`unambiguous_labels`). Na AKO: 2209 → 70 pozycji „do obejrzenia”.
   4. **Prowadzący tylko po tytule** (`dr`/`mgr`/`prof`/`inż`/`hab`) — pomiar źródeł: 8 trafień na 48 049 plików. Nazwisko bez tytułu jest nieodróżnialne od tematu, więc go nie zgadujemy. Gdy powstanie lista nazwisk, wpina się ją w `detect_prowadzacy`, nie w regex.
-  5. **Bez zapisów do bazy** (wbrew pierwotnemu „status `classified`” z architektury): decyzja jest tania i odtwarzalna z manifestu, więc jeden przeglądalny artefakt tekstowy jest lepszy niż drugie źródło prawdy. `classifications`/`plan_items` zapisują etapy ruszające materiały (B7/B10).
+  5. **Bez zapisów do bazy — ale tylko do czasu B7.** Dziś decyzja żyje wyłącznie w `plan.det.jsonl`. **Decyzja użytkownika 2026-09-19:** docelowo źródłem prawdy ma być baza, a JSONL jej eksportem; przenosimy to przy B7, jedną migracją `SCHEMA_VERSION` 1→2 dla `classifications` (brak kolumn `action`/`reason`/`needs_review`) i `plan_items` (CHECK nie zna akcji `media`, którą plan już wystawia). Szczegóły i wymagania zapisu — podmiana wycinka per przedmiot, strażnik na wiersze `run_id='ground_truth'`, deterministyczny eksport — są w TODO przy B7. Do tego czasu nic nie ginie: każdy przebieg nadpisuje plik w całości.
 - **Decyzja użytkownika 2026-09-18 (B3a), wyprowadzona z pomiaru 2201 plików w `paczka/`**: `egzamin` jest kategorią najwyższego poziomu (78 przedmiotów, 278 plików; `wykład/egzamin` z dotychczasowego `syntax.yaml` miało 0 plików), książki są w `inne/książki` (85 przedmiotów), doszło `seminarium` (4 przedmioty, wszystkie z formą S), a kubełek materiałów nieaktualnych nazywa się docelowo `outdated` (`stara_paczka` zapisane jako `legacy_folders`). Enum w `prompts/plan_line.schema.json` rozszerzony. **Przemianowanie 82 katalogów `stara_paczka` w repo to osobna migracja MATERIAŁÓW — TODO D4, przez plan i akceptację, nigdy przy okazji commita narzędzi.**
 - Nowa sekcja `syntax.yaml: ignore` (artefakty kompilacji) powstała z pomiaru: 6832 z 48 049 plików źródeł to `Debug/`, `.tlog`, `.obj`, `.pdb` itp. Dostają `action: skip` z uzasadnieniem — nic nie jest kasowane, a usunięcie wpisu z configu i ponowny przebieg przywraca je do klasyfikacji. Sporny jest `.log` (bywa wynikiem zadania, nie buildu) — jeśli w jakimś przedmiocie okaże się materiałem, wypisz go stamtąd.
 - Domknięty wiszący kontrakt B3→B5: `ai_resolve.py` czyta `plan.det.jsonl` i pyta model **dokładnie** o to, czego w nim nie ma (`--det-plan`, `--ignore-det-plan`). Wcześniej filtrował tylko po `needs_review` z manifestu, choć docstring obiecywał inaczej — czyli po B3 wysyłałby do modelu treści już rozstrzygnięte regułami.
@@ -50,32 +50,14 @@
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-09-18T23:42:42+02:00
+- Odświeżono: 2026-09-19T01:46:47+02:00
 - Branch: `master`
-- Commit: `98a023e`
+- Commit: `d311cb8`
 - Git status:
   ```text
-  M .claude/skills/organizer-subject/SKILL.md
-   M README.md
-   M TODO.md
-   M config/syntax.yaml
-   M config/thresholds.yaml
-   M justfile
-   M prompts/plan_line.schema.json
-   M pytest.ini
+  M TODO.md
    M reports/HANDOFF.md
-   M scripts/ai_resolve.py
-   M tests/test_e2e_pipeline.py
   ?? reports/AKO/
-  ?? scripts/classify.py
-  ?? scripts/orglib/classify.py
-  ?? tests/mutations/classify-det-plan-feeds-ai.yaml
-  ?? tests/mutations/classify-ignore-all-copies.yaml
-  ?? tests/mutations/classify-nearest-folder.yaml
-  ?? tests/mutations/classify-nested-category-root.yaml
-  ?? tests/mutations/classify-number-padding.yaml
-  ?? tests/test_classify.py
-  ?? tests/test_classify_cli.py
   ```
 - Pierwsze otwarte TODO: - [ ] B6. `scripts/near_dupe.py` — simhash/MinHash/phash → `relations` (near_duplicate / older_version / related); nigdy nie kasuje
 <!-- END AUTO -->
