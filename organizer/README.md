@@ -33,33 +33,49 @@ scan → hash → dedup (pliki + foldery) → extract → classify (det.) →
 Wynik (`apply`) trafia do `paczka/` w klonie repo docelowego, na branchu
 `subject/{SKROT}`, i dalej jako PR. Kod i operacyjne raporty zostają tutaj.
 
-## Testy: kontrakt kodu vs. realne środowisko
+## Testy: pięć warstw i po co każda z nich
 
-`just test` uruchamia dwie różne rzeczy i warto je rozróżniać:
+Zasada nadrzędna: **jeśli coś nie działa, test ma być czerwony.** Nie łagodzimy
+asercji, żeby przeszła — naprawiamy to, co ją psuje. Pominięcie (`skip`) jest
+dozwolone wyłącznie przy braku lokalnych DANYCH, nigdy przy braku sprawności.
 
-- **testy kontraktu** (większość) — deterministyczne, z atrapami zamiast
-  zewnętrznych narzędzi. Mają dawać ten sam wynik na każdej maszynie, więc
-  celowo **nie** zależą od tego, co ktoś ma zainstalowane;
-- **testy środowiska** (`tests/test_environment.py`, marker `environment`) — bez
-  ani jednej atrapy. Każdy wykonuje realną pracę realną biblioteką albo binarką:
-  zapis i odczyt PDF/DOCX/PPTX/XLSX/ODT, phash obrazu, OCR wyrenderowanej strony
-  przez tesseract, odczyt `.doc` przez `catdoc` z kontrolą polskich znaków.
-
-Zasada: **brakująca albo zepsuta zależność ma być czerwona, nie pominięta.**
-Odinstalowanie `catdoc` psuje 5 testów po nazwie (`test_required_binary_is_installed[catdoc]`,
-`test_catdoc_decodes_polish_source_charset`, …), a nie przechodzi po cichu jako
-„brak tekstu". Tak samo brak `tesseract-ocr-pol` albo za stara wersja biblioteki
-(`MINIMUM_VERSIONS` w tym pliku: `pymupdf >= 1.24`, `xlrd >= 2.0`).
+| Warstwa | Marker | Co sprawdza | Kiedy czerwona |
+|---|---|---|---|
+| Kontrakt kodu | *(brak)* | logika na atrapach, `tmp_path`, deterministycznie | błąd w logice |
+| Środowisko | `environment` | realne biblioteki i binarki, wersje minimalne | brak/zepsuta zależność |
+| Kontrakt CLI | `cli_contract` | argv backendów AI kontra parser prawdziwego CLI | zła albo źle umieszczona flaga |
+| E2E | `e2e` | cały łańcuch etapów na syntetycznej paczce | rozjazd styku między skryptami |
+| Sonda | `probe` | realne dane lokalne (`target_repo`) | zepsuty config; brak danych = skip |
 
 ```bash
-just env-check                 # same kontrole środowiska (~3 s)
-just test                      # wszystko, razem z nimi
-just test -m "not environment" # świadoma praca bez pełnego środowiska
+just test        # wszystko (~35 s)
+just test-fast   # sam kontrakt kodu, do pętli edycja-test
+just env-check   # realne zależności
+just cli-check   # zgodność z zewnętrznymi CLI (bez promptów, bez kosztu)
+just e2e         # pełny łańcuch na syntetycznej paczce
+just probe       # sondy na Twoich realnych danych
 ```
 
-Testy środowiska powstały po realnym błędzie: `catdoc` zwracał polskie znaki jako
-krzaki (zakładał cp1252 zamiast cp1250), a testy z atrapą nie miały prawa tego
-pokazać — atrapa zwracała to, co jej kazano.
+Każda z tych warstw powstała po konkretnej wpadce, nie „na zapas":
+
+- **środowisko** — `catdoc` zwracał polskie znaki jako krzaki (cp1252 zamiast
+  cp1250), a testy z atrapą nie miały prawa tego pokazać;
+- **kontrakt CLI** — backend budował `codex --ignore-user-config exec …`, czego
+  prawdziwe CLI nie przyjmowało; backend nigdy nie zadziałał end-to-end przy
+  komplecie zielonych testów;
+- **e2e** — `text_head` z etapu extract musi dotrzeć do manifestu, inaczej
+  klasyfikator AI widzi samą nazwę pliku; żaden test pojedynczego etapu tego
+  styku nie obejmował.
+
+Testy z atrapami i testy realnego środowiska **celowo się uzupełniają**: pierwsze
+mówią, co kod zamierza zrobić, drugie — czy narzędzie faktycznie to przyjmuje.
+Listy kontraktowe (słowa mutujące w guardzie, formaty, backendy) są w testach
+wypisane **wprost**, a nie czytane z implementacji: parametryzacja po liście
+z kodu jest pusta, bo jej skrócenie skraca też zestaw przypadków.
+
+Nowe zależności i nowe zewnętrzne narzędzia dopisuj razem z kontrolą w warstwie
+`environment` albo `cli_contract` — i sprawdź mutacyjnie, że po ich usunięciu
+testy naprawdę czerwienieją.
 
 ## Skrypty (pierwszy przebieg)
 

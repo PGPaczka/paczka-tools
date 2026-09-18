@@ -37,7 +37,7 @@ test *args:
 # Warstwy testów — pełny opis w README, sekcja „Testy: kontrakt kodu vs. realne środowisko”.
 # Sam kontrakt kodu: szybka pętla edycja-test, bez zależności od maszyny.
 test-fast *args:
-    {{ python }} -m pytest -m "not environment and not cli_contract and not probe" {{ args }}
+    {{ python }} -m pytest -m "not environment and not cli_contract and not probe and not e2e" {{ args }}
 
 # Realne środowisko (biblioteki + binarki), bez atrap.
 env-check *args:
@@ -46,6 +46,10 @@ env-check *args:
 # Argv backendów AI konfrontowane z parserem prawdziwych CLI (bez promptów, bez kosztu).
 cli-check *args:
     {{ python }} -m pytest -m cli_contract {{ args }}
+
+# Pełny łańcuch etapów na syntetycznej paczce (styki między skryptami).
+e2e *args:
+    {{ python }} -m pytest -m e2e {{ args }}
 
 # Sondy na realnych danych lokalnych (target_repo, źródła) — tylko odczyt.
 probe *args:
