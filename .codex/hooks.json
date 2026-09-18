@@ -1,9 +1,9 @@
 {
-  "description": "Paczka Organizer: wspólna ochrona katalogu 00_SOURCES.",
+  "description": "Paczka Organizer: wspólna ochrona katalogu 00_SOURCES. Matcher celowo łapie KAŻDE narzędzie: nazwy powłoki różnią się między wersjami Codeksa, a hook sam rozstrzyga, czy zdarzenie niesie komendę albo ścieżkę pliku.",
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash|Edit|Write|apply_patch",
+        "matcher": ".*",
         "hooks": [
           {
             "type": "command",

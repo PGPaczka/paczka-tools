@@ -59,6 +59,29 @@ _OPEN_FOR_WRITE = re.compile(r"\bopen\s*\(([^)]*['\"][wax][^)]*)", re.IGNORECASE
 #: przy obecności markera blokujemy zachowawczo.
 _SHELL_OUT = re.compile(r"\bos\.system\b|\bsubprocess\b|\bpopen\b|\bexecSync\b|\bspawnSync\b")
 
+#: Podkomendy gita, które WYŁĄCZNIE czytają. Wszystko spoza tej listy, wykonane
+#: w obrębie źródeł, jest blokowane — `clean`, `reset`, `checkout`, `restore`,
+#: `rm`, `stash`, `gc` i spółka potrafią skasować pliki bez tokenu `rm`.
+_GIT_READ_ONLY: frozenset[str] = frozenset({
+    "status", "log", "show", "diff", "blame", "grep", "shortlog", "describe",
+    "ls-files", "ls-tree", "cat-file", "rev-parse", "rev-list", "count-objects",
+    "var", "version", "help",
+})
+
+#: Moduły Pythona uruchamiane przez ``-m``, które zapisują na dysk. Nie mają
+#: postaci kodu inline, więc nie łapie ich :data:`_INLINE_CODE`.
+_MODULE_WRITE = re.compile(
+    r"(^|[;&|(\s])(python[0-9.]*)\s+(?:[^;&|]*?\s)?-m\s+"
+    r"(zipfile|tarfile|shutil|py_compile|compileall|venv|pip|ensurepip)\b"
+)
+
+#: Czasowniki mutujące szukane w CAŁYM kodzie podanym interpreterowi. Świadomie
+#: szersze i luźniejsze niż reguły wyżej: przy kodzie inline nie da się rzetelnie
+#: związać ścieżki z wywołaniem, gdy ścieżka siedzi w zmiennej albo w `chdir`.
+_INLINE_MUTATION = re.compile(
+    rf"\b({_DESTRUCTIVE}|write|delete|unlink_missing_ok|chdir)\b", re.IGNORECASE
+)
+
 
 def read_sources_path() -> str | None:
     cfg = os.path.join(ORGANIZER, "config", "paths.yaml")
@@ -72,6 +95,20 @@ def read_sources_path() -> str | None:
     except OSError:
         pass
     return None
+
+
+def _command_text(raw: object) -> str:
+    """Sprowadza pole ``command`` do tekstu, niezależnie od hosta.
+
+    Claude Code podaje string, a narzędzia powłoki Codeksa potrafią podać listę
+    argumentów (``["bash", "-lc", "rm -rf …"]``). Lista nierozwinięta do tekstu
+    przechodziłaby przez wszystkie kontrole jako pusta.
+    """
+    if isinstance(raw, str):
+        return raw
+    if isinstance(raw, (list, tuple)):
+        return " ".join(str(part) for part in raw)
+    return ""
 
 
 def block(reason: str) -> None:
@@ -144,6 +181,15 @@ def guard_inline_code(command: str, markers: list[str]) -> None:
     if _SHELL_OUT.search(command):
         block("kod interpretera wychodzi do powłoki nad źródłami")
 
+    # Reguła ostateczna dla kodu inline. Reguły wyżej wiążą ścieżkę z konkretnym
+    # wywołaniem, więc omija je wszystko, co ścieżkę schowa: `src='…'; rmtree(src)`
+    # albo `os.chdir('…'); os.remove('x')`. W programie, który JEDNOCZEŚNIE
+    # wymienia katalog źródeł i zawiera czasownik mutujący, nie ma czego
+    # rozstrzygać — blokujemy. Fałszywy alarm na odczycie jest tańszy niż
+    # skasowane źródła; do pracy na plikach repo służą narzędzia Edit/Write.
+    if contains_source_marker(command, markers) and _INLINE_MUTATION.search(command):
+        block("kod interpretera miesza mutację ze ścieżką źródeł")
+
 
 def guard_bash(command: str, markers: list[str]) -> None:
     if not contains_source_marker(command, markers):
@@ -162,6 +208,10 @@ def guard_bash(command: str, markers: list[str]) -> None:
     # Kod podany interpreterowi wprost omija listę słów powłoki powyżej.
     if _INLINE_CODE.search(command):
         guard_inline_code(command, markers)
+
+    # `python3 -m zipfile -e archiwum.zip ŹRÓDŁA/dir` zapisuje bez kodu inline.
+    if _MODULE_WRITE.search(command):
+        block("moduł Pythona zapisujący na dysk w obrębie źródeł")
 
     # `find ... -delete` kasuje bez wywołania `rm`, więc nie ma tokenu do złapania.
     if re.search(r"(^|\s)-delete(\s|$)", command):
@@ -186,12 +236,13 @@ def guard_bash(command: str, markers: list[str]) -> None:
         tokens = segment.strip().split()
         if not tokens:
             continue
-        if (
-            tokens[0] in ("cp", "rsync", "install")
-            and len(tokens) >= 3
-            and contains_source_marker(tokens[-1], markers)
-        ):
-            block(f"cel kopiowania w źródłach: {tokens[-1]}")
+        if tokens[0] in ("cp", "rsync", "install", "scp", "ditto", "rclone"):
+            # Celem jest KAŻDY argument pozycyjny poza pierwszym, nie tylko ostatni:
+            # `cp /tmp/x ŹRÓDŁA/dir/ --no-preserve=mode` ma cel w środku komendy.
+            positional = [token for token in tokens[1:] if not token.startswith("-")]
+            for destination in positional[1:]:
+                if contains_source_marker(destination, markers):
+                    block(f"cel kopiowania w źródłach: {destination}")
         if tokens[0] == "tar" and re.search(r"(^|\s)-[a-zA-Z]*x|(\s|^)x", segment) and "-C" in tokens:
             index = tokens.index("-C")
             destination = tokens[index + 1] if index + 1 < len(tokens) else ""
@@ -202,13 +253,39 @@ def guard_bash(command: str, markers: list[str]) -> None:
             destination = tokens[index + 1] if index + 1 < len(tokens) else ""
             if contains_source_marker(destination, markers):
                 block(f"rozpakowanie do źródeł: {destination}")
-        if (
-            tokens[0] == "git"
-            and len(tokens) > 1
-            and tokens[1] in ("init", "clean", "checkout", "reset")
-            and contains_source_marker(segment, markers)
+        if tokens[0] in ("zip", "7z", "7za", "7zr", "rar") and contains_source_marker(
+            segment, markers
         ):
-            block("operacja git w obrębie źródeł")
+            # Archiwizatory ZAPISUJĄ archiwum wskazane pozycyjnie (`zip ŹRÓDŁA/a.zip …`)
+            # albo katalog docelowy z `-o` (7z). Odczyt ze źródeł idzie przez
+            # `unzip`/`tar -x`, które mają własne, węższe reguły niżej.
+            block(f"archiwizator z celem w źródłach: {segment[:80]}")
+
+        if tokens[0] == "tar":
+            # Tworzenie archiwum (`c`) zapisuje, rozpakowanie (`x`) czyta — a flagi
+            # bywają sklejone (`-cf`, `czf`, bez myślnika), więc szukanie osobnego
+            # tokenu `-f` gubiło cel. Rozpakowanie ZE źródeł zostaje dozwolone.
+            creating = any(
+                re.fullmatch(r"-?[a-zA-Z]*c[a-zA-Z]*", token) for token in tokens[1:3]
+            ) or any(token in ("--create",) for token in tokens[1:])
+            if creating:
+                archive = ""
+                for flag_index, token in enumerate(tokens[1:], start=1):
+                    if token.startswith("--file="):
+                        archive = token.split("=", 1)[1]
+                    elif re.fullmatch(r"-?[a-zA-Z]*f", token) and flag_index + 1 < len(tokens):
+                        archive = tokens[flag_index + 1]
+                if archive and contains_source_marker(archive, markers):
+                    block(f"tworzenie archiwum w źródłach: {archive}")
+
+        if tokens[0] == "git" and contains_source_marker(segment, markers):
+            # Wcześniej sprawdzany był wyłącznie `tokens[1]`, więc `git -C ŹRÓDŁA
+            # clean -xfd` (podkomenda na trzeciej pozycji) przechodził. Teraz
+            # reguła jest odwrotna i zawodzi w stronę blokady: przepuszczamy
+            # tylko jawnie znane podkomendy WYŁĄCZNIE czytające.
+            subcommand = next((token for token in tokens[1:] if not token.startswith("-")), "")
+            if subcommand not in _GIT_READ_ONLY:
+                block(f"operacja git w obrębie źródeł: {subcommand or 'git'}")
 
 
 def main() -> None:
@@ -234,12 +311,16 @@ def main() -> None:
         guard_file_path(tool, tool_input, sources, event_cwd)
         return
 
-    command = tool_input.get("command", "") or ""
-    if not isinstance(command, str):
-        return
+    # Nazwa narzędzia powłoki zależy od hosta: Claude Code woła je `Bash`, Codex
+    # ma własne (`shell`, `local_shell`), a kolejne wersje mogą dodać następne.
+    # Guard NIE MOŻE od tego zależeć — wcześniej `elif tool == "Bash"` sprawiał,
+    # że dla każdej innej nazwy hook kończył bez jednej kontroli. Reguła jest
+    # teraz odwrotna i zawodzi w stronę blokady: cokolwiek niesie `command`,
+    # przechodzi przez kontrolę komendy.
+    command = _command_text(tool_input.get("command"))
     if tool == "apply_patch":
         guard_patch(command, markers)
-    elif tool == "Bash":
+    elif command:
         guard_bash(command, markers)
 
 

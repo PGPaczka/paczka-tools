@@ -70,14 +70,38 @@ Wspólny guard źródeł: `.agents/hooks/guard-sources.py`. Claude wywołuje go 
 
 Guard blokuje mutację źródeł także wtedy, gdy nie wygląda ona jak `rm`: kod
 podany interpreterowi wprost (`python3 -c`, `perl -e`, `node -e`, heredoc na
-stdin), `find -delete`, zapis wskazany flagą (`cp -t`, `sort -o`) i wymuszone
-nadpisanie `>|`. Czysty odczyt źródeł przechodzi — łącznie z `tar -xf`
-rozpakowującym **ze** źródeł gdzie indziej i `grep -f` czytającym stamtąd wzorce.
-Obie strony tego kompromisu pilnuje `tests/test_agent_guard.py`; przy zmianach
+stdin), `python3 -m zipfile`, `find -delete`, zapis wskazany flagą (`cp -t`,
+`sort -o`), cel kopiowania stojący nie na końcu komendy, archiwizatory
+(`zip`, `7z`, `tar -c`) z celem w źródłach, każda podkomenda `git` spoza listy
+wyłącznie czytających (także wskazana przez `-C`/`--work-tree`) i wymuszone
+nadpisanie `>|`.
+
+**Guard nie zależy od nazwy narzędzia.** Hosty nazywają powłokę różnie (Claude:
+`Bash`, Codex: `shell`/`local_shell`), a komenda bywa listą argumentów zamiast
+stringiem. Hook reaguje na TREŚĆ zdarzenia, a matchery w `.claude/settings.json`
+i `.codex/hooks.json` są odpowiednio szerokie — wcześniejsze `elif tool ==
+"Bash"` sprawiało, że dla narzędzi Codeksa hook kończył bez ani jednej kontroli.
+
+Czysty odczyt źródeł przechodzi — łącznie z `tar -xf` rozpakowującym **ze**
+źródeł gdzie indziej, `grep -f` czytającym stamtąd wzorce, `git -C … log` i
+jednolinijkowcem, który źródła czyta. **Zwężenie z 2026-09-18:** kod inline,
+który jednocześnie wymienia katalog źródeł i zawiera czasownik mutujący, jest
+blokowany nawet wtedy, gdy mutacja dotyczy pliku poza źródłami — przy ścieżce
+schowanej w zmiennej albo w `os.chdir` nie da się tego rzetelnie rozstrzygnąć.
+Wynik takiego odczytu wyprowadzaj przekierowaniem powłoki (`> /tmp/raport.txt`)
+albo skryptem w `scripts/`; oba warianty są dozwolone i objęte testami.
+
+Obie strony kompromisu pilnuje `tests/test_agent_guard.py`; przy zmianach
 w hooku dopisuj tam zarówno próbę obejścia, jak i wariant odczytu, który ma
-nadal działać. Guard jest ostatnią barierą, nie pierwszą: dopasowuje ścieżki po
-tekście komendy, więc świadomie zaciemniony zapis (zmienna, `base64`, własny
-skrypt) go ominie — to nie jest zaproszenie do próbowania (reguła 14).
+nadal działać. Listy słów mutujących są w testach **wypisane wprost**, a nie
+czytane z hooka: parametryzacja po liście z implementacji jest pusta, bo jej
+skrócenie skraca też zestaw przypadków (sprawdzone — dało się wyciąć listy do
+dwóch słów przy 32 zielonych testach). Osobny test pilnuje, że hook jest
+w ogóle **podpięty** w configach obu hostów.
+
+Guard jest ostatnią barierą, nie pierwszą: dopasowuje ścieżki po tekście
+komendy, więc świadomie zaciemniony zapis (`base64`, własny skrypt) go ominie —
+to nie jest zaproszenie do próbowania (reguła 14).
 
 ## Model operacyjny
 
