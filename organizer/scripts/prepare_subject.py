@@ -1,4 +1,9 @@
-"""B1: wycinek manifestu jednego przedmiotu z indeksu SQLite, bez skanu źródeł."""
+"""B1: wycinek manifestu jednego przedmiotu z indeksu SQLite, bez skanu źródeł.
+
+Materiałów nie otwiera. Jedyne pliki czytane z dysku to głowy tekstu zapisane
+wcześniej przez etap extract (B2) w ``work`` — trafiają do pola ``text_head``,
+żeby klasyfikacja AI (B5) widziała treść, a nie samą nazwę pliku.
+"""
 
 from __future__ import annotations
 
@@ -12,9 +17,52 @@ from typing import Optional, Sequence
 import typer
 
 from orglib import config, db
+from orglib.llm_client import truncate_head
 from orglib.subject_manifest import build_manifest
 
 app = typer.Typer(add_completion=False, help=__doc__)
+
+
+def _text_head_limit() -> int:
+    """Ile bajtów głowy tekstu wchodzi do manifestu (ten sam próg, co wsad do modelu)."""
+    llm = config.load_thresholds().get("llm") or {}
+    return int(llm.get("max_text_head_bytes", 2048))
+
+
+def _text_heads(
+    conn: sqlite3.Connection, wanted: set[str], paths: config.Paths, limit: int
+) -> dict[str, str]:
+    """Głowy tekstu z etapu extract (B2) dla treści obecnych w manifeście.
+
+    Czyta wyłącznie pliki wyprodukowane przez ``extract_text.py`` w ``work``.
+    Wpis wskazujący drzewo materiałów (źródła, repo docelowe, media) jest
+    pomijany — manifest nie jest ścieżką do czytania materiałów bokiem.
+    Brak pliku, brak ekstrakcji i pusty tekst dają po prostu brak klucza.
+    """
+    if not wanted or limit < 1:
+        return {}
+    protected = [Path(os.path.abspath(p)) for p in (paths.sources, paths.target_repo, paths.media)]
+    heads: dict[str, str] = {}
+    for row in conn.execute(
+        "SELECT sha256, extracted_text_path FROM content WHERE extracted_text_path IS NOT NULL"
+    ):
+        sha = str(row["sha256"])
+        if sha not in wanted:
+            continue
+        path = Path(str(row["extracted_text_path"]))
+        if not path.is_absolute():
+            path = paths.work / path
+        absolute = Path(os.path.abspath(path))
+        if any(absolute.is_relative_to(root) for root in protected):
+            continue
+        try:
+            text = absolute.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        head = truncate_head(text, limit).strip()
+        if head:
+            heads[sha] = head
+    return heads
 
 
 def default_output(subject: config.Subject, subjects: Sequence[config.Subject]) -> Path:
@@ -100,8 +148,15 @@ def prepare(
                     f"nieobsługiwana schema_version={version}; oczekiwano {db.SCHEMA_VERSION}"
                 )
             rows = build_manifest(conn, subject, subjects)
+            heads = _text_heads(
+                conn, {str(row["sha256"]) for row in rows}, paths, _text_head_limit()
+            )
         finally:
             conn.close()
+        for row in rows:
+            head = heads.get(str(row["sha256"]))
+            if head:
+                row["text_head"] = head
         _write_atomic(rows, output)
     except (KeyError, ValueError, OSError, sqlite3.DatabaseError) as exc:
         typer.echo(f"Błąd przygotowania manifestu: {exc}", err=True)

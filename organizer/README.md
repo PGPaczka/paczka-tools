@@ -50,6 +50,9 @@ Kolejność uruchamiania (robione raz, na całości źródeł):
 6. `python scripts/scan_target.py` — skanuje istniejącą `paczka/` w repo
    docelowym jako ground truth: content + status `applied` + klasyfikacja
    `manual`, conf=1.0.
+7. `python scripts/extract_text.py` (`just extract`) — głowa tekstu unikalnych
+   treści do `20_WORK/extracted_text/{sha256}.txt` + podpisy podobieństwa
+   (`normalized_text_hash`, `simhash`, `perceptual_hash`), status `extracted`.
 
 | Skrypt | Wejście | Wyjście | Wznawialność / uwagi |
 |---|---|---|---|
@@ -59,6 +62,7 @@ Kolejność uruchamiania (robione raz, na całości źródeł):
 | `fold_hash.py` | `folders`/`files` z bazy | `folders.duplicate_of`, `reports/folder_overlap.csv` | dwa przejścia (FK); próg z `config/thresholds.yaml`; `--no-overlap` pomija raport |
 | `dedup_report.py` | baza (`content`/`files`/`folders`) | `reports/dedup_summary.md`, `reports/inventory.jsonl` | tylko odczyt bazy, bez zapisu do źródeł ani do dysku poza `reports/` |
 | `scan_target.py` | `paczka/` w `target_repo` (read-only) | `files` → status `applied`, klasyfikacja `manual` conf=1.0 | `--limit`/`--batch`; nie modyfikuje `target_repo`, tylko odczyt |
+| `extract_text.py` | `files` w statusie `hashed` (bez poddrzew `duplicate_of`) | `20_WORK/extracted_text/{sha256}.txt`, `content.extracted_text_path`/`ocr_done`, `files.normalized_text_hash`/`simhash`/`perceptual_hash`, `files` → `extracted` | praca raz na sha256 (druga kopia i re-run biorą tekst z dysku, `--force` wymusza ponownie); OCR awaryjny tylko dla PDF bez warstwy tekstowej (`--no-ocr` wyłącza, `--ocr-images` dokłada obrazy); brak tekstu ≠ błąd |
 
 Uwagi:
 
@@ -68,6 +72,11 @@ Uwagi:
   `.agents/hooks/guard-sources.py` blokuje tam zapis w Claude i Codex.
 - Nic nie jest fizycznie kasowane. Dedup jest logiczny, w bazie
   (`folders.duplicate_of`) — oba foldery/pliki zostają na dysku.
+- `extract_text.py` czyta źródła wyłącznie do odczytu, a zapisuje do `20_WORK`;
+  `--text-dir` wskazujący wnętrze `00_SOURCES`, `target_repo` albo `90_MEDIA`
+  kończy się kodem 2. Rodzaje bez sensownej treści tekstowej (archiwum, media,
+  `.doc`/`.rtf`/`.odt`, `.xlsx`, obraz bez `--ocr-images`) przechodzą na status
+  `extracted` z pustym wynikiem — to nie jest błąd.
 - Kody wyjścia `scan.py`: `0` pełny skan, `3` skan częściowy (coś pominięto —
   nieczytelny katalog, nazwa spoza UTF-8, błąd stat), `1` zły katalog źródeł
   lub nieznana paczka, `2` sprzeczne opcje.
@@ -83,7 +92,7 @@ CLI nad `orglib/llm_client.py` (backend anthropic/openai/`claude -p`/`codex exec
 z `config/thresholds.yaml: llm`, cache po sha256 promptu w `20_WORK/ai_cache.sqlite`);
 smoke test backendów, nieużywany w automatycznym cyklu per-przedmiot.
 
-## Skrypty cyklu per-przedmiot — gotowe B1, B5
+## Skrypty cyklu per-przedmiot — gotowe B1, B2, B5
 
 Po pierwszym przebiegu przygotuj wycinek z **istniejącego indeksu SQLite**:
 
@@ -137,7 +146,12 @@ i bajtowo identyczny wynik dla tego samego indeksu i konfiguracji:
 - `matched_source_paths` — zdrowe kopie będące kandydatami tego przedmiotu;
 - `source_path` — preferowana zdrowa kopia spoza poddrzew `duplicate_of`
   do przyszłej ekstrakcji; `null` oznacza brak takiej kopii i wymaga review;
-- `content_kind`, `size_bytes`, `needs_review`, `review_reasons`.
+- `content_kind`, `size_bytes`, `needs_review`, `review_reasons`;
+- `text_head` — **opcjonalna** głowa tekstu z etapu extract (B2), obcięta
+  do `config/thresholds.yaml: llm.max_text_head_bytes`. Brak klucza oznacza
+  treść bez ekstrakcji albo bez tekstu (archiwum, media, skan bez OCR).
+  Bez wcześniejszego `just extract` klasyfikator AI (B5) widzi wyłącznie
+  nazwy i ścieżki plików.
 
 Dopasowanie wykorzystuje pełne tokeny skrótu, aliasu lub nazwy w komponentach
 ścieżki (również nazwie paczki/pliku), bez rozróżniania wielkości liter,
@@ -150,7 +164,7 @@ uzupełnienia aliasów lub późniejszego review. Wpisy bez poprawnego hasha,
 bez `content`, w stanie `discovered`/`error` nie inicjują kandydatury.
 Semestry magisterskie pozostają poza zakresem (D3).
 
-Dalsze skrypty B2–B14 (poza istniejącym B4) są nadal do implementacji.
+Dalsze skrypty B3 i B6–B14 (poza istniejącymi B2/B4) są nadal do implementacji.
 Nie uruchamiaj jeszcze docelowego Quickstart e2e poniżej.
 
 ## Układ

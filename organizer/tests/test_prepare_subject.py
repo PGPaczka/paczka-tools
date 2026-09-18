@@ -211,3 +211,58 @@ def test_output_file_symlink_is_rejected(workspace, tmp_path):
     result = invoke("--out-dir", str(out))
     assert result.exit_code == 1
     assert other.read_text() == "unchanged"
+
+
+def seed_extracted_text(paths, text, *, stored=None):
+    """Dokłada wynik etapu extract (B2) dla treści zasianej przez seed()."""
+    target = paths.work_extracted_text / f"{SHA}.txt"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(text, encoding="utf-8")
+    conn = db.connect(paths.work_db)
+    db.upsert_content(conn, {
+        "sha256": SHA,
+        "extracted_text_path": stored or target.relative_to(paths.work).as_posix(),
+    })
+    conn.close()
+    return target
+
+
+def manifest_row(output=None):
+    path = output or config.ORGANIZER_ROOT / "reports/AKO/manifest_slice.jsonl"
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def test_text_head_comes_from_extract_stage(workspace):
+    """Głowa tekstu z B2 trafia do manifestu, żeby AI widziało treść, nie samą nazwę."""
+    seed(workspace.work_db)
+    seed_extracted_text(workspace, "Wykład 1: złożoność obliczeniowa\nNotatki")
+    assert invoke().exit_code == 0
+    assert manifest_row()["text_head"] == "Wykład 1: złożoność obliczeniowa\nNotatki"
+
+
+def test_text_head_is_truncated_to_threshold(workspace):
+    """Do manifestu wchodzi głowa o rozmiarze z thresholds.yaml, nie cały dokument."""
+    limit = int((config.load_thresholds()["llm"])["max_text_head_bytes"])
+    seed(workspace.work_db)
+    seed_extracted_text(workspace, "ą" * limit)
+    assert invoke().exit_code == 0
+    head = manifest_row()["text_head"]
+    assert len(head.encode("utf-8")) <= limit
+    assert head == "ą" * (limit // 2)
+
+
+@pytest.mark.parametrize("kind", ["brak_ekstrakcji", "pusty_tekst", "brak_pliku", "poza_work"])
+def test_text_head_absent_without_usable_extraction(workspace, kind):
+    """Brak tekstu, brak pliku i wpis w drzewie materiałów nie dają pola text_head."""
+    seed(workspace.work_db)
+    if kind == "pusty_tekst":
+        seed_extracted_text(workspace, "   \n")
+    elif kind == "brak_pliku":
+        seed_extracted_text(workspace, "treść").unlink()
+    elif kind == "poza_work":
+        podstawiony = workspace.sources / "podstawiony.txt"
+        podstawiony.parent.mkdir(parents=True, exist_ok=True)
+        podstawiony.write_text("materiał źródłowy", encoding="utf-8")
+        seed_extracted_text(workspace, "treść", stored=str(podstawiony))
+    assert invoke().exit_code == 0
+    assert "text_head" not in manifest_row()
