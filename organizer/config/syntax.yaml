@@ -54,31 +54,120 @@ placeholders:
 # =====================================================================
 # KATEGORIE (foldery wewnątrz katalogu przedmiotu)
 # =====================================================================
+# Każda kategoria opisuje:
+#   folder            korzeń kategorii w katalogu przedmiotu (tak, jak jest
+#                     w ground truth — patrz decyzja użytkownika 2026-09-18 niżej);
+#   target_templates  ścieżki, które renderuje klasyfikator (scripts/classify.py),
+#                     od najbardziej szczegółowej; wygrywa PIERWSZA, której
+#                     wszystkie pola ({prowadzacy}, 0{nr_laby}, …) są znane.
+#                     Gdy żadna nie jest kompletna, z ostatniej wypadają segmenty
+#                     z nieznanym polem. Brak klucza = sam `folder`.
+#                     Zapis `0{pole}` znaczy „numer dopełniony do meta.number_padding”.
+#   forms             formy zajęć, przy których kategoria ma sens; brak = zawsze
+#                     (walidacja: przedmiot bez laborek nie dostanie `laboratoria`);
+#   keywords          słowa PREFIKSOWE, którymi klasyfikator rozpoznaje kategorię
+#                     w nazwie pliku, w nazwach katalogów na ścieżce i w głowie
+#                     tekstu. Porównanie po normalizacji (małe litery, bez
+#                     diakrytyków, ł→l) i tylko na granicy słowa, ale jako prefiks,
+#                     bo polski odmienia: `wyklad` łapie „wykłady”, „wykładów”.
+#                     Dobieraj je tak, żeby nie łapały innych słów — dlatego jest
+#                     `wyklad`, a nie `wyk` (to ostatnie łapie „wykres”).
+#   priority          rozstrzyga remis sygnałów o tej samej sile (mniejsza wygrywa).
+#
+# DECYZJA UŻYTKOWNIKA 2026-09-18 (pomiar ground truth: 2201 plików w paczce):
+#   - `egzamin` jest kategorią NAJWYŻSZEGO poziomu (78 przedmiotów, 278 plików);
+#     wcześniejsze `wykład/egzamin` z tego pliku nie miało w repo ANI JEDNEGO pliku;
+#   - książki leżą w `inne/książki` (85 przedmiotów), nie w osobnym `książki/` (1 plik);
+#   - `seminarium` jest realną kategorią (4 przedmioty, wszystkie z formą S).
 categories:
+
+  egzamin:
+    folder: "egzamin"
+    priority: 10
+    # Świadomie BEZ `forms`: w ground truth egzamin mają też przedmioty bez wykładu
+    # (2 × tylko `P`, 1 × bez zadeklarowanych form) — zawężenie do W kasowałoby je.
+    keywords: [egzamin, exam, zalicz, poprawkow]
+    files:
+      - "{skrot}_{rok}_egzamin_grupa_{nr_grupy}.png"           # zdjęcie/skan egzaminu
+      - "{skrot}_{rok}_egzamin.pdf"
+
+  kolokwia:
+    folder: "kolokwia"
+    target_templates:
+      - "kolokwia/kol_0{nr_kolosa}"
+      - "kolokwia"
+    forms: [C, L, W]        # kolokwia mogą dotyczyć różnych form
+    priority: 20
+    keywords: [kolokw, kolos, kartkow]
+    files:
+      - "{skrot}_{rok}_kol_{nr_kol}_{prowadzacy}_grupa_{nr_grupy}.pdf"
+
+  laboratoria:
+    folder: "laboratoria"
+    target_templates:
+      - "laboratoria/{prowadzacy}/lab_0{nr_laby}"
+      - "laboratoria/wspólne/lab_0{nr_laby}"
+      - "laboratoria/{prowadzacy}"
+      - "laboratoria"
+    forms: [L]
+    priority: 30
+    keywords: [lab, laborator, sprawozdan]
+    files:
+      - "{skrot}_{rok}_lab_0{nr_laby}_instrukcja.pdf"
+      - "{skrot}_{rok}_lab_0{nr_laby}_instrukcja-{prowadzacy}.pdf"
+    subfolders:
+      rozwiazanie:
+        folder: "{skrot}_{rok}_lab_0{nr_laby}_rozw"
+        note: "rozwiązanie laby (kod + materiały); slot semantyczny — rozstrzyga review, nie klasyfikator"
+        files: ["main.cpp", "matma.png"]     # przykładowo
+
+  cwiczenia:
+    folder: "ćwiczenia"
+    target_templates:
+      - "ćwiczenia/{prowadzacy}"
+      - "ćwiczenia"
+    forms: [C]
+    priority: 40
+    keywords: [cwicz, cw]
+    files:
+      - "{skrot}_{rok}_cw_0{nr_cwiczen}-{temat}.pdf"
+
+  projekt:
+    folder: "projekt"
+    target_templates:
+      - "projekt/{rok}_0{nr_projektu}"
+      - "projekt/{rok}"
+      - "projekt"
+    forms: [P]
+    priority: 50
+    keywords: [projekt, project, proj]
+    files:
+      - "{skrot}_{rok}_projekt_instrukcja-{nazwa_projektu}.pdf"
+    subfolders:
+      rozwiazanie:
+        folder: "{skrot}_{rok}_projekt_rozw_{nr_rozwiazania}"
+        note: "pliki rozwiązania projektu"
+        files: ["*.cpp"]      # itp.
+
+  seminarium:
+    folder: "seminarium"
+    forms: [S]
+    priority: 55
+    keywords: [seminar, referat]
 
   wyklad:
     folder: "wykład"
     forms: [W]
+    priority: 60
+    keywords: [wyklad, wykl, lecture, slajd, prezentacj]
     files:
       - "{skrot}_{rok}_merge.pdf"                                   # scalone wykłady
       - "{skrot}_{rok}_wykład_0{nr_wykladu}-{temat_wykladu}.pdf"    # pojedynczy wykład
-    subfolders:
-      egzamin:
-        folder: "egzamin"
-        files:
-          - "{skrot}_{rok}_egzamin_grupa_{nr_grupy}.png"           # zdjęcie/skan egzaminu
-
-  kolokwia:
-    folder: "kolokwia"
-    forms: [C, L, W]        # kolokwia mogą dotyczyć różnych form
-    subfolders:
-      kol:
-        folder: "kol_0{nr_kolosa}"
-        files:
-          - "{skrot}_{rok}_kol_{nr_kol}_{prowadzacy}_grupa_{nr_grupy}.pdf"
 
   opracowania:
     folder: "opracowania"
+    priority: 70
+    keywords: [opracow, notatk, sciag, anki, streszcz, fiszk]
     files:
       - "{skrot}_{rok}_{temat_notatki}.pdf"
       - "{skrot}_{rok}_{temat_opracowania}.pdf"
@@ -91,49 +180,18 @@ categories:
           - "image1.png"          # (image2.png, ...)
           - "main.tex"            # albo main.md / main.typ
 
-  laboratoria:
-    folder: "laboratoria"
-    forms: [L]
-    variants:
-      wspolne:
-        folder: "wspólne/lab_0{nr_laby}"
-        files:
-          - "{skrot}_{rok}_lab_0{nr_laby}_instrukcja.pdf"
-        subfolders:
-          rozwiazanie:
-            folder: "{skrot}_{rok}_lab_0{nr_laby}_rozw"
-            note: "rozwiązanie laby (kod + materiały)"
-            files: ["main.cpp", "matma.png"]     # przykładowo
-      per_prowadzacy:
-        folder: "{prowadzacy}/lab_0{nr_laby}"
-        files:
-          - "{skrot}_{rok}_lab_0{nr_laby}_instrukcja-{prowadzacy}.pdf"
-
-  cwiczenia:
-    folder: "ćwiczenia/{prowadzacy}"
-    forms: [C]
-    files:
-      - "{skrot}_{rok}_cw_0{nr_cwiczen}-{temat}.pdf"
-
-  projekt:
-    folder: "projekt/{rok}_{nr_projektu}"
-    forms: [P]
-    files:
-      - "{skrot}_{rok}_projekt_instrukcja-{nazwa_projektu}.pdf"
-    subfolders:
-      rozwiazanie:
-        folder: "{skrot}_{rok}_projekt_rozw_{nr_rozwiazania}"
-        note: "pliki rozwiązania projektu"
-        files: ["*.cpp"]      # itp.
-
   ksiazki:
-    folder: "książki"
+    folder: "inne/książki"
+    priority: 80
+    keywords: [ksiazk, podrecznik, literatur, book, ebook]
     files:
       - "polecana_literatura_linki.txt"
       - "{tytul}_{rok}.pdf"
 
   inne:
     folder: "inne"
+    priority: 90
+    keywords: [losowe, rozne, misc]
     files:
       - "nagrania.txt"        # linki/ścieżki do nagrań (media poza paczką — patrz media:)
 
@@ -142,6 +200,10 @@ categories:
 # =====================================================================
 outdated:
   folder: "outdated"
+  # Tak ten sam kubełek nazywa się dziś w ground truth (82 przedmioty, 279 plików).
+  # Decyzja użytkownika 2026-09-18: docelowa nazwa to `outdated`; przemianowanie
+  # katalogów w repo to osobna migracja materiałów (TODO D4), nie robota klasyfikatora.
+  legacy_folders: ["stara_paczka"]
   meaning: >
     Materiały nieaktualne z powodu zmiany świata: inny prowadzący, zmieniony
     zakres przedmiotu, zmieniona forma egzaminu. Zachowujemy historię, ale nie
@@ -152,6 +214,27 @@ outdated:
     older_version (nie trafia do outdated).
   decision: "SEMANTYCZNA — zawsze przez review (człowiek/AI z kontekstem), nigdy z automatu z podobieństwa"
   structure: "wewnątrz outdated/ ten sam podział na kategorie co wyżej"
+
+# =====================================================================
+# IGNORE — artefakty kompilacji i środowiska (NIE są materiałem)
+# =====================================================================
+# Klasyfikator daje im `action: skip` z uzasadnieniem. Nic nie jest kasowane:
+# plik zostaje w źródłach, decyzja jest widoczna w plan.det.jsonl i odwracalna
+# (usuń wpis stąd i uruchom etap jeszcze raz).
+#
+# Pomiar na realnych źródłach 2026-09-18: 6832 z 48 049 plików (14,2%) — same
+# `.tlog` to 1750 plików, katalogi `Debug/` 3948. Bez tej reguły review i paczka
+# toną w wyjściu kompilatora zamiast w materiałach.
+ignore:
+  reason: "artefakt kompilacji/środowiska, nie materiał dydaktyczny"
+  # Treść jest pomijana dopiero, gdy KAŻDA jej kopia w źródłach pasuje do reguły —
+  # ten sam plik leżący gdzie indziej jako normalny materiał zostaje sklasyfikowany.
+  extensions: [obj, o, ilk, pdb, tlog, lastbuildstate, idb, exp, res, ncb, suo,
+               sdf, opendb, aps, user, lib, dll, exe, class, pyc, log, tmp, bak]
+  # `log` bywa sporne (bywa wynikiem zadania, nie buildu) — jeśli w jakimś przedmiocie
+  # to materiał, usuń wpis i przelicz etap; nic nie jest utracone.
+  folders: [Debug, Release, x64, ipch, bin, obj, ".vs", ".git", __pycache__,
+            node_modules, ".idea"]
 
 # =====================================================================
 # MEDIA — duże pliki NIE trafiają do paczki (10_NEW/paczka)

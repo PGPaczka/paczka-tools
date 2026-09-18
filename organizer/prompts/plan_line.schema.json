@@ -27,12 +27,14 @@
     "category": {
       "type": "string",
       "enum": [
-        "wyklad",
+        "egzamin",
         "kolokwia",
-        "opracowania",
         "laboratoria",
         "cwiczenia",
         "projekt",
+        "seminarium",
+        "wyklad",
+        "opracowania",
         "ksiazki",
         "inne"
       ],

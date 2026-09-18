@@ -5,6 +5,22 @@ confidence:
   review_min: 0.70      # [review_min, auto_apply) : do szybkiego review
   # < review_min : unresolved
 
+classify:
+  # Siła sygnału w klasyfikacji deterministycznej/heurystycznej (scripts/classify.py).
+  # Wartości są wprost pewnością (confidence) decyzji, więc czytaj je razem z progami
+  # `confidence` wyżej: nazwa pliku i najbliższy katalog wchodzą w auto, sama głowa
+  # tekstu i każdy konflikt kategorii idą do review, a poniżej 0.70 pozycja trafia do
+  # AI jako `unresolved` — to jest cała bramka kosztowa tego etapu.
+  weight_filename: 0.95        # słowo kategorii w NAZWIE pliku
+  weight_folder: 0.90          # słowo kategorii w NAJBLIŻSZYM katalogu ze ścieżki
+                               # (płytszy katalog liczy się o conflict_penalty słabiej)
+  weight_text: 0.74            # słowo kategorii tylko w głowie tekstu (B2)
+  conflict_penalty: 0.12       # dwie kategorie z sygnałem tej samej siły
+  manifest_review_cap: 0.89    # manifest zgłosił niejasność => nigdy auto-apply
+  ground_truth_confidence: 1.0 # treść już leży w paczce (scan_target, run_id=ground_truth)
+  media_confidence: 0.99       # rozszerzenie z syntax.yaml: media.extensions
+  ignore_confidence: 0.99      # artefakt kompilacji wg syntax.yaml: ignore
+
 near_duplicate:
   simhash_hamming_max: 3     # maks. odległość Hamminga simhash uznawana za near-dupe
   minhash_jaccard_min: 0.85  # min. Jaccard (MinHash/LSH) uznawany za near-dupe
