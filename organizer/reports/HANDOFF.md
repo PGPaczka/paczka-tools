@@ -12,15 +12,17 @@
 - Wykonane testy: `just test` 430/430; `tests/test_ai_resolve.py` 77/77; `just skills-check` 5/5; `just agent-doctor` bez błędów (dochodzi kontrola `agy` i wykrywanie nawrotu proxy — zweryfikowane na kopii configu sprzed czyszczenia). Żywe CLI: `claude -p`, `agy -p`, `codex exec` (provider: openai), `just codex` i `just codex-read` wstają jako TUI pod pty. Cache AI zweryfikowany (drugie wywołanie `cached=true`, 0.0 s).
 - Skille/delegacja: testy `ai_resolve` napisał Codex (`codex exec -s workspace-write`, zero tokenów Anthropic). Jego raport nie został wzięty na wiarę — przy przeglądzie wyszło, że wkleił zamrożoną kopię `plan_line.schema.json` do pliku testowego; zastąpiono ją `load_schema()` i dołożono test pilnujący, że stub `syntax.yaml` nie rozjedzie się z realnym plikiem.
 - Następna dokładna czynność: B2 — `scripts/extract_text.py` i testy PDF/DOCX/PPTX, cache, opcjonalny OCR. To odblokuje `text_head` w manifeście, bez którego `ai_resolve.py` klasyfikuje głównie po nazwie i wrzuca nieczytelne skany do `quarantine`.
-- Blokery / otwarte decyzje: **otwarte** — `guard-sources.py` łapie mutacje po słowach powłoki, więc przepuszcza `python3 -c "shutil.rmtree('00_SOURCES/x')"`, `os.remove(...)` oraz `find 00_SOURCES -delete` (zweryfikowane podaniem ładunków wprost do hooka; nic nie wykonano). Blokuje `rm`, `mv`, `xargs rm`. Fix to ~10 linii plus testy, ale zwiększy liczbę fałszywych blokad — czeka na decyzję użytkownika.
+- Blokery / otwarte decyzje: brak. Dziura w `guard-sources.py` zamknięta w `ada28e7`: hook analizuje teraz argumenty i odbiornik wywołania, więc łapie mutacje ukryte w kodzie interpretera (`python3 -c`, `perl -e`, `node -e`, heredoc), `find -delete`, zapis wskazany flagą (`cp -t`, `sort -o`) i wymuszone nadpisanie `>|`, a czysty odczyt nadal przechodzi. Kopiowanie jest asymetryczne: źródłem wolno być katalogowi źródeł, celem nie.
+- Znany, świadomie zostawiony fałszywy alarm guarda: `tee` jest na liście słów twardo mutujących, więc potok ze źródeł do `tee` poza nimi zostanie zablokowany — używaj przekierowania `>`. Ogólniej hook blokuje każdą komendę Bash, której **tekst** zawiera ścieżkę źródeł razem ze słowem mutującym (także w komunikacie commita); w takich wypadkach używaj narzędzi Edit/Write zamiast powłoki.
+- Uruchamianie agentów interaktywnie: rozpisane w `README.md`, sekcja „Agenci interaktywni” (pierwsza konfiguracja, `just claude`, trzy tryby sandboxu Codeksa, przekazywanie argumentów **bez** `--`, potwierdzanie konta). `AGENTS.md` i `CLAUDE.md` tylko tam odsyłają — nie duplikuj tej treści.
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 - Git: `eb96ca4` to lokalny commit narzędzi (19 plików), bez push i bez PR. Drzewo czyste. Materiałów nie dotykano.
 - Zakazy dla następnego agenta: nie wykonuj apply bez jawnej zgody na konkretny plan; nie dodawaj sources jako writable root; nie przywracaj `--ignore-user-config` w delegacji Codeksa; nie przestawiaj `classify`/`relate` z powrotem na `claude_cli` bez decyzji użytkownika; nie commituj materiałów razem z narzędziami.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-09-18T11:18:43+02:00
+- Odświeżono: 2026-09-18T12:07:12+02:00
 - Branch: `master`
-- Commit: `eb96ca4`
+- Commit: `ada28e7`
 - Git status:
   ```text
   (clean)
