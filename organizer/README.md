@@ -176,7 +176,7 @@ CLI nad `orglib/llm_client.py` (backend anthropic/openai/`claude -p`/`codex exec
 z `config/thresholds.yaml: llm`, cache po sha256 promptu w `20_WORK/ai_cache.sqlite`);
 smoke test backendów, nieużywany w automatycznym cyklu per-przedmiot.
 
-## Skrypty cyklu per-przedmiot — gotowe B1, B2, B3, B5
+## Skrypty cyklu per-przedmiot — gotowe B1, B2, B3, B5, B6
 
 Po pierwszym przebiegu przygotuj wycinek z **istniejącego indeksu SQLite**:
 
@@ -228,6 +228,28 @@ z `config/thresholds.yaml` są wiążące: deklaracja modelu nie przepchnie pozy
 obok review. Backend bierze się z `thresholds.yaml: llm` (domyślnie `codex_cli`),
 więc klasyfikacja nie obciąża limitu koordynatora. Skrypt nie dotyka materiałów
 i nie wykonuje `apply`.
+Podobieństwo treści (near-dupe i starsze wersje) liczy osobny etap:
+
+```bash
+just subject-relate 3 AKO --dry-run   # ile par i z której warstwy, nic nie zapisuje
+just subject-relate 3 AKO             # wiersze w `relations` + eksport relations.jsonl
+```
+
+`scripts/near_dupe.py` używa podpisów z etapu extract w trzech warstwach: równość
+`normalized_text_hash` (to samo w innym opakowaniu, pewność 1.0), simhash w progu
+Hamminga (materiał z dopiskiem/poprawką) i phash dla obrazów. Kandydatów dobiera
+przez pasma bitowe (zasada szufladkowa), a nie „każdy z każdym". Gdy obie treści
+mają rozpoznany, różny rok — starsza dostaje relację `older_version` wskazującą
+nowszą; w przeciwnym razie zostaje symetryczne `near_duplicate`, zapisane raz.
+Niczego nie kasuje i **niczego nie oznacza jako `outdated`** — to decyzja człowieka
+(reguła twarda nr 10).
+
+Tu źródłem prawdy jest już baza: etap pisze do tabeli `relations` i eksportuje
+deterministyczny `relations.jsonl` (ślad w gicie, wsad dla review B9 i dla pól
+`related_to`/`relation` w planie B7). Zapis jest **podmianą własnego wycinka** —
+kasuje wyłącznie wiersze z `detection_method` zaczynającym się od `near_dupe:`
+i tylko dla par z przetwarzanego zakresu, więc decyzje ręczne (B14) zostają.
+
 Opcje `--db PLIK` i `--out-dir KATALOG` pozwalają jawnie wskazać indeks oraz
 dokładny katalog wyjściowy. Domyślna baza pochodzi z `config/paths.yaml`.
 Raport zapisuje się atomowo; błąd pozostawia poprzedni raport. Zapis pod

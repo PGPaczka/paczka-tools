@@ -35,6 +35,10 @@ Jeśli para nie istnieje w `subjects.yaml` — STOP i zapytaj.
    treści spoza `plan.det.jsonl` — krok 3 jest bramką kosztową, nie ozdobą. Backend `claude_cli` woła `claude -p` z promptem z `prompts/` (odpowiednik
    `/organizer-ai-resolve`). Do kontekstu wraca: ile rozwiązane, ile nadal `unresolved`, ile
    `needs_review`.
+5a. **relacje podobieństwa** (B6): `just subject-relate $semestr $skrot` (`scripts/near_dupe.py`) →
+   wiersze w `relations` + `relations.jsonl` obok manifestu. Wymaga podpisów z etapu extract.
+   Do kontekstu wraca: ile par, z której warstwy (tekst/simhash/phash) i ile `older_version`.
+   Etap nigdy nie oznacza `outdated` — starsza wersja to relacja, nie wyrok.
 6. **build-move-plan**: `scripts/build_plan.py --semester $semestr --skrot $skrot` →
    `reports/plan.$skrot.$semestr.jsonl` (jedna decyzja/linia, po sha256, z `_meta`).
 7. **validate-plan**: `scripts/validate_plan.py reports/plan.$skrot.$semestr.jsonl --dry-run` — schemat,
