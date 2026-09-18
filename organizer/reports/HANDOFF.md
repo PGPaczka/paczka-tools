@@ -2,48 +2,34 @@
 
 ## Kontekst ręczny
 
-- Cel bieżącej pracy: domyślne lokalne commity zmian narzędzi zgodnie z decyzją użytkownika; zapisanie reorganizacji repo i automatycznego doboru skilli.
-- Aktywny przedmiot `(semestr, skrót, grupa)`: brak — praca infrastrukturalna.
-- Ostatni zakończony krok: reorganizacja zapisana w `0d3e32e` — snapshot drzewa w `reports/SOURCES_TREE.md`, raporty historyczne w `reports/bootstrap/`, dane ECTS w `ects_extractor/data/`, konwerter cookies w `multi-folder-downloader/scripts/` i standardowy README downloadera. Odwołania oraz ścieżki zapisu poprawione; bez push.
-- Wykonane testy: pełny pytest organizera 261/261; unittest downloadera 3/3; unittest ECTS 1/1 (bez sieci, na atrapach); `bash -n` ekstraktora; `git diff --check`; `just --fmt --check`. Pięć przeniesionych plików danych/raportów porównano bajt po bajcie z HEAD — treść identyczna. Reguły ignorowania sekretów, bazy i logów nadal działają.
-- Następny zakończony krok: wszystkie pięć skilli ma `disable-model-invocation: false` i `agents/openai.yaml` z `allow_implicit_invocation: true`. Opisy wskazują warunki użycia, AGENTS dopuszcza dobór z kontekstu; przejścia między procedurami nie wymagają ręcznych komend. Zgoda na konkretny plan przed `apply` oraz reguły commit/push/PR pozostają obowiązkowe.
-- Walidacja skilli naprawiona: `scripts/agent/validate_skills.py` i `just skills-check` sprawdzają metadane Claude, politykę Codexa i współdzielone symlinki. Ogólny `quick_validate.py` ma zbyt wąską listę pól; nie zmieniano go ani nie usuwano potrzebnych ustawień dla zgodności z nim.
-- Decyzja użytkownika o Git: sprawdzone zmiany kodu, konfiguracji, skryptów, testów, dokumentacji i tekstowych raportów technicznych `paczka-tools` koordynator domyślnie commituje lokalnie, bez osobnego pytania. Reguła w głównym `AGENTS.md`, zasadach organizera i skillach. Materiały są wyłączone niezależnie od lokalizacji; przed `apply` nadal jawna zgoda na plan, commit materiałów tylko w zatwierdzonym procesie po `verify`. Push/PR wymagają osobnego polecenia.
-- Skille, walidator i nowa polityka Git stanowią zakres bieżącego commita z tym handoffem. Sekcja AUTO jest snapshotem sprzed jego utworzenia, nie deklaracją końcowego stanu working tree.
-- Testy po zmianie skilli: `just skills-check` 5/5; 32 nowe testy; pełny `just test` 293/293; `just --fmt --check` i `git diff --check` bez błędów. To kontrola statyczna i testy lokalne, nie smoke test automatycznego doboru w żywej sesji hosta. Nie uruchamiano pobierania, ekstrakcji ECTS ani migracji materiałów.
-- Kontrole powtórzone przed commitami: `just test` 293/293, unittest ECTS 1/1, unittest downloadera 3/3, `just skills-check` 5/5, `bash -n`, `just --fmt --check`, `git diff --check`; bez błędów. Sekrety i baza downloadera nadal ignorowane przez Git; materiałów nie zmieniano ani nie dodawano do commitów.
-- Poprzedni etap: infrastruktura agent-agnostic jest w commitach `12f9c60`, `809dea4`, `8f6e5ad`, `d66643f`, dokumentacja w `c0f9d70`. Nadal bez smoke testu rzeczywistego subagenta i pełnej sesji Claude.
-- Następna dokładna czynność: TODO B1 — zaimplementować `scripts/prepare_subject.py` i testy wycinka manifestu.
-- Blokery / otwarte decyzje: brak dla reorganizacji. Pełne `subject-start` i `subject-pr` w `justfile` czekają na B1–B14. Starszy generator struktury ECTS nadal ma `main_dir="../../../"` względem CWD — ostrzeżenie jest w jego nowym README; nie był uruchamiany.
-- Stan akceptacji planu: `brak` — nie trwa cykl przedmiotu.
-- Zakazy dla następnego agenta: nie wykonuj `apply`; nie dodawaj `00_SOURCES` jako writable root; nie usuwaj globalnego CCR.
+- Cel bieżącej pracy: rozpoczęcie sekcji B od kompletnego B1 — skryptu wycinka manifestu i testów. Zakończony spójny zakres, nie cały cykl B1–B14.
+- Aktywny przedmiot `(semestr, skrót, grupa)`: brak — implementacja narzędzi na syntetycznych danych; nie uruchamiano pilotażu ani operacyjnej bazy.
+- Ostatni zakończony krok: `scripts/prepare_subject.py`, `scripts/orglib/subject_manifest.py` oraz działający `just subject-prepare`. Baza tylko SELECT, `mode=ro` i `query_only`; bez skanu źródeł, zmian statusów, ground truth, AI ani apply.
+- Kontrakt B1: manifest v1 ma jeden rekord/SHA-256, pełne `source_paths`, osobne `matched_source_paths`, zdrowego reprezentanta spoza dowolnego przodka `duplicate_of` w `source_path` (albo null + review). Rozmiar pochodzi od reprezentanta; niespójności kopii trafiają do review. To lista kandydatów, nie klasyfikacja.
+- Dopasowanie: tokeny skrótu/aliasu/nazwy, normalizacja polskich znaków i separatorów; jawny semestr/grupa zawęża, brak lub konflikt daje review. Priorytet pełnej nazwy/skrótu/aliasu działa w obrębie semestru. `magisterskie` poza zakresem D3. Brak fuzzy; nieznane nazwy nadal wymagają aliasów/przeglądu.
+- Ścieżki raportów: dla unikalnego skrótu `reports/{SKROT}/manifest_slice.jsonl`; powtarzany skrót izolowany przez `reports/SEM{semester}/{grupa}/{SKROT}/manifest_slice.jsonl`. Jawny `--out-dir` jest dokładnym katalogiem i wymaga od operatora rozdzielenia raportów. README opisuje pełny kontrakt.
+- Bezpieczeństwo zapisu: atomowa podmiana manifestu, bez nadpisania DB (także hardlink), bez pliku-symlinku i bez zapisu w chronionych drzewach również przez symlinki. Baza nie może leżeć w drzewie materiałów ze względu na pomocnicze pliki SQLite WAL/SHM. Ścieżki pochodzenia w indeksie odrzucają traversal.
+- Wykonane testy: bazowy zestaw przed zmianami 293/293; nowe jednostkowe i CLI 59/59; końcowy `just test` 352/352; `just skills-check` 5/5; `just --fmt --check`, `git diff --check` i `just subject-prepare 3 AKO --help` bez błędów. Wszystkie nowe testy wyłącznie na syntetycznych indeksach w tmp_path. Nie wykonywano testu na realnych materiałach.
+- Skille/delegacja: wykorzystano procedurę implementacji brakującego skryptu ze skillu `organizer-subject`, bez rozpoczynania jego workflow materiałów. Żądane słabsze subagenty nie wykonały pracy: Sonnet odrzucony przez konfigurację reasoning, dwa uruchomienia Fable zakończone `401 Unauthorized` routera; model odziedziczony nieobsługiwany przez narzędzie delegacji. Kod, testy i review wykonał koordynator lokalnie; nie zmieniano routera ani uwierzytelnienia. Niezależny review subagenta pozostaje niewykonany.
+- Następna dokładna czynność: B2 — zaimplementować `scripts/extract_text.py` i testy PDF/DOCX/PPTX, cache oraz opcjonalnego OCR. Konsumować manifest v1 po SHA-256, nie ekstrahować z poddrzew duplicate_of; respektować null reprezentanta/review, przed otwarciem ponownie sprawdzać containment źródła i hash. Ścieżki cache tylko z configu; nadal bez apply.
+- Blokery / otwarte decyzje: brak blokera dla dalszego kodowania lokalnego. Delegacja wymaga naprawy dostępności/autoryzacji modeli poza zakresem B1. Dalsze etapy B2–B14 (poza B4) i e2e nadal niegotowe.
+- Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
+- Git: zakres B1 z tym handoffem przeznaczony do lokalnego commita narzędzi po przeglądzie; bez push/PR. Sekcja AUTO jest snapshotem sprzed tego commita. Poprzedni stan infrastruktury/skilli jest w `99250e8`; brak odziedziczonych zmian roboczych.
+- Zakazy dla następnego agenta: nie wykonuj apply bez jawnej zgody na konkretny plan; nie dodawaj sources jako writable root; nie zmieniaj routera w ramach B2; nie commituj materiałów razem z narzędziami.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-09-18T01:38:40+02:00
+- Odświeżono: 2026-09-18T01:57:49+02:00
 - Branch: `master`
-- Commit: `0d3e32e`
+- Commit: `99250e8`
 - Git status:
   ```text
-  M .claude/agents/readme-generator.md
-   M .claude/skills/organizer-ai-resolve/SKILL.md
-   M .claude/skills/organizer-first-pass/SKILL.md
-   M .claude/skills/organizer-review/SKILL.md
-   M .claude/skills/organizer-ship/SKILL.md
-   M .claude/skills/organizer-subject/SKILL.md
-   M AGENTS.md
-   M README.md
-   M SKILLS.md
+  M README.md
    M TODO.md
    M justfile
-   M reports/HANDOFF.md
-  ?? ../AGENTS.md
-  ?? .claude/skills/organizer-ai-resolve/agents/
-  ?? .claude/skills/organizer-first-pass/agents/
-  ?? .claude/skills/organizer-review/agents/
-  ?? .claude/skills/organizer-ship/agents/
-  ?? .claude/skills/organizer-subject/agents/
-  ?? scripts/agent/validate_skills.py
-  ?? tests/test_skills.py
+  ?? scripts/orglib/subject_manifest.py
+  ?? scripts/prepare_subject.py
+  ?? tests/test_prepare_subject.py
+  ?? tests/test_subject_manifest.py
   ```
-- Pierwsze otwarte TODO: - [ ] B1. `scripts/prepare_subject.py --semester N --skrot X` — wycinek manifestu przedmiotu (kandydaci po ścieżce/aliasach) → `reports/{SKROT}/manifest_slice.jsonl`
+- Pierwsze otwarte TODO: - [ ] B2. `scripts/extract_text.py` — głowa tekstu (PDF/DOCX/PPTX, OCR awaryjnie) do `20_WORK/extracted_text/{sha256}.txt`, `normalized_text_hash`, `simhash`, `phash`; tylko unique, status `extracted`
 <!-- END AUTO -->

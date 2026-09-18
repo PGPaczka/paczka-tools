@@ -83,6 +83,61 @@ CLI nad `orglib/llm_client.py` (backend anthropic/openai/`claude -p`/`codex exec
 z `config/thresholds.yaml: llm`, cache po sha256 promptu w `20_WORK/ai_cache.sqlite`);
 smoke test backendów, nieużywany w automatycznym cyklu per-przedmiot.
 
+## Skrypty cyklu per-przedmiot — gotowe B1
+
+Po pierwszym przebiegu przygotuj wycinek z **istniejącego indeksu SQLite**:
+
+```bash
+just subject-prepare 3 AKO
+# Stary alias też działa: just subject-prepare 3 AK
+# Kolizja SI w SEM7 wymaga grupy:
+just subject-prepare 7 SI --grupa KASK_Architektura_Systemów_Komputerowych
+just subject-prepare 3 AKO --help
+```
+
+`scripts/prepare_subject.py` nie otwiera materiałów, nie wywołuje AI i nie
+modyfikuje statusów ani klasyfikacji, w tym ground truth. Baza jest otwierana
+w trybie SQLite `mode=ro` / `query_only`, bez inicjalizacji schematu.
+Opcje `--db PLIK` i `--out-dir KATALOG` pozwalają jawnie wskazać indeks oraz
+dokładny katalog wyjściowy. Domyślna baza pochodzi z `config/paths.yaml`.
+Raport zapisuje się atomowo; błąd pozostawia poprzedni raport. Zapis pod
+`sources`, `target_repo`, `media` (także przez symlink), nadpisanie bazy oraz
+symlink jako plik wyjściowy są odrzucane. Również baza nie może leżeć w tych
+chronionych drzewach: SQLite może potrzebować pomocniczych plików WAL/SHM.
+
+Domyślnie wynik trafia do `reports/{SKROT}/manifest_slice.jsonl`, np.
+`reports/AKO/manifest_slice.jsonl`. Jeżeli kanoniczny skrót powtarza się w
+katalogu przedmiotów, ścieżka zawiera pełną tożsamość:
+`reports/SEM{semester}/{grupa}/{SKROT}/manifest_slice.jsonl`. Dzięki temu
+kolejne przygotowanie SI/WFI/SK nie nadpisuje raportu innego przedmiotu.
+Jawny `--out-dir` omija ten automatyczny podział — używaj osobnych katalogów.
+
+**Kontrakt manifestu v1:** jeden obiekt JSON na SHA-256, stabilny porządek
+i bajtowo identyczny wynik dla tego samego indeksu i konfiguracji:
+
+- `schema_version`, `sha256`, `source_sha256` (oba hashe równe);
+- `semester`, `subject_key` (kanoniczny skrót), `grupa`, `target_dir`;
+- `source_paths` — wszystkie zindeksowane kopie treści, także poza
+  dopasowanym przedmiotem i w folderach-duplikatach;
+- `matched_source_paths` — zdrowe kopie będące kandydatami tego przedmiotu;
+- `source_path` — preferowana zdrowa kopia spoza poddrzew `duplicate_of`
+  do przyszłej ekstrakcji; `null` oznacza brak takiej kopii i wymaga review;
+- `content_kind`, `size_bytes`, `needs_review`, `review_reasons`.
+
+Dopasowanie wykorzystuje pełne tokeny skrótu, aliasu lub nazwy w komponentach
+ścieżki (również nazwie paczki/pliku), bez rozróżniania wielkości liter,
+separatorów i polskich znaków. Rozpoznaje m.in. `SEM3`, `sem_3`, `semestr III`.
+Jawny inny semestr/grupa wyklucza dopasowanie; brak semestru, kolizja nazw,
+sprzeczne pochodzenie albo rozmiary oznaczają review. B1 **nie jest
+klasyfikatorem**: nie nadaje confidence, kategorii ani zgody na kopiowanie.
+Fuzzy i treść dokumentów nie są tu używane; nieznane warianty nazw wymagają
+uzupełnienia aliasów lub późniejszego review. Wpisy bez poprawnego hasha,
+bez `content`, w stanie `discovered`/`error` nie inicjują kandydatury.
+Semestry magisterskie pozostają poza zakresem (D3).
+
+Dalsze skrypty B2–B14 (poza istniejącym B4) są nadal do implementacji.
+Nie uruchamiaj jeszcze docelowego Quickstart e2e poniżej.
+
 ## Układ
 
 ```

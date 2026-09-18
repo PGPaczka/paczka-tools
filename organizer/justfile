@@ -55,11 +55,11 @@ scan-target *args:
 llm task prompt_file *args:
     {{ python }} scripts/llm_client.py --task {{ task }} --prompt-file {{ prompt_file }} {{ args }}
 
-# Stabilne nazwy kolejnych etapów. Zaczną działać, gdy odpowiadające im skrypty z TODO B1-B14 powstaną.
+# B1: wycinek indeksu jednego przedmiotu, bez zmian materiałów.
 subject-prepare semester skrot *args:
-    @test -f scripts/prepare_subject.py || { echo "Brak scripts/prepare_subject.py (TODO B1)" >&2; exit 2; }
     {{ python }} scripts/prepare_subject.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
 
+# Stabilne nazwy dalszych etapów — czekają na skrypty z TODO B2-B14.
 subject-plan semester skrot *args:
     @test -f scripts/build_plan.py || { echo "Brak scripts/build_plan.py (TODO B7)" >&2; exit 2; }
     {{ python }} scripts/build_plan.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
