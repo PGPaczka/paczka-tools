@@ -176,7 +176,7 @@ CLI nad `orglib/llm_client.py` (backend anthropic/openai/`claude -p`/`codex exec
 z `config/thresholds.yaml: llm`, cache po sha256 promptu w `20_WORK/ai_cache.sqlite`);
 smoke test backendów, nieużywany w automatycznym cyklu per-przedmiot.
 
-## Skrypty cyklu per-przedmiot — gotowe B1, B2, B5
+## Skrypty cyklu per-przedmiot — gotowe B1, B2, B3, B5
 
 Po pierwszym przebiegu przygotuj wycinek z **istniejącego indeksu SQLite**:
 
@@ -192,6 +192,26 @@ just subject-prepare 3 AKO --help
 modyfikuje statusów ani klasyfikacji, w tym ground truth. Baza jest otwierana
 w trybie SQLite `mode=ro` / `query_only`, bez inicjalizacji schematu.
 
+Potem klasyfikacja deterministyczna i heurystyczna — bez AI i bez kosztu:
+
+```bash
+just subject-classify 3 AKO --dry-run   # rozkład decyzji, nic nie zapisuje
+just subject-classify 3 AKO             # plan.det.jsonl + unresolved.jsonl obok manifestu
+```
+
+`scripts/classify.py` czyta manifest i rozstrzyga kolejno: treść już leżącą
+w paczce (ground truth z `classifications`, `run_id='ground_truth'`) → artefakt
+kompilacji (`syntax.yaml: ignore`; w źródłach to 14,2% plików) → media poza paczkę
+→ słowa kluczowe kategorii z `syntax.yaml: categories.*.keywords`, szukane w nazwie
+pliku, w **najbliższym** katalogu ze ścieżki i w głowie tekstu z etapu extract.
+Siła sygnału jest wprost pewnością decyzji (`thresholds.yaml: classify`), a progi
+`confidence` decydują, co idzie automatem, co do review, a co do AI. Nazwy plików
+zostają oryginalne: kanoniczna nazwa z `syntax.yaml` wymaga TEMATU, którego nie da
+się wyprowadzić bez zgadywania — to miękkie ostrzeżenie dla validatora, nie błąd.
+
+Skrypt niczego nie zapisuje do bazy (czyta ją wyłącznie po ground truth) i jest
+w pełni odtwarzalny: ten sam manifest daje bajt w bajt ten sam plan.
+
 Pozycje, których deterministyka nie rozstrzygnęła, domyka klasyfikator AI:
 
 ```bash
@@ -201,7 +221,9 @@ just subject-ai-resolve 3 AKO              # reszta; sha256 już zapisane są po
 ```
 
 `scripts/ai_resolve.py` zapisuje `plan.ai.jsonl` obok manifestu — jedna linia na
-sha256, walidowana wobec `prompts/plan_line.schema.json`. Progi `confidence`
+sha256, walidowana wobec `prompts/plan_line.schema.json`. Gdy obok leży
+`plan.det.jsonl` z B3, do modelu idą **dokładnie** te treści, których w nim nie ma
+(`--ignore-det-plan` wyłącza tę bramkę, `--det-plan` wskazuje inny plik). Progi `confidence`
 z `config/thresholds.yaml` są wiążące: deklaracja modelu nie przepchnie pozycji
 obok review. Backend bierze się z `thresholds.yaml: llm` (domyślnie `codex_cli`),
 więc klasyfikacja nie obciąża limitu koordynatora. Skrypt nie dotyka materiałów

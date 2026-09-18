@@ -23,14 +23,16 @@ Jeśli para nie istnieje w `subjects.yaml` — STOP i zapytaj.
 2. **extract-text**: `scripts/extract_text.py --semester $semestr --skrot $skrot` — tylko poddrzewa
    `unique` przypisane do przedmiotu (fuzzy po komponentach ścieżki, aliasy). OCR tylko na żądanie.
    Uruchom przez `just`/skrypt; do kontekstu wraca tylko licznik plików + błędy.
-3. **classify-deterministic**: `scripts/classify.py --semester $semestr --skrot $skrot` → wpisy
-   `classifications` (method=deterministic/heuristic) + kolejka `unresolved`. Sprawdź `forms`
-   (np. ME bez laboratoriów).
+3. **classify-deterministic**: `just subject-classify $semestr $skrot` (`scripts/classify.py`) →
+   `plan.det.jsonl` (decyzje wg `prompts/plan_line.schema.json`) i `unresolved.jsonl` (kolejka dla
+   AI, w kształcie manifestu) obok manifestu. Bazy nie zmienia — czyta ją tylko po ground truth.
+   Do kontekstu wraca podsumowanie: ile rozstrzygnięte, rozkład akcji i kategorii, ile `needs_review`,
+   ile `unresolved`. Sprawdź `forms` (np. ME bez laboratoriów) i próbkę ścieżek docelowych.
 4. **unresolved?** Jeśli kolejka pusta → krok 6. Jeśli nie:
 5. **AI dla resztek** — NIE w tym kontekście. Uruchom `scripts/ai_resolve.py --semester $semestr --skrot
    $skrot` (backend i model per zadanie z `config/thresholds.yaml: llm.classify` / `llm.relate`;
-   domyślnie `agy_cli` = Gemini flash przez `agy -p --sandbox`, zero tokenów Anthropic; cache po
-   sha256). Backend `claude_cli` woła `claude -p` z promptem z `prompts/` (odpowiednik
+   domyślnie `codex_cli` = OpenAI, zero tokenów Anthropic; cache po sha256). Model dostaje tylko
+   treści spoza `plan.det.jsonl` — krok 3 jest bramką kosztową, nie ozdobą. Backend `claude_cli` woła `claude -p` z promptem z `prompts/` (odpowiednik
    `/organizer-ai-resolve`). Do kontekstu wraca: ile rozwiązane, ile nadal `unresolved`, ile
    `needs_review`.
 6. **build-move-plan**: `scripts/build_plan.py --semester $semestr --skrot $skrot` →

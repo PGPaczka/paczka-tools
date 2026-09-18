@@ -2,9 +2,9 @@
 
 ## Kontekst ręczny
 
-- Cel bieżącej pracy: sekcja B TODO — skrypty cyklu per-przedmiot. Domknięte B2 (etap extract) i B2a (wpięcie `text_head` do manifestu). Nie ruszano pilotażu ani materiałów.
+- Cel bieżącej pracy: sekcja B TODO — skrypty cyklu per-przedmiot. Domknięte B3 (klasyfikacja deterministyczna + heurystyka) i B3a (dopasowanie `syntax.yaml` do ground truth). Nie ruszano pilotażu ani materiałów.
 - Aktywny przedmiot `(semestr, skrót, grupa)`: brak — praca narzędziowa. Etap extract sprawdzony smoke testem na syntetycznej paczce w scratchpadzie (PDF tekstowy, PDF-skan, PNG, DOCX, PPTX, TXT, ZIP), nie na realnych źródłach.
-- Ostatni zakończony krok: commity `c02b708` (B2) i `146657a` (B2a). Nowe pliki: `scripts/orglib/textextract.py`, `scripts/extract_text.py`, `tests/test_textextract.py`, `tests/test_extract_text.py`; recepta `just extract`.
+- Ostatni zakończony krok: B3. Nowe pliki: `scripts/classify.py`, `scripts/orglib/classify.py`, `tests/test_classify.py`, `tests/test_classify_cli.py`, 5 specyfikacji w `tests/mutations/`; recepta `just subject-classify SEM SKROT`.
 - Kontrakt B2: wejście = pliki w statusie `hashed` (bez poddrzew `duplicate_of`), wyjście = `20_WORK/extracted_text/{sha256}.txt` + `content.extracted_text_path`/`ocr_done` + `files.normalized_text_hash`/`simhash`/`perceptual_hash`, status `extracted`. Praca liczona RAZ NA TREŚĆ: druga kopia sha256 i ponowny przebieg biorą tekst z dysku (smoke: 1,6 s → 0,2 s), `--force` wymusza ponowną ekstrakcję. Ścieżka w bazie jest zapisywana względem `work`, więc przeniesienie workspace'u jej nie psuje.
 - Decyzje B2 do zapamiętania (były świadome, nie przypadkowe):
   1. **OCR wchodzi tylko, gdy realnie dołożył treści.** Krótki, ale poprawny PDF (< 120 znaków po normalizacji) uruchamia tesseract, lecz jego wynik jest odrzucany, jeśli nie jest dłuższy od warstwy tekstowej. Bez tego poprawne, jednostronicowe PDF-y dostawały szum z OCR (zobaczone na smoke teście, poprawione).
@@ -14,6 +14,18 @@
 - Formaty w etapie extract (B2b, decyzja użytkownika z 2026-09-18): dokładamy zależności zamiast zostawiać treści bez tekstu. Zmierzone na realnym indeksie: 345 unikalnych treści było nieczytanych. Doinstalowane w `.venv`: `openpyxl` (.xlsx/.xlsm — 107), `xlrd` (.xls — 5), `odfpy` (.odt 27 / .ods 15 / .odp). Stare binarne `.doc` (124), `.ppt` (34), `.pps` (33) idą przez systemowy `catdoc`/`catppt` — użytkownik wybrał catdoc zamiast LibreOffice (~1 MB zamiast ~1 GB; goły tekst wystarcza, bo i tak liczymy tylko głowę tekstu i podpisy).
 - `catdoc` **zainstalowany przez użytkownika 2026-09-18** — ścieżka konwertera sprawdzona na realnych plikach ze źródeł (read-only, po 3 próbki na rozszerzenie): `.doc`, `.ppt`, `.pps` wracają z sensownym tekstem, `.xls` idzie przez xlrd. Weryfikacja na żywo wykryła wadę, której atrapa w teście nie mogła pokazać: `catdoc` zakłada cp1252, więc polskie znaki wracały jako krzaki („Zminimalizowaæ funkcjê”). Stąd jawne `-s cp1250` (`DEFAULT_LEGACY_CHARSET`) i opcja `--legacy-charset`. Dla `.ppt`/`.pps` flaga jest obojętna (UTF-16), ale podajemy ją jednolicie. Wniosek na przyszłość: dla każdego zewnętrznego konwertera sprawdź kodowanie na realnym polskim pliku, nie tylko na atrapie.
 - Pułapka utrzymaniowa: `content.content_kind` ustala etap hash, więc dopisanie rozszerzenia do `orglib/kinds.py` nie zmienia samo z siebie treści już zindeksowanych. Od tego jest `db_admin.py refresh-kinds` (domyślnie dry-run, zapis z `--apply`). Na realnym indeksie przeliczyło 149 treści: `.jfif` → image (53), `.pps`/`.ppsx` → pptx (55), `.hs` → code (41). To była **jedyna zmiana w realnej bazie** w tej sesji; materiałów nie dotykano.
+- **Kontrakt B3**: wejście = `manifest_slice.jsonl` (B1); wyjście = `plan.det.jsonl` (decyzje wg `prompts/plan_line.schema.json`) i `unresolved.jsonl` (kolejka dla B5, w kształcie manifestu — da się ją podać `ai_resolve.py` jako `--manifest`). Baza czytana WYŁĄCZNIE po ground truth (`classifications`, `run_id='ground_truth'`), nic nie jest do niej zapisywane. Etap jest deterministyczny: ten sam manifest daje bajt w bajt ten sam plan, więc nie ma czego wznawiać.
+- Kolejność reguł B3 (świadoma, nie przypadkowa): ground truth → artefakt kompilacji (`syntax.yaml: ignore`) → brak zdrowego źródła → media poza paczkę → heurystyka słów kluczowych. Siła sygnału JEST pewnością decyzji: nazwa pliku (0.95) i **najbliższy** katalog ze ścieżki (0.90) wchodzą w auto, sama głowa tekstu (0.74) i każdy konflikt kategorii idą do review, poniżej 0.70 pozycja trafia do AI.
+- Decyzje B3 do zapamiętania:
+  1. **Nazwy plików zostają oryginalne.** Kanoniczna nazwa z `syntax.yaml` wymaga TEMATU, którego nie da się wyprowadzić bez zgadywania. Klasyfikator ustala KATALOG; niezgodność nazwy to miękkie ostrzeżenie dla B8/B9 (tak mówi `naming_rules`), nie błąd.
+  2. **Katalog bliższy plikowi wygrywa z dalszym.** `Ćwiczenia/2018/kolokwium2/zad.c` to kolokwium leżące w dziale ćwiczeń, a nie remis. Płytsze trafienie liczy się o `conflict_penalty` słabiej i zostaje w grze, gdyby `forms` wykluczyły bliższą kategorię.
+  3. **`missing_semester` z manifestu nie dławi już wszystkiego.** Zbija pewność tylko wtedy, gdy w ścieżce nie pada żadna nazwa przedmiotu jednoznaczna w całym katalogu (`unambiguous_labels`). Na AKO: 2209 → 70 pozycji „do obejrzenia”.
+  4. **Prowadzący tylko po tytule** (`dr`/`mgr`/`prof`/`inż`/`hab`) — pomiar źródeł: 8 trafień na 48 049 plików. Nazwisko bez tytułu jest nieodróżnialne od tematu, więc go nie zgadujemy. Gdy powstanie lista nazwisk, wpina się ją w `detect_prowadzacy`, nie w regex.
+  5. **Bez zapisów do bazy** (wbrew pierwotnemu „status `classified`” z architektury): decyzja jest tania i odtwarzalna z manifestu, więc jeden przeglądalny artefakt tekstowy jest lepszy niż drugie źródło prawdy. `classifications`/`plan_items` zapisują etapy ruszające materiały (B7/B10).
+- **Decyzja użytkownika 2026-09-18 (B3a), wyprowadzona z pomiaru 2201 plików w `paczka/`**: `egzamin` jest kategorią najwyższego poziomu (78 przedmiotów, 278 plików; `wykład/egzamin` z dotychczasowego `syntax.yaml` miało 0 plików), książki są w `inne/książki` (85 przedmiotów), doszło `seminarium` (4 przedmioty, wszystkie z formą S), a kubełek materiałów nieaktualnych nazywa się docelowo `outdated` (`stara_paczka` zapisane jako `legacy_folders`). Enum w `prompts/plan_line.schema.json` rozszerzony. **Przemianowanie 82 katalogów `stara_paczka` w repo to osobna migracja MATERIAŁÓW — TODO D4, przez plan i akceptację, nigdy przy okazji commita narzędzi.**
+- Nowa sekcja `syntax.yaml: ignore` (artefakty kompilacji) powstała z pomiaru: 6832 z 48 049 plików źródeł to `Debug/`, `.tlog`, `.obj`, `.pdb` itp. Dostają `action: skip` z uzasadnieniem — nic nie jest kasowane, a usunięcie wpisu z configu i ponowny przebieg przywraca je do klasyfikacji. Sporny jest `.log` (bywa wynikiem zadania, nie buildu) — jeśli w jakimś przedmiocie okaże się materiałem, wypisz go stamtąd.
+- Domknięty wiszący kontrakt B3→B5: `ai_resolve.py` czyta `plan.det.jsonl` i pyta model **dokładnie** o to, czego w nim nie ma (`--det-plan`, `--ignore-det-plan`). Wcześniej filtrował tylko po `needs_review` z manifestu, choć docstring obiecywał inaczej — czyli po B3 wysyłałby do modelu treści już rozstrzygnięte regułami.
+- Zmierzone na realnym przedmiocie (AKO sem3, 2570 treści, `--dry-run`): rozstrzygnięte 2519, do AI 51 (2%), `needs_review` 70, `skip` 1005 (82 ground truth + 923 artefakty), `media` 17. `reports/AKO/manifest_slice.jsonl` leży lokalnie (nieśledzony przez git) — to materiał do pilotażu D1, nie wynik do wersjonowania.
 - Kontrakt B2a: `prepare_subject.py` dokłada do manifestu **opcjonalne** pole `text_head` (głowa tekstu z `work`, obcięta do `thresholds.yaml: llm.max_text_head_bytes`). Domyka to wiszący kontrakt — `ai_resolve.py` czytał `row["text_head"]`, którego nikt nie produkował, więc klasyfikacja AI szła po samej nazwie pliku. Wpis `extracted_text_path` wskazujący drzewo materiałów jest pomijany: manifest nie może stać się boczną ścieżką do czytania materiałów.
 - Delegacja w tym kroku: testy B2 (93 przypadki) napisał Codex na koncie OpenAI (`gpt-6-astra`, zero tokenów Anthropic); implementację i decyzje projektowe wykonał koordynator. Raport Codeksa **nie został wzięty na wiarę** — przegląd potwierdził, że tym razem fixture czyta realny `paths.yaml` i przekierowuje korzenie do `tmp_path` (nie ma zamrożonej kopii configu, jak przy B5), a atrapa OCR twardo zabrania niezamówionego wywołania tesseractu. Koordynator dołożył 2 testy odporności (`pdfplumber`/OCR) i 4 testy `text_head`.
 - **Audyt testów domknięty 2026-09-18.** Cztery niezależne audyty (dowód przez mutację) + naprawy. Najważniejsze do zapamiętania: (a) guard źródeł miał 10 obejść, w tym całkowity brak ochrony dla narzędzi o nazwie innej niż `Bash` — przy pracy nad guardem NIE opieraj się na nazwie narzędzia ani na matcherze hosta; (b) jedyna realna dziura w kodzie poza guardem to brak rozwijania dowiązań w bramce zapisu `ai_resolve` (naprawione wspólnym helperem); (c) reszta to brakujący strażnicy przy poprawnym kodzie — hashe bez wektorów złotych, `kinds.py` bez wiązania ze schematem, realne configi nieczytane przez żaden test, placeholdery promptu niezwiązane z kodem.
@@ -31,19 +43,39 @@
 - Znany, świadomie zostawiony fałszywy alarm guarda: `tee` jest na liście słów twardo mutujących, więc potok ze źródeł do `tee` poza nimi zostanie zablokowany — używaj przekierowania `>`. Ogólniej hook blokuje każdą komendę Bash, której **tekst** zawiera ścieżkę źródeł razem ze słowem mutującym (także w komunikacie commita); w takich wypadkach używaj narzędzi Edit/Write zamiast powłoki.
 - Uruchamianie agentów interaktywnie: rozpisane w `README.md`, sekcja „Agenci interaktywni” (pierwsza konfiguracja, `just claude`, trzy tryby sandboxu Codeksa, przekazywanie argumentów **bez** `--`, potwierdzanie konta). `AGENTS.md` i `CLAUDE.md` tylko tam odsyłają — nie duplikuj tej treści.
 - Zakazy dla następnego agenta: nie wykonuj apply bez jawnej zgody na konkretny plan; nie dodawaj sources jako writable root; nie przywracaj `--ignore-user-config` w delegacji Codeksa; nie przestawiaj `classify`/`relate` z powrotem na `claude_cli` bez decyzji użytkownika; nie commituj materiałów razem z narzędziami.
-- Wykonane testy: `just test` **770/770** (w tym 38 kontroli środowiska i 114 dla B2/B2b w `tests/test_textextract.py` + `tests/test_extract_text.py`, 6 dla `text_head` i 5 dla `refresh-kinds`); `just skills-check` 5/5. Smoke test etapu extract na syntetycznej paczce: 7 plików / 7 treści, 6 z tekstem, OCR 2, 0 błędów; drugi przebieg 6 treści z dysku.
-- Następna dokładna czynność: **B3 — `scripts/classify.py`** (klasyfikacja deterministyczna + heurystyka regex: lab/kol/egzamin/rok/prowadzący; semestr rozstrzyga kolizje skrótów; `forms` waliduje; status `classified` albo `unresolved`). Wejście ma już komplet sygnałów: ścieżki z B1 i `text_head` z B2.
+- Wykonane testy: `just test` **851/851** (+81 dla B3: 64 kontraktu silnika reguł, 16 CLI, 1 nowy styk e2e), `just mutate-check` **15/15**, `just index-check` czysto, `just skills-check` 5/5. Poprzedni stan: `just test` 770/770 (w tym 38 kontroli środowiska i 114 dla B2/B2b w `tests/test_textextract.py` + `tests/test_extract_text.py`, 6 dla `text_head` i 5 dla `refresh-kinds`); `just skills-check` 5/5. Smoke test etapu extract na syntetycznej paczce: 7 plików / 7 treści, 6 z tekstem, OCR 2, 0 błędów; drugi przebieg 6 treści z dysku.
+- Następna dokładna czynność: **B6 — `scripts/near_dupe.py`** (simhash/MinHash/phash → `relations`, progi z `thresholds.yaml: near_duplicate`; nigdy nie kasuje) albo **B7 — `scripts/build_plan.py`** (scalenie `plan.det.jsonl` + `plan.ai.jsonl` w `plan.jsonl` z `_meta` i `plan_hash`). Wejście B7 jest gotowe: oba pliki mają ten sam schemat linii, a klucz to `source_sha256`.
 - Blokery / otwarte decyzje: brak. Znane, świadome ograniczenia: `.rtf` nadal bez czytnika, OCR idzie przez `pytesseract` + rasteryzację PyMuPDF (nie `ocrmypdf`), OCR obrazów jest opt-in (`--ocr-images`).
-- Git: `c02b708`, `146657a`, `c556f7d`, `efa3a65`, `dfa7602` i `07dea2e` to lokalne commity narzędzi, bez push i bez PR. Drzewo czyste. Materiałów nie dotykano.
+- Git: lokalne commity narzędzi, bez push i bez PR. Materiałów nie dotykano; `paczka/` w repo docelowym nietknięta (pomiary ground truth były wyłącznie odczytem).
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-09-18T23:00:46+02:00
+- Odświeżono: 2026-09-18T23:42:42+02:00
 - Branch: `master`
-- Commit: `2a138e6`
+- Commit: `98a023e`
 - Git status:
   ```text
-  M reports/HANDOFF.md
+  M .claude/skills/organizer-subject/SKILL.md
+   M README.md
+   M TODO.md
+   M config/syntax.yaml
+   M config/thresholds.yaml
+   M justfile
+   M prompts/plan_line.schema.json
+   M pytest.ini
+   M reports/HANDOFF.md
+   M scripts/ai_resolve.py
+   M tests/test_e2e_pipeline.py
+  ?? reports/AKO/
+  ?? scripts/classify.py
+  ?? scripts/orglib/classify.py
+  ?? tests/mutations/classify-det-plan-feeds-ai.yaml
+  ?? tests/mutations/classify-ignore-all-copies.yaml
+  ?? tests/mutations/classify-nearest-folder.yaml
+  ?? tests/mutations/classify-nested-category-root.yaml
+  ?? tests/mutations/classify-number-padding.yaml
+  ?? tests/test_classify.py
+  ?? tests/test_classify_cli.py
   ```
-- Pierwsze otwarte TODO: - [ ] B3. `scripts/classify.py` — deterministyczny + heurystyka (regex lab/kol/egzamin/rok/prowadzący); semestr rozstrzyga skrót; `forms` waliduje; status `classified` albo `unresolved`
+- Pierwsze otwarte TODO: - [ ] B6. `scripts/near_dupe.py` — simhash/MinHash/phash → `relations` (near_duplicate / older_version / related); nigdy nie kasuje
 <!-- END AUTO -->
