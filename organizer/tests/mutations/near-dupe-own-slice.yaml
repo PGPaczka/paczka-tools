@@ -1,0 +1,8 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+name: near_dupe podmienia WYŁĄCZNIE własne wiersze relacji (nie rusza decyzji człowieka)
+file: scripts/near_dupe.py
+find: '            "WHERE detection_method LIKE ?",'
+replace: '            "WHERE ? IS NOT NULL",'
+tests:
+- tests/test_near_dupe_cli.py

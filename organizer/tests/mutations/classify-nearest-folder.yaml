@@ -1,8 +1,10 @@
 # Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
 # Uruchom: just mutate-check
+# Każdy katalog na ścieżce liczy się jak najbliższy — czyli `Ćwiczenia/.../kolokwium2`
+# znów staje się remisem dwóch kategorii zamiast kolokwium w dziale ćwiczeń.
 name: sygnał kategorii bierze katalog NAJBLIŻSZY plikowi, nie dowolny na ścieżce
 file: scripts/orglib/classify.py
-find: '            weight = rules.weight_folder if depth == nearest else weak'
-replace: '            weight = rules.weight_folder'
+find: '            near = depth == nearest'
+replace: '            near = True'
 tests:
 - tests/test_classify.py

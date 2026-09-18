@@ -1,0 +1,10 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+# Brak podpisu nie może być „równym podpisem”: inaczej całe archiwum bez tekstu
+# (media, zipy, obrazy bez OCR) zrasta się w jedną wielką grupę near-dupe.
+name: treść bez podpisu nie tworzy relacji
+file: scripts/orglib/near_dupe.py
+find: '        if value:'
+replace: '        if value is not None:'
+tests:
+- tests/test_near_dupe.py
