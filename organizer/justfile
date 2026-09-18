@@ -34,9 +34,22 @@ handoff:
 test *args:
     {{ python }} -m pytest {{ args }}
 
-# Same kontrole realnego środowiska (biblioteki + binarki), bez atrap.
+# Warstwy testów — pełny opis w README, sekcja „Testy: kontrakt kodu vs. realne środowisko”.
+# Sam kontrakt kodu: szybka pętla edycja-test, bez zależności od maszyny.
+test-fast *args:
+    {{ python }} -m pytest -m "not environment and not cli_contract and not probe" {{ args }}
+
+# Realne środowisko (biblioteki + binarki), bez atrap.
 env-check *args:
     {{ python }} -m pytest -m environment {{ args }}
+
+# Argv backendów AI konfrontowane z parserem prawdziwych CLI (bez promptów, bez kosztu).
+cli-check *args:
+    {{ python }} -m pytest -m cli_contract {{ args }}
+
+# Sondy na realnych danych lokalnych (target_repo, źródła) — tylko odczyt.
+probe *args:
+    {{ python }} -m pytest -m probe {{ args }}
 
 db-init:
     {{ python }} scripts/db_admin.py init
