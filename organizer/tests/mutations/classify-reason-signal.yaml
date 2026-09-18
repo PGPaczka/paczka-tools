@@ -1,0 +1,16 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+# Przywraca zgadywanie etykiety sygnału z WARTOŚCI pewności — czyli błąd z 2026-09-19,
+# przez który plan twierdził „wg: głowa tekstu” przy zerowej liczbie głów tekstu.
+name: uzasadnienie decyzji nazywa sygnał, który naprawdę wygrał
+file: scripts/orglib/classify.py
+find: '    reason = f"kategoria {category} wg: {scored[category][1]}"'
+replace: |-2
+      signal = (
+          SIGNAL_FILENAME if best >= rules.weight_filename
+          else SIGNAL_FOLDER_NEAR if best >= rules.weight_folder
+          else SIGNAL_TEXT
+      )
+      reason = f"kategoria {category} wg: {signal}"
+tests:
+- tests/test_classify.py

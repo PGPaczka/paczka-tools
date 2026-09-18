@@ -70,6 +70,13 @@ SYNTAX = {
             "priority": 40,
             "keywords": ["cwicz", "cw"],
         },
+        "projekt": {
+            "folder": "projekt",
+            "target_templates": ["projekt/{rok}_0{nr_projektu}", "projekt"],
+            "forms": ["P"],
+            "priority": 50,
+            "keywords": ["projekt", "proj"],
+        },
         "wyklad": {"folder": "wykład", "forms": ["W"], "priority": 60, "keywords": ["wyklad"]},
         "opracowania": {"folder": "opracowania", "priority": 70, "keywords": ["notatk"]},
         "ksiazki": {"folder": "inne/książki", "priority": 80, "keywords": ["ksiazk"]},
@@ -413,6 +420,36 @@ def test_text_head_alone_never_reaches_auto(subject, rules) -> None:
     assert decision["target_rel"].endswith("laboratoria/plik.pdf")
 
 
+def test_reason_names_the_evidence_that_actually_won(rules, subject) -> None:
+    """Regresja: uzasadnienie mówiło „głowa tekstu” dla decyzji z DALSZEGO katalogu.
+
+    Wpadka wyszła na realnym przebiegu AKO, gdzie głów tekstu w ogóle nie było (etap
+    extract nie był jeszcze uruchomiony na źródłach), a mimo to plan twierdził, że
+    decyzja wynika z treści pliku. Powód: etykieta sygnału była zgadywana z WARTOŚCI
+    pewności, więc każda wartość poniżej wagi katalogu (tu: dalszy katalog, czyli
+    waga katalogu minus kara) lądowała w gałęzi „głowa tekstu”. `reason` czyta
+    człowiek przy review — mylące uzasadnienie jest błędem, nie kosmetyką.
+    """
+    labs_only = replace(subject, forms=("L",))
+    # Najbliższy katalog mówi „projekt”, ale przedmiot nie ma formy P, więc zostaje
+    # słabszy sygnał z dalszego katalogu („Laby”).
+    path = "P/SEM3/TEST/Laby/Project4/win32.asm"
+    row = manifest_row(source_path=path, source_paths=[path], matched_source_paths=[path])
+
+    decision = decide(row, labs_only, rules)
+
+    assert decision["category"] == "laboratoria"
+    assert decision["confidence"] == pytest.approx(0.90 - 0.12)
+    assert "głowa tekstu" not in decision["reason"]
+    assert "katalog" in decision["reason"]
+
+
+def test_reason_names_the_text_head_only_when_it_was_the_evidence(subject, rules) -> None:
+    decision = decide(manifest_row(text_head="Instrukcja do laboratorium numer 3"), subject, rules)
+
+    assert decision["reason"] == "kategoria laboratoria wg: głowa tekstu"
+
+
 def test_form_of_the_subject_rejects_a_category(rules, subject) -> None:
     lecture_only = replace(subject, forms=("W",))
     path = "P/SEM3/TEST/Laby/lab_03/notatki_wlasne.pdf"
@@ -426,7 +463,12 @@ def test_form_of_the_subject_rejects_a_category(rules, subject) -> None:
 
 
 def test_subject_name_in_the_path_is_not_a_category_signal(rules) -> None:
-    """Przedmiot „Projekt Grupowy” nie może klasyfikować wszystkiego na ``projekt``."""
+    """Przedmiot „Projekt Grupowy” nie może klasyfikować wszystkiego na ``projekt``.
+
+    Test przez chwilę niczego nie dowodził, bo stub configu nie miał kategorii
+    ``projekt`` — nie było czego błędnie dopasować. Dopisanie jej (2026-09-19) dało
+    mu zęby. Wniosek ogólny: stub musi zawierać tę kategorię, o którą w teście chodzi.
+    """
     grupowy = config.Subject(
         semester=5, skrot="PGI", nazwa="Projekt_Grupowy_I", forms=("P",),
         aliases=(), instancja=None, strumien="Wspolne", profil=None, katedra=None,

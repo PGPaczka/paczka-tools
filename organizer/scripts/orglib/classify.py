@@ -90,6 +90,13 @@ IDENTITY_REVIEW_REASONS: frozenset[str] = frozenset(
     }
 )
 
+#: Skąd wziął się sygnał kategorii. Trafia wprost do ``reason``, więc nazwy są
+#: opisowe: przy review człowiek musi wiedzieć, czemu plik trafił tam, gdzie trafił.
+SIGNAL_FILENAME = "nazwa pliku"
+SIGNAL_FOLDER_NEAR = "najbliższy katalog na ścieżce"
+SIGNAL_FOLDER_FAR = "dalszy katalog na ścieżce"
+SIGNAL_TEXT = "głowa tekstu"
+
 #: Która kategoria wynika z trafienia w numer slotu.
 _NUMBER_CATEGORY = {
     "nr_laby": "laboratoria",
@@ -445,7 +452,7 @@ def _scan(text: str, rules: Rules, weight: float) -> tuple[dict[str, float], dic
 
 def folder_signal(
     paths: Sequence[str], labels: set[str], rules: Rules
-) -> tuple[dict[str, float], dict[str, str], list[str]]:
+) -> tuple[dict[str, tuple[float, str]], dict[str, str], list[str]]:
     """Sygnał z katalogów: wygrywa katalog NAJBLIŻSZY plikowi.
 
     ``Ćwiczenia/2018/kolokwium2/zad.c`` to zadanie z kolokwium leżące w dziale
@@ -454,9 +461,9 @@ def folder_signal(
     się słabiej (o ``conflict_penalty``) — zostają w grze, gdyby ``forms``
     przedmiotu wykluczyły tę bliższą kategorię.
 
-    Zwraca (wagi kategorii, numery slotów, segmenty katalogów do dalszych heurystyk).
+    Zwraca (wagi kategorii ze źródłem sygnału, numery slotów, segmenty katalogów).
     """
-    scores: dict[str, float] = {}
+    scores: dict[str, tuple[float, str]] = {}
     numbers: dict[str, str] = {}
     all_segments: list[str] = []
     weak = max(rules.weight_folder - rules.conflict_penalty, 0.0)
@@ -474,10 +481,11 @@ def folder_signal(
                 continue
             if nearest is None:
                 nearest = depth
-            weight = rules.weight_folder if depth == nearest else weak
+            near = depth == nearest
+            weight = rules.weight_folder if near else weak
             for name in hits:
-                if scores.get(name, 0.0) < weight:
-                    scores[name] = weight
+                if scores.get(name, (0.0, ""))[0] < weight:
+                    scores[name] = (weight, SIGNAL_FOLDER_NEAR if near else SIGNAL_FOLDER_FAR)
             for field_name, value in found.items():
                 numbers.setdefault(field_name, value)
     return scores, numbers, all_segments
@@ -631,17 +639,20 @@ def classify_row(
     labels = _subject_labels(subject)
     folded_name = fold(filename)
 
-    scored, numbers = _scan(folded_name, rules, rules.weight_filename)
+    name_scores, numbers = _scan(folded_name, rules, rules.weight_filename)
+    scored: dict[str, tuple[float, str]] = {
+        name: (weight, SIGNAL_FILENAME) for name, weight in name_scores.items()
+    }
     folder_scores, folder_numbers, folder_segments = folder_signal(_paths(row), labels, rules)
-    for name, weight in folder_scores.items():
-        if scored.get(name, 0.0) < weight:
-            scored[name] = weight
+    text_scores, _ = _scan(fold(str(row.get("text_head") or "")), rules, rules.weight_text)
+    candidates = list(folder_scores.items()) + [
+        (name, (weight, SIGNAL_TEXT)) for name, weight in text_scores.items()
+    ]
+    for name, (weight, signal) in candidates:
+        if scored.get(name, (0.0, ""))[0] < weight:
+            scored[name] = (weight, signal)
     for field_name, value in folder_numbers.items():
         numbers.setdefault(field_name, value)
-    text_scores, _ = _scan(fold(str(row.get("text_head") or "")), rules, rules.weight_text)
-    for name, weight in text_scores.items():
-        if scored.get(name, 0.0) < weight:
-            scored[name] = weight
 
     rejected = sorted(name for name in scored if name not in allowed)
     for name in rejected:
@@ -652,9 +663,9 @@ def classify_row(
         reasons.append("brak_sygnalu_kategorii")
         return Outcome(unresolved=_unresolved(row, reasons, None, 0.0), reasons=reasons)
 
-    best = max(scored.values())
+    best = max(weight for weight, _ in scored.values())
     winners = sorted(
-        (name for name, value in scored.items() if value == best),
+        (name for name, (weight, _) in scored.items() if weight == best),
         key=lambda name: (rules.category(name).priority, name),  # type: ignore[union-attr]
     )
     category = winners[0]
@@ -684,12 +695,7 @@ def classify_row(
     folder = render_best(spec.templates, values, rules.number_padding)
     target_rel = "/".join(part for part in (subject.target_dir, folder, filename) if part)
 
-    signal = (
-        "nazwa pliku" if best >= rules.weight_filename
-        else "katalog na ścieżce" if best >= rules.weight_folder
-        else "głowa tekstu"
-    )
-    reason = f"kategoria {category} wg: {signal}"
+    reason = f"kategoria {category} wg: {scored[category][1]}"
     if len(winners) > 1:
         reason += f"; konflikt z {', '.join(winners[1:])}"
     if capping:
