@@ -477,7 +477,7 @@ def extract(
     ocr_lang: str = DEFAULT_OCR_LANG,
     ocr_max_pages: int = DEFAULT_OCR_MAX_PAGES,
     ocr_min_chars: int = DEFAULT_OCR_MIN_CHARS,
-    legacy_charset: str = DEFAULT_LEGACY_CHARSET,
+    legacy_charset: str | None = None,
 ) -> Extraction:
     """Zwraca głowę tekstu dla jednej treści zgodnie z jej ``content_kind``.
 
@@ -492,7 +492,9 @@ def extract(
 
     Stare formaty binarne Microsoftu (``.doc``, ``.ppt``, ``.pps``) idą przez
     zewnętrzny konwerter z pakietu ``catdoc``, z kodowaniem źródłowym
-    ``legacy_charset`` (domyślnie cp1250 — patrz :data:`DEFAULT_LEGACY_CHARSET`). Jego brak w systemie NIE jest
+    ``legacy_charset``. ``None`` oznacza :data:`DEFAULT_LEGACY_CHARSET` czytane
+    w momencie WYWOŁANIA — stała jako domyślna wartość argumentu wiązałaby się
+    przy imporcie, więc jej podmiana (np. w teście regresji) nie miałaby skutku. Jego brak w systemie NIE jest
     awarią pliku: wynik ma wtedy metodę ``no_converter``, widoczną w podsumowaniu
     przebiegu, więc doinstalowanie pakietu i ponowny przebieg z ``--force``
     domykają temat bez zmian w kodzie.
@@ -529,7 +531,9 @@ def extract(
         return Extraction(cut, method if normalize_text(cut) else "empty", truncated=truncated)
 
     if suffix in LEGACY_CONVERTERS and content_kind in ("docx", "pptx", "xlsx"):
-        converted = _converter_text(path, LEGACY_CONVERTERS[suffix], legacy_charset)
+        converted = _converter_text(
+            path, LEGACY_CONVERTERS[suffix], legacy_charset or DEFAULT_LEGACY_CHARSET
+        )
         if converted is None:
             return Extraction("", "no_converter")
         cut, truncated = _cut(converted, max_chars)

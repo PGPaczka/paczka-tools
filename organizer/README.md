@@ -33,6 +33,34 @@ scan → hash → dedup (pliki + foldery) → extract → classify (det.) →
 Wynik (`apply`) trafia do `paczka/` w klonie repo docelowego, na branchu
 `subject/{SKROT}`, i dalej jako PR. Kod i operacyjne raporty zostają tutaj.
 
+## Testy: kontrakt kodu vs. realne środowisko
+
+`just test` uruchamia dwie różne rzeczy i warto je rozróżniać:
+
+- **testy kontraktu** (większość) — deterministyczne, z atrapami zamiast
+  zewnętrznych narzędzi. Mają dawać ten sam wynik na każdej maszynie, więc
+  celowo **nie** zależą od tego, co ktoś ma zainstalowane;
+- **testy środowiska** (`tests/test_environment.py`, marker `environment`) — bez
+  ani jednej atrapy. Każdy wykonuje realną pracę realną biblioteką albo binarką:
+  zapis i odczyt PDF/DOCX/PPTX/XLSX/ODT, phash obrazu, OCR wyrenderowanej strony
+  przez tesseract, odczyt `.doc` przez `catdoc` z kontrolą polskich znaków.
+
+Zasada: **brakująca albo zepsuta zależność ma być czerwona, nie pominięta.**
+Odinstalowanie `catdoc` psuje 5 testów po nazwie (`test_required_binary_is_installed[catdoc]`,
+`test_catdoc_decodes_polish_source_charset`, …), a nie przechodzi po cichu jako
+„brak tekstu". Tak samo brak `tesseract-ocr-pol` albo za stara wersja biblioteki
+(`MINIMUM_VERSIONS` w tym pliku: `pymupdf >= 1.24`, `xlrd >= 2.0`).
+
+```bash
+just env-check                 # same kontrole środowiska (~3 s)
+just test                      # wszystko, razem z nimi
+just test -m "not environment" # świadoma praca bez pełnego środowiska
+```
+
+Testy środowiska powstały po realnym błędzie: `catdoc` zwracał polskie znaki jako
+krzaki (zakładał cp1252 zamiast cp1250), a testy z atrapą nie miały prawa tego
+pokazać — atrapa zwracała to, co jej kazano.
+
 ## Skrypty (pierwszy przebieg)
 
 Kolejność uruchamiania (robione raz, na całości źródeł):

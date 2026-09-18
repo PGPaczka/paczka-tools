@@ -34,6 +34,10 @@ handoff:
 test *args:
     {{ python }} -m pytest {{ args }}
 
+# Same kontrole realnego środowiska (biblioteki + binarki), bez atrap.
+env-check *args:
+    {{ python }} -m pytest -m environment {{ args }}
+
 db-init:
     {{ python }} scripts/db_admin.py init
 
