@@ -12,7 +12,7 @@ import pytest
 from typer.testing import CliRunner
 
 import db_admin
-from orglib import db
+from orglib import db, kinds
 
 runner = CliRunner()
 
@@ -83,14 +83,39 @@ def test_unchanged_kinds_are_left_alone(database: Path) -> None:
     assert _kind(database, "c" * 64) == "pdf"
 
 
-def test_first_extension_wins_like_hash_stage(database: Path) -> None:
-    """Przy kilku rozszerzeniach tej samej treści wygrywa pierwsza ścieżka — jak w hash_files."""
+def test_lowest_file_id_wins_like_hash_stage(database: Path) -> None:
+    """Przy kilku rozszerzeniach wygrywa najniższe file_id — dokładnie jak w hash_files.
+
+    Dane są dobrane tak, by RÓŻNICOWAĆ regułę: oba rozszerzenia dają inny,
+    nie-domyślny rodzaj, a porządek file_id jest odwrotny do alfabetycznego
+    porządku ścieżek. Wcześniejsza wersja testu używała `.bin`, który i tak
+    mapuje się na `other`, więc nie sprawdzała niczego (audyt 2026-09-18).
+    """
     sha = "d" * 64
-    _seed(database, sha=sha, extension="jfif", kind="other", relpath="a_pierwszy.jfif")
-    _seed(database, sha=sha, extension="bin", kind="other", relpath="z_drugi.bin")
+    _seed(database, sha=sha, extension="txt", kind="other", relpath="z_pierwszy.txt")
+    _seed(database, sha=sha, extension="jfif", kind="other", relpath="a_drugi.jfif")
+    ids = [row[0] for row in sqlite3.connect(database).execute(
+        "SELECT file_id, source_relative_path FROM files ORDER BY file_id")]
+    assert ids == [1, 2], "test wymaga, by pierwszy zasiany plik miał niższe file_id"
     result = runner.invoke(db_admin.app, ["refresh-kinds", "--db", str(database), "--apply"])
     assert result.exit_code == 0, result.output
-    assert _kind(database, sha) == "image"
+    assert _kind(database, sha) == "text", "wygrać ma plik o niższym file_id, nie pierwszy alfabetycznie"
+
+
+def test_refresh_matches_what_hash_stage_would_store(database: Path) -> None:
+    """Kontrola krzyżowa: wynik komendy == wynik reguły z hash_files.py na tych samych danych."""
+    sha = "e" * 64
+    _seed(database, sha=sha, extension="jfif", kind="other", relpath="z_pierwszy.jfif")
+    _seed(database, sha=sha, extension="txt", kind="other", relpath="a_drugi.txt")
+    runner.invoke(db_admin.app, ["refresh-kinds", "--db", str(database), "--apply"])
+    conn = sqlite3.connect(database)
+    conn.row_factory = sqlite3.Row
+    # hash_files wstawia content w kolejności file_id i zostawia pierwsze trafienie
+    first = conn.execute(
+        "SELECT extension FROM files WHERE sha256 = ? ORDER BY file_id LIMIT 1", (sha,)
+    ).fetchone()["extension"]
+    conn.close()
+    assert _kind(database, sha) == kinds.content_kind_for(first)
 
 
 def test_missing_database_exits_one(tmp_path: Path) -> None:

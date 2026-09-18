@@ -152,8 +152,8 @@ def refresh_kinds(
     ``content_kind`` zapisuje etap hash, więc rozszerzenie dopisane później do mapy
     (np. ``.jfif`` jako obraz, ``.ppsx`` jako prezentacja) nie zmienia samo z siebie
     treści już zindeksowanych. Ta komenda domyka różnicę bez ponownego hashowania.
-    Reguła wyboru jest ta sama co w ``hash_files.py``: dla treści o kilku
-    rozszerzeniach wygrywa pierwsze w porządku (source_package, ścieżka).
+    Reguła wyboru jest ta sama co w ``hash_files.py``: dla treści widzianej
+    pod kilkoma rozszerzeniami wygrywa plik o najniższym ``file_id``.
     """
     path = _require_db(db_path)
     conn = db.connect(path, init=False)
@@ -164,8 +164,13 @@ def refresh_kinds(
         }
         expected: dict[str, str] = {}
         for row in conn.execute(
+            # Kolejność MUSI być ta sama co w hash_files.py, gdzie o rodzaju
+            # decyduje `ON CONFLICT DO NOTHING` przy wstawianiu w porządku
+            # file_id. Sortowanie po ścieżce dawało inny wynik dla treści
+            # widzianej pod kilkoma rozszerzeniami — cicha niespójność między
+            # etapem hash a tą komendą.
             "SELECT sha256, extension FROM files WHERE sha256 IS NOT NULL "
-            "ORDER BY source_package, source_relative_path"
+            "ORDER BY file_id"
         ):
             sha = str(row["sha256"])
             if sha in expected:

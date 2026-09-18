@@ -22,6 +22,7 @@ Zob. TODO B2b.
 from __future__ import annotations
 
 import importlib
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -270,20 +271,71 @@ def test_catppt_runs_and_reports_version() -> None:
 
 
 def test_extraction_stack_covers_every_declared_format() -> None:
-    """Każdy format z mapy rodzajów ma w tym środowisku czym zostać przeczytany.
+    """Każde rozszerzenie z mapy rodzajów ma czytnik albo jawny powód, że go nie ma.
 
-    Lista jest jawna: dopisanie rozszerzenia do ``orglib.kinds`` bez czytnika ma
-    ten test wywalić, a nie po cichu produkować treści bez tekstu.
+    Lista wychodzi z REALNEJ mapy ``orglib.kinds``, więc dopisanie tam nowego
+    rozszerzenia bez czytnika i bez decyzji czerwieni ten test. Wcześniej była tu
+    zamrożona lista ośmiu sufiksów, niezwiązana z mapą — docstring obiecywał
+    kontrolę, której nie było (audyt 2026-09-18).
     """
+    from orglib import kinds
+
     readers = {
-        ".pdf": lambda: importlib.import_module("pymupdf"),
-        ".docx": lambda: importlib.import_module("docx"),
-        ".pptx": lambda: importlib.import_module("pptx"),
-        ".xlsx": lambda: importlib.import_module("openpyxl"),
-        ".xls": lambda: importlib.import_module("xlrd"),
-        ".odt": lambda: importlib.import_module("odf.opendocument"),
-        ".doc": lambda: shutil.which("catdoc"),
-        ".ppt": lambda: shutil.which("catppt"),
+        "pdf": lambda: importlib.import_module("pymupdf"),
+        "docx": lambda: importlib.import_module("docx"),
+        "pptx": lambda: importlib.import_module("pptx"),
+        "xlsx": lambda: importlib.import_module("openpyxl"),
+        "xls": lambda: importlib.import_module("xlrd"),
+        "odf": lambda: importlib.import_module("odf.opendocument"),
+        "catdoc": lambda: shutil.which("catdoc"),
+        "catppt": lambda: shutil.which("catppt"),
+        "wprost": lambda: True,  # tekst/kod/CSV czytamy bez biblioteki
+        "pillow": lambda: importlib.import_module("PIL.Image"),
     }
-    missing = [suffix for suffix, probe in readers.items() if not probe()]
-    assert not missing, f"formaty bez czytnika w tym środowisku: {missing}"
+    #: Rozszerzenie -> czytnik, którym realnie je otwieramy (patrz textextract.extract).
+    EXTENSION_READER = {
+        "pdf": "pdf",
+        "docx": "docx", "doc": "catdoc", "odt": "odf",
+        "pptx": "pptx", "ppsx": "pptx", "ppt": "catppt", "pps": "catppt", "odp": "odf",
+        "xlsx": "xlsx", "xlsm": "xlsx", "xls": "xls", "ods": "odf", "csv": "wprost",
+    }
+    #: Rozszerzenia, których świadomie NIE czytamy (decyzja, nie przeoczenie).
+    NO_READER_BY_DESIGN = {
+        "rtf",  # brak czytnika w zależnościach projektu
+        "svg",  # grafika wektorowa nie idzie do rastrowego OCR
+    }
+
+    missing_decision = []
+    missing_reader = []
+    for extension, kind in sorted(kinds._EXTENSION_TO_KIND.items()):
+        if kind in ("text", "code", "archive", "media"):
+            continue  # czytane wprost albo świadomie pomijane jako całe grupy
+        if kind == "image" and extension not in EXTENSION_READER:
+            if extension not in NO_READER_BY_DESIGN and not readers["pillow"]():
+                missing_reader.append(extension)
+            continue
+        reader = EXTENSION_READER.get(extension)
+        if reader is None:
+            if extension not in NO_READER_BY_DESIGN:
+                missing_decision.append(extension)
+            continue
+        if not readers[reader]():
+            missing_reader.append(f"{extension} ({reader})")
+
+    assert not missing_decision, (
+        f"rozszerzenia w kinds.py bez czytnika i bez jawnej decyzji: {missing_decision}"
+    )
+    assert not missing_reader, f"czytniki niedostępne w tym środowisku: {missing_reader}"
+
+
+def test_catppt_converts_and_reports_its_identity() -> None:
+    """catppt ma być PRAWDZIWYM catppt, nie czymkolwiek, co kończy się kodem 0.
+
+    Wcześniejsza asercja dopuszczała `or returncode == 0`, więc atrapa w PATH
+    (`#!/bin/sh; exit 0`) przechodziła całą kontrolę środowiska (audyt 2026-09-18).
+    """
+    completed = subprocess.run(["catppt", "-V"], capture_output=True, timeout=30)
+    output = (completed.stdout + completed.stderr).decode("utf-8", errors="replace")
+    assert re.search(r"catdoc|catppt", output, re.IGNORECASE), (
+        f"catppt nie przedstawia się jak narzędzie z pakietu catdoc: {output.strip()[:80]!r}"
+    )

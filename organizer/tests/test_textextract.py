@@ -479,3 +479,55 @@ def test_corrupt_sheet_or_odf_raises_extraction_error(tmp_path: Path, suffix: st
     path.write_bytes(b"to nie jest dokument")
     with pytest.raises(textextract.ExtractionError):
         textextract.extract(path, kind)
+
+
+# --------------------------------------------------------------------------- #
+# Limity stron jako ZACHOWANIE, nie jako argumenty docierające do funkcji
+# --------------------------------------------------------------------------- #
+
+
+def _multipage_pdf(path: Path, pages: int, *, with_text: bool = True) -> Path:
+    """PDF o kilku stronach; każda ma własny, rozpoznawalny napis."""
+    with pymupdf.open() as document:
+        for number in range(pages):
+            page = document.new_page(width=300, height=200)
+            if with_text:
+                page.insert_text((20, 30), f"STRONA{number}", fontsize=12)
+        document.save(path)
+    return path
+
+
+def test_pdf_reads_only_the_requested_number_of_pages(tmp_path: Path, fake_ocr: Mock) -> None:
+    """`max_pages` ucina czytanie, zamiast być tylko przekazywanym argumentem.
+
+    Wcześniej wszystkie testowe PDF-y były jednostronicowe, więc usunięcie
+    warunku strony nie oblewało niczego (audyt 2026-09-18).
+    """
+    path = _multipage_pdf(tmp_path / "wielostronicowy.pdf", 4)
+    result = textextract.extract(path, "pdf", max_pages=2, ocr=False, ocr_min_chars=0)
+    assert "STRONA0" in result.text and "STRONA1" in result.text
+    assert "STRONA2" not in result.text and "STRONA3" not in result.text
+    fake_ocr.assert_not_called()
+
+
+def test_ocr_runs_only_on_the_requested_number_of_pages(tmp_path: Path, fake_ocr: Mock) -> None:
+    """`--ocr-pages` ogranicza liczbę wywołań OCR — inaczej skan 500 stron zablokuje przebieg."""
+    path = _multipage_pdf(tmp_path / "skan.pdf", 5, with_text=False)
+    fake_ocr.side_effect = None
+    fake_ocr.return_value = "rozpoznane"
+    textextract.extract(path, "pdf", ocr_max_pages=2)
+    assert fake_ocr.call_count == 2, f"OCR uruchomiony {fake_ocr.call_count} razy zamiast 2"
+
+
+def test_ocr_receives_page_rendered_at_usable_resolution(tmp_path: Path, fake_ocr: Mock) -> None:
+    """Strona idzie do OCR w rozdzielczości nadającej się do rozpoznania.
+
+    Obniżenie DPI nie psuło żadnego testu, choć przy 20 DPI tesseract nie
+    odczyta nic sensownego. Asercja jest na szerokości obrazu, nie na stałej.
+    """
+    path = _multipage_pdf(tmp_path / "skan.pdf", 1, with_text=False)
+    fake_ocr.side_effect = None
+    fake_ocr.return_value = "rozpoznane"
+    textextract.extract(path, "pdf")
+    image = fake_ocr.call_args.args[0]
+    assert image.width >= 800, f"strona wyrenderowana w za małej rozdzielczości: {image.width}px"
