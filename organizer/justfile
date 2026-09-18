@@ -121,6 +121,10 @@ subject-plan semester skrot *args:
     @test -f scripts/build_plan.py || { echo "Brak scripts/build_plan.py (TODO B7)" >&2; exit 2; }
     {{ python }} scripts/build_plan.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
 
+# B8: bramka przed apply. Kod wyjścia 2 = planu NIE WOLNO wykonać.
+subject-validate semester skrot *args:
+    {{ python }} scripts/validate_plan.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
+
 subject-review semester skrot *args:
     @test -f scripts/review_report.py || { echo "Brak scripts/review_report.py (TODO B9)" >&2; exit 2; }
     {{ python }} scripts/review_report.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}

@@ -1,0 +1,9 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+# Kod wyjścia JEST bramką: `apply` rusza tylko wtedy, gdy walidacja wyszła zerem.
+name: plan z błędami kończy się kodem != 0
+file: scripts/validate_plan.py
+find: '    blocking = counts["error"] + (counts["warning"] if strict else 0)'
+replace: '    blocking = 0'
+tests:
+- tests/test_validate_plan_cli.py

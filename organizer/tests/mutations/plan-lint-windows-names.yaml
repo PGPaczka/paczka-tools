@@ -1,0 +1,10 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+# Bez tej kontroli plik nie do odtworzenia na Windowsie trafia do repo, które klonują
+# studenci — psuje im klon i wychodzi dopiero u nich, nie u nas.
+name: walidator odrzuca nazwy nie do odtworzenia na Windowsie
+file: scripts/orglib/plan_lint.py
+find: '        found = sorted({c for c in segment if c in WINDOWS_FORBIDDEN})'
+replace: '        found = []'
+tests:
+- tests/test_plan_lint.py
