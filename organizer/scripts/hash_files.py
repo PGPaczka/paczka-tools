@@ -17,7 +17,6 @@ wtedy na sys.path, więc ``from orglib import ...`` działa bez instalacji pakie
 
 from __future__ import annotations
 
-import os
 import sqlite3
 import time
 from pathlib import Path
@@ -49,26 +48,6 @@ def _require_db(explicit: Optional[Path]) -> Path:
 def _sources_root(explicit: Optional[Path]) -> Path:
     """Zwraca korzeń źródeł: z opcji --sources albo z config/paths.yaml."""
     return Path(explicit) if explicit is not None else config.load_paths().sources
-
-
-def _resolve_within_sources(
-    sources_root: Path, source_package: str, source_relative_path: str
-) -> Optional[Path]:
-    """Wylicza ścieżkę pliku w źródłach, pilnując, że nie wychodzi poza ``sources_root``.
-
-    Zwraca ``None``, gdy ``source_relative_path`` jest bezwzględna albo po
-    normalizacji (bez rozwijania dowiązań — patrz ``orglib.config._absolutize``)
-    ścieżka ląduje poza ``sources_root``, np. przez ``..``. Taki wpis w bazie
-    to błąd danych, nie próba odczytu — plik idzie do statusu 'error'.
-    """
-    if Path(source_relative_path).is_absolute():
-        return None
-    candidate = sources_root / source_package / source_relative_path
-    normalized = Path(os.path.normpath(candidate))
-    root_normalized = Path(os.path.normpath(sources_root))
-    if not normalized.is_relative_to(root_normalized):
-        return None
-    return normalized
 
 
 def _error_file_ids(conn: sqlite3.Connection, package: Optional[str]) -> list[int]:
@@ -182,7 +161,7 @@ def main(
 
         for done, row in enumerate(rows, start=1):
             try:
-                resolved = _resolve_within_sources(
+                resolved = config.resolve_within_sources(
                     sources_root, row["source_package"], row["source_relative_path"]
                 )
                 if resolved is None:

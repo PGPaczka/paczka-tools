@@ -101,6 +101,27 @@ def load_paths(config_dir: Path | None = None) -> Paths:
     )
 
 
+def resolve_within_sources(
+    sources_root: Path, source_package: str, source_relative_path: str
+) -> Path | None:
+    """Skleja ścieżkę pliku źródłowego, pilnując, że nie wychodzi poza ``sources_root``.
+
+    Zwraca ``None``, gdy ``source_relative_path`` jest bezwzględna albo gdy po
+    normalizacji (bez rozwijania dowiązań — patrz :func:`_absolutize`) ścieżka
+    ląduje poza korzeniem źródeł, np. przez ``..``. Taki wpis w bazie to błąd
+    danych, nie próba odczytu — wołający ma przestawić plik na status 'error',
+    nie czytać go.
+    """
+    if Path(source_relative_path).is_absolute():
+        return None
+    candidate = Path(sources_root) / source_package / source_relative_path
+    normalized = Path(os.path.normpath(candidate))
+    root_normalized = Path(os.path.normpath(sources_root))
+    if not normalized.is_relative_to(root_normalized):
+        return None
+    return normalized
+
+
 def load_thresholds(config_dir: Path | None = None) -> dict[str, Any]:
     """Wczytuje progi decyzyjne z ``config/thresholds.yaml``."""
     return load_yaml("thresholds", config_dir)

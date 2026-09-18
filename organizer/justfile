@@ -52,6 +52,10 @@ dedup-report *args:
 scan-target *args:
     {{ python }} scripts/scan_target.py {{ args }}
 
+# B2: głowa tekstu + podpisy podobieństwa dla treści w statusie 'hashed'.
+extract *args:
+    {{ python }} scripts/extract_text.py {{ args }}
+
 llm task prompt_file *args:
     {{ python }} scripts/llm_client.py --task {{ task }} --prompt-file {{ prompt_file }} {{ args }}
 
