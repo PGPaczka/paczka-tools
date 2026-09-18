@@ -71,10 +71,15 @@ def _folders(connection: sqlite3.Connection, package: str = "P1") -> dict[str, s
 
 
 def _mark_hashed(connection: sqlite3.Connection) -> None:
-    """Udaje wynik dalszych etapów: nadaje hashe i status 'hashed' plikom i katalogom."""
+    """Nadaje hashe i duplikaty, by rescan sprawdzał reset wszystkich kolumn katalogu."""
     with connection:
         connection.execute("UPDATE files SET sha256 = 'a' || file_id, status = 'hashed'")
-        connection.execute("UPDATE folders SET tree_hash = 'th', status = 'hashed'")
+        # Istniejący pusty folder jest celem FK; sam nie wskazuje na siebie.
+        connection.execute(
+            "UPDATE folders SET tree_hash = 'th', content_set_hash = 'csh', "
+            "duplicate_of = CASE WHEN folder_path = ? THEN NULL ELSE ? END, status = 'hashed'",
+            ("P1/empty", "P1/empty"),
+        )
 
 
 # --- pierwszy skan ------------------------------------------------------------
@@ -106,6 +111,23 @@ def test_first_scan_skips_junk_hidden_and_symlinks(
     assert stats.skipped_symlinks == 2  # link.pdf, linkdir
     assert stats.errors == 0
     assert "P1/.cache" not in _folders(conn)
+
+
+@pytest.mark.parametrize("name", ["THUMBS.DB", "thumbs.db", "Desktop.ini", "desktop.ini"])
+def test_junk_names_are_case_insensitive(
+    conn: sqlite3.Connection, tmp_path: Path, name: str
+) -> None:
+    """Śmieci z Windows nie mogą trafić do files po zmianie wielkości liter."""
+    package = tmp_path / "src" / "P1"
+    package.mkdir(parents=True)
+    (package / name).write_bytes(b"junk")
+    (package / "a.pdf").write_bytes(b"material")
+
+    stats = scan.scan_package(conn, package, "P1")
+
+    assert stats.errors == 0
+    assert stats.skipped_ignored == 1
+    assert set(_files(conn)) == {"a.pdf"}
 
 
 def test_folder_stats_are_recursive(conn: sqlite3.Connection, sources: Path) -> None:
@@ -162,8 +184,14 @@ def test_rescan_without_changes_writes_nothing(conn: sqlite3.Connection, sources
 def test_changed_file_resets_itself_and_its_ancestors(
     conn: sqlite3.Connection, sources: Path
 ) -> None:
+    """Zmiana treści unieważnia oba hashe i wskazanie duplikatu każdego przodka."""
     scan.scan_package(conn, sources / "P1", "P1")
     _mark_hashed(conn)
+    for ancestor in ("P1", "P1/sub", "P1/sub/deep"):
+        row = _folders(conn)[ancestor]
+        assert (row["tree_hash"], row["content_set_hash"], row["duplicate_of"]) == (
+            "th", "csh", "P1/empty"
+        )
     (sources / "P1" / "sub" / "deep" / "c.txt").write_text("cccc-dopisane", encoding="utf-8")
 
     stats = scan.scan_package(conn, sources / "P1", "P1")
@@ -177,8 +205,11 @@ def test_changed_file_resets_itself_and_its_ancestors(
     assert files["a.PDF"]["sha256"] is not None and files["a.PDF"]["status"] == "hashed"
     for ancestor in ("P1", "P1/sub", "P1/sub/deep"):
         assert folders[ancestor]["tree_hash"] is None, ancestor
+        assert folders[ancestor]["content_set_hash"] is None, ancestor
+        assert folders[ancestor]["duplicate_of"] is None, ancestor
         assert folders[ancestor]["status"] == "discovered", ancestor
     assert folders["P1/empty"]["tree_hash"] == "th"
+    assert folders["P1/empty"]["content_set_hash"] == "csh"
     assert folders["P1/empty"]["status"] == "hashed"
     assert stats.folders_written == 3
 
@@ -223,6 +254,33 @@ def test_missing_folder_is_reported_not_deleted(conn: sqlite3.Connection, source
 
 
 # --- snapshot drzewa ----------------------------------------------------------
+
+
+def test_sources_tree_sorts_path_segments(tmp_path: Path) -> None:
+    """Spacja w nazwie kopii nie może rozdzielić katalogu i jego dzieci w raporcie."""
+    root = tmp_path / "src"
+    package = root / "P1"
+    (package / "AKO2020 (1)").mkdir(parents=True)
+    (package / "AKO2020" / "wyklad" / "slajdy").mkdir(parents=True)
+    tree = tmp_path / "reports" / "SOURCES_TREE.md"
+
+    result = runner.invoke(
+        scan.app,
+        ["--db", str(tmp_path / "db.sqlite"), "--sources", str(root), "--tree", str(tree)],
+    )
+
+    assert result.exit_code == 0, result.output
+    rows = [
+        line for line in tree.read_text(encoding="utf-8").splitlines()
+        if line.lstrip().startswith("- ")
+    ]
+    assert rows == [
+        "- P1/  (0 plików, 0 B)",
+        "  - AKO2020/  (0 plików, 0 B)",
+        "    - wyklad/  (0 plików, 0 B)",
+        "      - slajdy/  (0 plików, 0 B)",
+        "  - AKO2020 (1)/  (0 plików, 0 B)",
+    ]
 
 
 def test_sources_tree_lists_folders_only(conn: sqlite3.Connection, sources: Path) -> None:
@@ -449,6 +507,51 @@ def test_identical_sibling_folders_share_structural_signature(
 
 
 # --- wpisy, których nie da się odczytać ---------------------------------------
+
+
+def test_scandir_error_invalidates_directory_and_ancestors(
+    conn: sqlite3.Connection, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Błąd odczytu zachowuje dane i unieważnia podpisy także pod rootem i na Windows."""
+    package = tmp_path / "src" / "P1"
+    closed = package / "zamkniety"
+    (closed / "deep").mkdir(parents=True)
+    (closed / "deep" / "tajne.txt").write_bytes(b"t")
+    (package / "empty").mkdir()
+    (package / "a.txt").write_bytes(b"aaa")
+    scan.scan_package(conn, package, "P1")
+    _mark_hashed(conn)
+    before_file = dict(_files(conn)["zamkniety/deep/tajne.txt"])
+    before_child = dict(_folders(conn)["P1/zamkniety/deep"])
+    scandir = os.scandir
+
+    def unreadable(path):
+        if Path(path) == closed:
+            raise OSError("symulowany błąd odczytu katalogu")
+        return scandir(path)
+
+    monkeypatch.setattr(scan.os, "scandir", unreadable)
+
+    # Drugi przebieg nie może potraktować NULL == NULL jako „bez zmian”.
+    for _ in range(2):
+        stats = scan.scan_package(conn, package, "P1")
+        folders = _folders(conn)
+        assert stats.errors == 1
+        assert stats.files_missing == stats.folders_missing == 0
+        assert stats.folders_written == 2
+        assert dict(_files(conn)["zamkniety/deep/tajne.txt"]) == before_file
+        assert dict(folders["P1/zamkniety/deep"]) == before_child
+        for folder in ("P1", "P1/zamkniety"):
+            assert folders[folder]["status"] == "error"
+            for column in ("structural_signature", "tree_hash", "content_set_hash", "duplicate_of"):
+                assert folders[folder][column] is None, (folder, column)
+        for column in ("file_count", "total_bytes", "max_mtime"):
+            assert folders["P1/zamkniety"][column] is None, column
+        assert folders["P1"]["file_count"] == 1
+        assert folders["P1"]["total_bytes"] == 3
+        assert folders["P1/empty"]["status"] == "hashed"
+        assert folders["P1/empty"]["tree_hash"] == "th"
+
 
 posix_permissions = pytest.mark.skipif(
     os.name == "nt" or getattr(os, "geteuid", lambda: 1)() == 0,

@@ -91,6 +91,24 @@ def _run(db_path: Path, sources_root: Path, *extra: str):
 # --- podstawowe hashowanie -----------------------------------------------------
 
 
+@pytest.mark.parametrize("batch", [0, -1])
+def test_cli_rejects_nonpositive_batch(
+    db_path: Path, sources_root: Path, batch: int
+) -> None:
+    """Niepoprawny rozmiar partii ma kończyć się kodem 2 przed hashowaniem pliku."""
+    conn = db.connect(db_path, init=False)
+    try:
+        _seed_package(conn)
+        _seed_file(conn, sources_root)
+    finally:
+        conn.close()
+
+    result = _run(db_path, sources_root, "--batch", str(batch))
+
+    assert result.exit_code == 2, result.output
+    assert "--batch musi być >= 1" in result.output
+
+
 def test_hashes_file_and_sets_status(db_path: Path, sources_root: Path) -> None:
     conn = db.connect(db_path, init=False)
     _seed_package(conn)

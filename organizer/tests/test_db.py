@@ -101,6 +101,16 @@ def test_table_counts_lists_all_data_tables(conn: sqlite3.Connection) -> None:
     assert set(counts.values()) == {0}
 
 
+def test_tables_match_real_schema(conn: sqlite3.Connection) -> None:
+    """Nowa tabela schematu musi trafić do TABLES, inaczej statystyki ją przemilczą."""
+    tables = {
+        row["name"]
+        for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
+    }
+    # sqlite_sequence jest wewnętrzną tabelą SQLite dla AUTOINCREMENT.
+    assert tables - {"schema_version", "sqlite_sequence"} == set(db.TABLES)
+
+
 def test_foreign_keys_are_enforced(conn: sqlite3.Connection) -> None:
     with pytest.raises(sqlite3.IntegrityError):
         db.upsert_file(
@@ -300,6 +310,31 @@ def test_advance_status_moves_forward(conn: sqlite3.Connection) -> None:
     db.advance_status(conn, file_id, "classified")  # skok o kilka kroków jest OK
 
     assert db._file_status(conn, file_id) == "classified"
+
+
+def test_advance_status_rejects_unknown_status(conn: sqlite3.Connection) -> None:
+    """Literówka ma dawać diagnozę nieznanego statusu, nie błąd wyszukiwania w krotce."""
+    _seed_package(conn)
+    file_id = _seed_file(conn)
+
+    with pytest.raises(ValueError, match="nieznany status 'hased'"):
+        db.advance_status(conn, file_id, "hased")
+
+    assert db._file_status(conn, file_id) == "discovered"
+
+
+def test_reset_error_rejects_unknown_status(conn: sqlite3.Connection) -> None:
+    """Nieznany cel resetu ma być odrzucony przed zapisem i zachować diagnozę błędu."""
+    _seed_package(conn)
+    file_id = _seed_file(conn, status="error", error_message="boom")
+
+    with pytest.raises(ValueError, match="nieznany status docelowy 'nieistniejacy'"):
+        db.reset_error(conn, file_id, "nieistniejacy")
+
+    row = conn.execute(
+        "SELECT status, error_message FROM files WHERE file_id = ?", (file_id,)
+    ).fetchone()
+    assert (row["status"], row["error_message"]) == ("error", "boom")
 
 
 def test_advance_status_rejects_backwards_and_same(conn: sqlite3.Connection) -> None:

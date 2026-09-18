@@ -138,6 +138,26 @@ def test_junk_hidden_and_lock_files_are_skipped(conn, repo_root, subjects):
     assert stats.seen == 5  # .gitkeep i Thumbs.db się nie liczą
 
 
+@pytest.mark.parametrize("name", ["THUMBS.DB", "thumbs.db", "Desktop.ini", "desktop.ini"])
+def test_junk_names_are_case_insensitive(tmp_path: Path, conn, subjects, name: str):
+    """Śmieci z Windows nie mogą trafić do indeksu celu niezależnie od wielkości liter."""
+    root = tmp_path / "repo"
+    paczka = root / "paczka"
+    paczka.mkdir(parents=True)
+    (paczka / name).write_bytes(b"junk")
+    (paczka / "a.pdf").write_bytes(b"material")
+
+    stats = scan_target.scan_target(conn, root, "paczka", subjects)
+
+    assert stats.errors == 0
+    assert stats.seen == stats.hashed == 1
+    # scan_target zapisuje applied/content, a nie tabelę files skanu źródeł.
+    assert set(_applied(conn)) == {"paczka/a.pdf"}
+    assert {row["sha256"] for row in conn.execute("SELECT sha256 FROM content")} == {
+        _sha(b"material")
+    }
+
+
 def test_classified_equals_ground_truth_row_count(conn, repo_root, subjects):
     stats = scan_target.scan_target(conn, repo_root, "paczka", subjects)
 
@@ -373,6 +393,26 @@ def test_sem7_si_collision_resolved_by_department_group(tmp_path: Path, conn, su
 # --- ta sama treść pod kilkoma ścieżkami docelowymi ----------------------------
 
 
+def test_winner_path_is_chosen_by_segments(tmp_path: Path, conn, subjects):
+    """Spacja w nazwie kopii nie może dawać jej pierwszeństwa nad dzieckiem oryginału."""
+    root = tmp_path / "repo"
+    original = "paczka/SEM3/AKO_X/wyklad/a.pdf"
+    copy = "paczka/SEM3/AKO_X (kopia)/a.pdf"
+    for relative in (copy, original):
+        path = root / relative
+        path.parent.mkdir(parents=True)
+        path.write_bytes(b"wspolna-tresc")
+
+    stats = scan_target.scan_target(conn, root, "paczka", subjects)
+
+    assert stats.errors == 0
+    assert stats.multi_path_content == 1
+    assert set(_applied(conn)) == {original, copy}
+    row = _classifications(conn)[_sha(b"wspolna-tresc")]
+    assert row["target_relative_path"] == original
+    assert (row["semester"], row["subject_key"], row["category"]) == (3, "AKO", "wyklad")
+
+
 def test_content_under_multiple_paths_uses_smallest_path_deterministically(
     tmp_path: Path, conn, subjects
 ):
@@ -459,6 +499,35 @@ def test_bytes_total_counts_all_seen_bytes_hashed_only_new_or_changed(conn, repo
 
 
 # --- usuwanie nieaktualnych wpisów ground truth --------------------------------
+
+
+def test_full_scan_removes_only_stale_ground_truth(conn, repo_root, subjects):
+    """Pełny skan sprząta własny indeks, ale nie może skasować historii apply innego planu."""
+    sha = _sha(b"brakujacy-material")
+    db.upsert_content(conn, {"sha256": sha, "content_kind": "pdf"})
+    planned = "paczka/SEM3/AKO_X/z-planu.pdf"
+    stale = "paczka/SEM3/AKO_X/ze-skanu.pdf"
+    for relative, plan_hash in ((planned, "plan:abc"), (stale, "ground_truth:1:1")):
+        assert not (repo_root / relative).exists()
+        db.record_applied(
+            conn,
+            {
+                "target_relative_path": relative,
+                "sha256": sha,
+                "action": "copy",
+                "plan_hash": plan_hash,
+                "applied_at": db.now_iso(),
+            },
+        )
+    before = dict(_applied(conn)[planned])
+
+    stats = scan_target.scan_target(conn, repo_root, "paczka", subjects)
+
+    applied = _applied(conn)
+    assert stats.errors == 0
+    assert dict(applied[planned]) == before
+    assert stale not in applied
+    assert stats.stale_removed == 1
 
 
 def test_stale_ground_truth_row_removed_when_file_moved(conn, repo_root, subjects):
