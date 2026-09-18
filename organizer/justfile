@@ -47,6 +47,15 @@ env-check *args:
 cli-check *args:
     {{ python }} -m pytest -m cli_contract {{ args }}
 
+# Czy testy w ogóle coś łapią: psuje KOPIĘ repo i sprawdza, czy robi się czerwono.
+# Zapisane kontrakty z audytu 2026-09-18; każdy MUSI wyjść jako WYKRYTE.
+mutate-check *args:
+    {{ python }} scripts/agent/mutate.py check {{ args }}
+
+# Pojedyncza mutacja z pliku specyfikacji (tests/mutations/*.yaml).
+mutate spec:
+    {{ python }} scripts/agent/mutate.py one {{ spec }}
+
 # Kontrola STANU (nie kodu): spójność operacyjnego indeksu.
 index-check *args:
     {{ python }} scripts/doctor.py index {{ args }}

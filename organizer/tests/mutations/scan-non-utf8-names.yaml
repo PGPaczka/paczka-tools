@@ -1,0 +1,10 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+name: nazwy spoza UTF-8 są pomijane, nie indeksowane
+file: scripts/scan.py
+find: "            if not _is_encodable(entry.name):\n                _warn(f\"pomijam\
+  \ wpis o nazwie spoza UTF-8: {entry.path!r}\")\n                stats.errors +=\
+  \ 1\n                continue"
+replace: '            pass'
+tests:
+- tests/test_special_names.py

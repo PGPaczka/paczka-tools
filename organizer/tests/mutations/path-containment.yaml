@@ -1,0 +1,8 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+name: resolve_within_sources nie wypuszcza poza korzeń
+file: scripts/orglib/config.py
+find: "    if not normalized.is_relative_to(root_normalized):\n        return None"
+replace: '    pass'
+tests:
+- tests/test_path_safety_properties.py

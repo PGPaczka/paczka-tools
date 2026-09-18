@@ -1,0 +1,8 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+name: serializacja tree_hash (separator NUL)
+file: scripts/orglib/hashes.py
+find: digest.update(f"{relpath}\0{sha256}\n".encode("utf-8"))
+replace: digest.update(f"{relpath}|{sha256};".encode("utf-8"))
+tests:
+- tests/test_hashes.py

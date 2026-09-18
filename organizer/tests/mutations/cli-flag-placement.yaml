@@ -1,0 +1,8 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+name: flagi podkomendy nie mogą stać przed podkomendą (codex exec)
+file: scripts/orglib/llm_client.py
+find: '                "codex",'
+replace: "                \"codex\",\n                \"--ignore-user-config\","
+tests:
+- tests/test_cli_contract.py

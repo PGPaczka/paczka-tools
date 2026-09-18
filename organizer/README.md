@@ -47,6 +47,7 @@ dozwolone wyłącznie przy braku lokalnych DANYCH, nigdy przy braku sprawności.
 | E2E | `e2e` | cały łańcuch etapów na syntetycznej paczce | rozjazd styku między skryptami |
 | Sonda | `probe` | realny STAN: spójność indeksu, niezmienność źródeł, `target_repo` | naruszony niezmiennik; brak danych = skip |
 | Własności | *(brak)* | granica ścieżek dla KAŻDEGO wejścia (Hypothesis) | wejście, które ucieka poza korzeń |
+| Mutacyjna | *(osobno)* | czy testy w ogóle coś łapią (`tests/mutations/*.yaml`) | kontrakt przestał być pilnowany |
 
 ```bash
 just test        # wszystko (~35 s)
@@ -57,6 +58,7 @@ just e2e         # pełny łańcuch na syntetycznej paczce
 just probe       # sondy na Twoich realnych danych
 just index-check # spójność operacyjnego indeksu (kontrola STANU, nie kodu)
 just sources-check # czy źródła są nadal takie, jakie zapisał skan
+just mutate-check  # psuje kopię repo i sprawdza, czy testy robią się czerwone
 ```
 
 Dwie ostatnie recepty nie są testami kodu — sprawdzają **stan** dwóch rzeczy,
@@ -86,6 +88,16 @@ z kodu jest pusta, bo jej skrócenie skraca też zestaw przypadków.
 Nowe zależności i nowe zewnętrzne narzędzia dopisuj razem z kontrolą w warstwie
 `environment` albo `cli_contract` — i sprawdź mutacyjnie, że po ich usunięciu
 testy naprawdę czerwienieją.
+
+`just mutate-check` to odpowiedź na pytanie „czy te testy cokolwiek dają". Każdy
+plik w `tests/mutations/` psuje jedno zachowanie produkcyjne i wymaga, żeby testy
+to wyłapały; wynik `PRZEPUSZCZONE` oznacza dziurę w pokryciu, nie awarię kodu.
+Dopisując kontrakt wart pilnowania, dopisz tam mutację — raz udowodniony kontrakt
+daje się wtedy powtórzyć bez pamiętania, co dokładnie się psuło.
+
+Nazwy plików i katalogów mają własny zestaw (`tests/test_special_names.py`)
+zbudowany na **zmierzonym** rozkładzie źródeł, nie na wyobrażeniu o nim: 98%
+plików ma spację, 38% nawias, 63% polskie znaki, a dwa zaczynają się od myślnika.
 
 Świadomie **nie** ma tu: progu pokrycia (mierzy wykonane linie, nie to, czy
 asercje cokolwiek znaczą — 615 zielonych testów przy niepilnowanej serializacji

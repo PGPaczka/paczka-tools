@@ -1,0 +1,8 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+name: text_head z etapu extract dociera do manifestu
+file: scripts/prepare_subject.py
+find: '            if head:'
+replace: '            if False:'
+tests:
+- tests/test_e2e_pipeline.py

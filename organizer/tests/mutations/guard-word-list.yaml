@@ -1,0 +1,8 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+name: lista słów mutujących w guardzie źródeł
+file: .agents/hooks/guard-sources.py
+find: '"(rm|rmdir|mv|chmod|chown|chattr|touch|mkdir|truncate|shred|dd|ln|tee|rename|setfacl)"'
+replace: '"(touch|mkdir)"'
+tests:
+- tests/test_agent_guard.py

@@ -1,0 +1,8 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+name: guard reaguje na dowolną nazwę narzędzia, nie tylko Bash
+file: .agents/hooks/guard-sources.py
+find: '    elif command:'
+replace: '    elif command and tool == "Bash":'
+tests:
+- tests/test_agent_guard.py

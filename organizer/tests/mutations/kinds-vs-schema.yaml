@@ -1,0 +1,8 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+name: mapa rozszerzeń zgodna z CHECK w schemacie
+file: scripts/orglib/kinds.py
+find: '    "svg": "image",'
+replace: '    "svg": "wektor",'
+tests:
+- tests/test_kinds.py

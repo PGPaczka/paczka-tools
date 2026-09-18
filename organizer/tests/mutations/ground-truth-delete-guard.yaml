@@ -1,0 +1,8 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+name: kasowanie w applied ograniczone do wpisów ground_truth
+file: scripts/scan_target.py
+find: '"WHERE substr(plan_hash, 1, ?) = ?",'
+replace: '"WHERE ? IS NOT NULL AND ? IS NOT NULL",'
+tests:
+- tests/test_scan_target.py
