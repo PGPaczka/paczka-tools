@@ -352,3 +352,54 @@ def test_find_subject_prefers_skrot_over_alias() -> None:
     subjects = config.iter_subjects(data)
 
     assert config.find_subject(3, "gk", subjects).nazwa == "Grafika_Komputerowa"
+
+
+# --------------------------------------------------------------------------- #
+# Realne pliki konfiguracji — nie tylko stuby loadera
+# --------------------------------------------------------------------------- #
+#
+# Testy wyżej podstawiają własny YAML i słusznie: sprawdzają LOADER. Ale audyt
+# 2026-09-18 pokazał lukę: usunięcie klucza `media` z prawdziwego
+# `config/paths.yaml` nie oblewało niczego, choć każdy skrypt uruchomiony bez
+# jawnych ścieżek leci wtedy `KeyError` przy starcie.
+
+
+def test_real_paths_yaml_loads() -> None:
+    """Prawdziwy config/paths.yaml musi dać się wczytać bez podstawiania niczego."""
+    paths = config.load_paths()
+    for name in ("sources", "work", "media", "target_repo", "target_paczka", "work_db"):
+        value = getattr(paths, name)
+        assert value.is_absolute(), f"{name} nie jest ścieżką absolutną: {value}"
+
+
+def test_real_paths_yaml_keeps_trees_separate() -> None:
+    """Drzewa workspace'u nie mogą się zagnieżdżać — na tym stoją wszystkie bramki zapisu."""
+    paths = config.load_paths()
+    roots = {
+        "sources": paths.sources, "work": paths.work,
+        "media": paths.media, "target_repo": paths.target_repo,
+    }
+    for first, first_path in roots.items():
+        for second, second_path in roots.items():
+            if first >= second:
+                continue
+            assert not first_path.is_relative_to(second_path), f"{first} leży wewnątrz {second}"
+            assert not second_path.is_relative_to(first_path), f"{second} leży wewnątrz {first}"
+
+
+def test_real_thresholds_yaml_has_usable_llm_section() -> None:
+    """Backend AI z realnego thresholds.yaml musi być znany klientowi LLM.
+
+    Literówka (`codex-cli` zamiast `codex_cli`) przechodziła wszystkie testy
+    i wychodziła dopiero przy pierwszym, PŁATNYM wywołaniu modelu.
+    """
+    from orglib.llm_client import KNOWN_BACKENDS
+
+    llm = config.load_thresholds()["llm"]
+    backends = [llm.get("backend")]
+    for task in ("classify", "relate"):
+        section = llm.get(task) or {}
+        if section.get("backend"):
+            backends.append(section["backend"])
+    for backend in backends:
+        assert backend in KNOWN_BACKENDS, f"nieznany backend w thresholds.yaml: {backend!r}"

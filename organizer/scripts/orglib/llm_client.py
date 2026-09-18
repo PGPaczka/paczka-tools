@@ -194,6 +194,21 @@ def load_llm_config(thresholds: dict[str, Any] | None = None) -> LLMConfig:
         for name, value in llm.items()
         if name not in _SCALAR_KEYS and isinstance(value, dict)
     }
+    # Backend sprawdzamy JUŻ TERAZ, nie dopiero przy użyciu zadania: literówka
+    # (`codex-cli` zamiast `codex_cli`) wychodziła inaczej przy pierwszym,
+    # potencjalnie płatnym wywołaniu modelu (audyt 2026-09-18).
+    declared = [str(llm.get("backend", "anthropic"))]
+    declared += [
+        str(section["backend"])
+        for section in task_overrides.values()
+        if isinstance(section, dict) and section.get("backend")
+    ]
+    unknown = sorted({name for name in declared if name not in KNOWN_BACKENDS})
+    if unknown:
+        raise ValueError(
+            f"thresholds.yaml: nieznany backend {unknown}; dozwolone: {sorted(KNOWN_BACKENDS)}"
+        )
+
     return LLMConfig(
         default_backend=str(llm.get("backend", "anthropic")),
         max_text_head_bytes=int(llm.get("max_text_head_bytes", 2048)),

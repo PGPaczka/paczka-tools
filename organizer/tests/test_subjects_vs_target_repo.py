@@ -20,6 +20,9 @@ import pytest
 
 from orglib import config
 
+#: Sonda na REALNYCH danych lokalnych — patrz sekcja „Warstwy testów” w README.
+pytestmark = pytest.mark.probe
+
 #: Przedmioty bez materiałów w target_repo (brak katalogu) — świadomy,
 #: udokumentowany wyjątek, NIE luka w subjects.yaml.
 _ALLOWED_MISSING: frozenset[tuple[int, str]] = frozenset({(2, "WFI"), (3, "WFI")})
@@ -31,11 +34,17 @@ _NOT_A_SUBJECT_DIR = {"sources"}
 
 
 def _target_paczka() -> Path | None:
-    """Katalog `paczka/` w target_repo, albo `None`, gdy niedostępny lokalnie."""
-    try:
-        paths = config.load_paths()
-    except (FileNotFoundError, KeyError, ValueError):
-        return None
+    """Katalog `paczka/` w target_repo, albo `None`, gdy nie ma go NA DYSKU.
+
+    Rozróżnienie jest celowe i wynika z zasady „brak ma być czerwony, nie
+    pominięty” (audyt 2026-09-18). Sonda pomija się wyłącznie wtedy, gdy
+    lokalnie nie ma klona repo produktu — to brak DANYCH, nie awaria. Natomiast
+    config, którego nie da się wczytać (brakujący klucz, zły YAML), jest awarią
+    i leci dalej jako błąd: wcześniej `except (FileNotFoundError, KeyError,
+    ValueError)` połykał go i sonda cichła w `skip`, maskując zepsuty
+    `paths.yaml`.
+    """
+    paths = config.load_paths()
     return paths.target_paczka if paths.target_paczka.is_dir() else None
 
 

@@ -592,3 +592,33 @@ def test_plan_output_outside_materials_is_allowed(tmp_path) -> None:
     """Zwykły katalog raportów przechodzi — bramka nie może blokować pracy."""
     paths = _paths_for(tmp_path)
     ai_resolve._check_output(tmp_path / "reports" / "AKO" / "plan.ai.jsonl", paths)
+
+
+def test_prompt_template_placeholders_match_the_code() -> None:
+    """Realny szablon promptu i kod muszą znać te same placeholdery.
+
+    Testy budowania promptu używają atrapy szablonu (stała TEMPLATE), więc
+    przemianowanie `{{TARGET_DIR}}` w prawdziwym `prompts/classify_ambiguous.md`
+    przechodziło wszystkie testy, a do modelu szedł dosłowny `{{TARGET_DIR}}`
+    zamiast katalogu docelowego — bez listy kategorii i bez celu (audyt 2026-09-18).
+    """
+    import re as _re
+
+    template = (config.ORGANIZER_ROOT / "prompts" / "classify_ambiguous.md").read_text(
+        encoding="utf-8"
+    )
+    in_template = set(_re.findall(r"\{\{[A-Z_]+\}\}", template))
+    source = (config.ORGANIZER_ROOT / "scripts" / "ai_resolve.py").read_text(encoding="utf-8")
+    body = source[source.index("def build_prompt") : source.index("def _thresholds")]
+    in_code = set(_re.findall(r'"(\{\{[A-Z_]+\}\})"', body))
+
+    assert in_template == in_code, (
+        f"szablon bez wypełnienia w kodzie: {sorted(in_template - in_code)}; "
+        f"kod wypełnia nieistniejące: {sorted(in_code - in_template)}"
+    )
+
+
+def test_relate_prompt_template_exists_and_is_not_empty() -> None:
+    """Drugi szablon też jest częścią kontraktu — pusty plik to cicha awaria."""
+    template = (config.ORGANIZER_ROOT / "prompts" / "relate_cluster.md").read_text(encoding="utf-8")
+    assert len(template.strip()) > 100

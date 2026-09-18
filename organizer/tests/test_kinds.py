@@ -112,3 +112,36 @@ def test_media_group_matches_syntax_yaml() -> None:
     kinds_media = {ext for ext, kind in kinds._EXTENSION_TO_KIND.items() if kind == "media"}
 
     assert kinds_media == media_extensions
+
+
+def _schema_content_kinds() -> set[str]:
+    """Wartości dozwolone przez CHECK w realnym schema.sql (czytane z pliku)."""
+    import re
+    from pathlib import Path
+
+    schema = (Path(kinds.__file__).with_name("schema.sql")).read_text(encoding="utf-8")
+    match = re.search(r"content_kind\s+TEXT\s+CHECK\s*\(content_kind IN \(([^)]*)\)", schema, re.S)
+    assert match, "nie znaleziono listy CHECK dla content_kind w schema.sql"
+    return set(re.findall(r"'([a-z]+)'", match.group(1)))
+
+
+def test_every_kind_is_accepted_by_the_database_schema() -> None:
+    """Mapa rozszerzeń nie może produkować wartości, których nie przyjmie baza.
+
+    To dwa niezależne pliki (`kinds.py` i `schema.sql`) bez żadnego wiązania:
+    audyt 2026-09-18 pokazał, że dopisanie rodzaju spoza listy CHECK przechodzi
+    testy, a w produkcji pierwszy taki plik wywala `hash_files` z kodem 1
+    i rollbackiem całej partii.
+    """
+    produced = set(kinds._EXTENSION_TO_KIND.values()) | {kinds.DEFAULT_KIND}
+    allowed = _schema_content_kinds()
+    assert produced <= allowed, f"rodzaje nieznane schematowi bazy: {sorted(produced - allowed)}"
+
+
+def test_schema_has_no_kind_the_map_can_never_produce() -> None:
+    """W drugą stronę: martwa wartość w CHECK znaczy, że ktoś zapomniał o mapie."""
+    produced = set(kinds._EXTENSION_TO_KIND.values()) | {kinds.DEFAULT_KIND}
+    assert _schema_content_kinds() <= produced, (
+        f"schemat dopuszcza rodzaje, których mapa nie tworzy: "
+        f"{sorted(_schema_content_kinds() - produced)}"
+    )

@@ -488,3 +488,23 @@ def test_cache_different_prompts_get_different_default_keys(tmp_path: Path) -> N
 def test_task_config_is_a_plain_dataclass() -> None:
     task = TaskConfig(backend="claude_cli", model="haiku", timeout_s=30)
     assert (task.backend, task.model, task.timeout_s) == ("claude_cli", "haiku", 30)
+
+
+def test_unknown_backend_is_rejected_at_config_load() -> None:
+    """Literówka w nazwie backendu ma wyjść przy wczytaniu configu, nie przy płatnym wywołaniu."""
+    import pytest as _pytest
+
+    from orglib.llm_client import load_llm_config
+
+    with _pytest.raises(ValueError, match="nieznany backend"):
+        load_llm_config({"llm": {"backend": "codex-cli"}})
+
+
+def test_unknown_backend_in_task_section_is_rejected() -> None:
+    """To samo dla backendu przypisanego pojedynczemu zadaniu."""
+    import pytest as _pytest
+
+    from orglib.llm_client import load_llm_config
+
+    with _pytest.raises(ValueError, match="nieznany backend"):
+        load_llm_config({"llm": {"backend": "codex_cli", "classify": {"backend": "gpt"}}})
