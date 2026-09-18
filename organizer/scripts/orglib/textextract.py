@@ -13,9 +13,11 @@ Warstwy podobieństwa (architektura, sekcja 5) liczone tutaj:
 Żadna funkcja nie modyfikuje plików wejściowych; wejściem bywa ścieżka
 w ``00_SOURCES`` (read-only), więc pliki otwieramy wyłącznie do odczytu.
 
-Zależności opcjonalne (PyMuPDF, pdfplumber, python-docx, python-pptx, Pillow,
-imagehash, pytesseract) ładuje :func:`_module` w momencie użycia — brak paczki
-to :class:`ExtractionError` dla JEDNEGO pliku, a nie wywrócenie całego przebiegu.
+Zależności opcjonalne (PyMuPDF, pdfplumber, python-docx, python-pptx, openpyxl,
+xlrd, odfpy, Pillow, imagehash, pytesseract) ładuje :func:`_module` w momencie
+użycia — brak paczki to :class:`ExtractionError` dla JEDNEGO pliku, a nie
+wywrócenie całego przebiegu. Stare formaty binarne (.doc/.ppt/.pps) wymagają
+systemowego pakietu ``catdoc``; jego brak daje metodę ``no_converter``.
 """
 
 from __future__ import annotations
@@ -23,7 +25,10 @@ from __future__ import annotations
 import hashlib
 import importlib
 import io
+import os
 import re
+import shutil
+import subprocess
 import unicodedata
 from collections import Counter
 from dataclasses import dataclass
@@ -61,11 +66,31 @@ METHODS: tuple[str, ...] = (
     "pdf_ocr",
     "docx",
     "pptx",
+    "odf",
+    "xlsx",
+    "xls",
+    "converter",
     "text",
     "image_ocr",
     "unsupported",
+    "no_converter",
     "empty",
 )
+
+#: Stare formaty binarne Microsoftu -> zewnętrzny konwerter z pakietu ``catdoc``.
+#: Żadna biblioteka Pythona ich nie czyta, a konwerter jest opcjonalny: jego brak
+#: daje metodę ``no_converter`` (widoczną w podsumowaniu przebiegu), nie błąd.
+LEGACY_CONVERTERS: dict[str, str] = {
+    ".doc": "catdoc",
+    ".ppt": "catppt",
+    ".pps": "catppt",
+}
+
+#: Limit czasu jednego wywołania zewnętrznego konwertera.
+_CONVERTER_TIMEOUT_S: int = 60
+
+#: Ile wierszy arkusza czytamy, zanim uznamy, że głowa wystarczy do klasyfikacji.
+_SHEET_MAX_ROWS: int = 200
 
 _WHITESPACE = re.compile(r"\s+")
 
@@ -118,7 +143,7 @@ def normalize_text(text: str) -> str:
     if not text:
         return ""
     text = unicodedata.normalize("NFKC", text)
-    text = text.replace("­", "")  # miękki dywiz z łamania wierszy w PDF
+    text = text.replace("\u00ad", "")  # miękki dywiz z łamania wierszy w PDF
     cleaned = "".join(ch if (ch.isalnum() or ch.isspace()) else " " for ch in text)
     return _WHITESPACE.sub(" ", cleaned).strip().casefold()
 
@@ -315,6 +340,110 @@ def _pptx_text(path: Path) -> str:
     return "\n".join(parts)
 
 
+def _odf_text(path: Path) -> str:
+    """Tekst z formatów OpenDocument (.odt/.ods/.odp) przez odfpy.
+
+    Bierze akapity i nagłówki z całego dokumentu, więc obejmuje też komórki
+    tabel i pola tekstowe slajdów — one również składają się z akapitów.
+    """
+    opendocument = _module("odf.opendocument")
+    odf_text = _module("odf.text")
+    teletype = _module("odf.teletype")
+    try:
+        document = opendocument.load(str(path))
+        parts = [
+            teletype.extractText(element)
+            for kind in (odf_text.H, odf_text.P)
+            for element in document.getElementsByType(kind)
+        ]
+    except ExtractionError:
+        raise
+    except Exception as exc:
+        raise ExtractionError(f"odfpy: {type(exc).__name__}: {exc}") from exc
+    return "\n".join(part for part in parts if part)
+
+
+def _xlsx_text(path: Path, max_chars: int) -> str:
+    """Nazwy arkuszy i głowa komórek z XLSX przez openpyxl (tryb read-only).
+
+    ``data_only=True`` daje ostatnią zapisaną wartość formuły zamiast jej treści —
+    do klasyfikacji liczy się to, co widać w arkuszu, nie jak zostało policzone.
+    """
+    openpyxl = _module("openpyxl")
+    parts: list[str] = []
+    length = 0
+    workbook = None
+    try:
+        workbook = openpyxl.load_workbook(str(path), read_only=True, data_only=True)
+        for sheet in workbook.worksheets:
+            parts.append(str(sheet.title))
+            for number, row in enumerate(sheet.iter_rows(values_only=True)):
+                if number >= _SHEET_MAX_ROWS or length >= max_chars:
+                    break
+                line = " | ".join(str(cell) for cell in row if cell is not None)
+                if line:
+                    parts.append(line)
+                    length += len(line)
+    except ExtractionError:
+        raise
+    except Exception as exc:
+        raise ExtractionError(f"openpyxl: {type(exc).__name__}: {exc}") from exc
+    finally:
+        if workbook is not None:
+            workbook.close()
+    return "\n".join(parts)
+
+
+def _xls_text(path: Path, max_chars: int) -> str:
+    """Nazwy arkuszy i głowa komórek ze starego XLS przez xlrd."""
+    xlrd = _module("xlrd")
+    parts: list[str] = []
+    length = 0
+    try:
+        book = xlrd.open_workbook(str(path))
+        for sheet in book.sheets():
+            parts.append(str(sheet.name))
+            for number in range(min(sheet.nrows, _SHEET_MAX_ROWS)):
+                if length >= max_chars:
+                    break
+                line = " | ".join(
+                    str(value) for value in sheet.row_values(number) if value not in ("", None)
+                )
+                if line:
+                    parts.append(line)
+                    length += len(line)
+    except ExtractionError:
+        raise
+    except Exception as exc:
+        raise ExtractionError(f"xlrd: {type(exc).__name__}: {exc}") from exc
+    return "\n".join(parts)
+
+
+def _converter_text(path: Path, binary: str) -> str | None:
+    """Tekst ze starego formatu binarnego przez zewnętrzny konwerter (pakiet ``catdoc``).
+
+    Zwraca ``None``, gdy konwertera NIE MA w systemie — brak czytnika dla formatu
+    jest stanem środowiska, nie awarią pliku, więc wołający robi z tego
+    ``no_converter``. Konwerter, który się uruchomił i zawiódł, to
+    :class:`ExtractionError` — tu naprawdę nie udało się przeczytać pliku.
+    """
+    if shutil.which(binary) is None:
+        return None
+    try:
+        completed = subprocess.run(  # noqa: S603 - stała nazwa binarki, bez powłoki
+            [binary, "-d", "utf-8", str(Path(os.path.abspath(path)))],
+            capture_output=True,
+            timeout=_CONVERTER_TIMEOUT_S,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise ExtractionError(f"{binary}: {type(exc).__name__}: {exc}") from exc
+    if completed.returncode != 0:
+        detail = completed.stderr.decode("utf-8", errors="replace").strip().splitlines()
+        raise ExtractionError(f"{binary}: kod {completed.returncode}: {detail[0] if detail else ''}")
+    return completed.stdout.decode("utf-8", errors="replace")
+
+
 def _plain_text(path: Path, max_chars: int) -> str:
     """Plik tekstowy/kod: UTF-8, a przy błędzie cp1250 (stare notatki z Windows)."""
     limit = max(max_chars, 1) * _TEXT_BYTES_PER_CHAR
@@ -352,10 +481,16 @@ def extract(
     Obrazy wymagają jawnego ``ocr_images`` — w źródłach jest ich kilkanaście
     tysięcy i OCR całości kosztowałby godziny bez związku z klasyfikacją.
 
+    Stare formaty binarne Microsoftu (``.doc``, ``.ppt``, ``.pps``) idą przez
+    zewnętrzny konwerter z pakietu ``catdoc``. Jego brak w systemie NIE jest
+    awarią pliku: wynik ma wtedy metodę ``no_converter``, widoczną w podsumowaniu
+    przebiegu, więc doinstalowanie pakietu i ponowny przebieg z ``--force``
+    domykają temat bez zmian w kodzie.
+
     Rodzaje bez sensownej reprezentacji tekstowej (``archive``, ``media``,
-    ``other``, a także ``.doc``/``.rtf``/``.odt``/``.xlsx``, których nie czyta
-    żadna z zależności projektu) zwracają pusty tekst z metodą ``unsupported``.
-    To NIE jest błąd — plik ma normalnie przejść na status 'extracted'.
+    ``other``, a także ``.rtf``, którego nie czyta żadna z zależności projektu)
+    zwracają pusty tekst z metodą ``unsupported``. To NIE jest błąd — plik ma
+    normalnie przejść na status 'extracted'.
     """
     path = Path(path)
     suffix = path.suffix.casefold()
@@ -383,6 +518,17 @@ def extract(
         cut, truncated = _cut(text, max_chars)
         return Extraction(cut, method if normalize_text(cut) else "empty", truncated=truncated)
 
+    if suffix in LEGACY_CONVERTERS and content_kind in ("docx", "pptx", "xlsx"):
+        converted = _converter_text(path, LEGACY_CONVERTERS[suffix])
+        if converted is None:
+            return Extraction("", "no_converter")
+        cut, truncated = _cut(converted, max_chars)
+        return Extraction(cut, "converter" if normalize_text(cut) else "empty", truncated=truncated)
+
+    if suffix in (".odt", ".ods", ".odp") and content_kind in ("docx", "pptx", "xlsx"):
+        cut, truncated = _cut(_odf_text(path), max_chars)
+        return Extraction(cut, "odf" if normalize_text(cut) else "empty", truncated=truncated)
+
     if content_kind == "docx":
         if suffix != ".docx":
             return Extraction("", "unsupported")
@@ -390,10 +536,18 @@ def extract(
         return Extraction(cut, "docx" if normalize_text(cut) else "empty", truncated=truncated)
 
     if content_kind == "pptx":
-        if suffix != ".pptx":
+        if suffix not in (".pptx", ".ppsx"):
             return Extraction("", "unsupported")
         cut, truncated = _cut(_pptx_text(path), max_chars)
         return Extraction(cut, "pptx" if normalize_text(cut) else "empty", truncated=truncated)
+
+    if content_kind == "xlsx" and suffix == ".xls":
+        cut, truncated = _cut(_xls_text(path, max_chars), max_chars)
+        return Extraction(cut, "xls" if normalize_text(cut) else "empty", truncated=truncated)
+
+    if content_kind == "xlsx" and suffix in (".xlsx", ".xlsm"):
+        cut, truncated = _cut(_xlsx_text(path, max_chars), max_chars)
+        return Extraction(cut, "xlsx" if normalize_text(cut) else "empty", truncated=truncated)
 
     if content_kind in ("text", "code") or (content_kind == "xlsx" and suffix == ".csv"):
         cut, truncated = _cut(_plain_text(path, max_chars), max_chars)

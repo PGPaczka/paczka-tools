@@ -6,7 +6,7 @@
 # Co i dlaczego: setup/PLUGINS.md. Uruchamiaj z dowolnego miejsca; można wielokrotnie.
 #
 #   bash setup/install.sh                 # wszystko poza apt i chmod
-#   bash setup/install.sh --with-apt      # + sudo apt install (jq rmlint tesseract poppler ncdu)
+#   bash setup/install.sh --with-apt      # + sudo apt install (jq rmlint tesseract poppler ncdu catdoc)
 #   bash setup/install.sh --lock-sources  # + chmod -R a-w na 00_SOURCES (read-only na poziomie FS)
 #   bash setup/install.sh --refresh-agents# nadpisz .claude/agents/ świeżą kopią z VoltAgent (UWAGA: gubi audyt)
 #   bash setup/install.sh --no-plugins    # pomiń muxer/statusline (np. na maszynie bez Claude Code)
@@ -60,11 +60,11 @@ mkdir -p "$WORK" "$MEDIA"; ok "work:   $WORK"; ok "media:  $MEDIA"
 
 # -------------------------------------------------------------------- 2. apt
 say "2/8 pakiety systemowe"
-APT_PKGS=(jq rmlint ncdu tesseract-ocr tesseract-ocr-pol poppler-utils rclone)
+APT_PKGS=(jq rmlint ncdu tesseract-ocr tesseract-ocr-pol poppler-utils rclone catdoc)
 if [ "$WITH_APT" = 1 ]; then
   sudo apt-get update -qq && sudo apt-get install -y -qq "${APT_PKGS[@]}" && ok "apt: ${APT_PKGS[*]}"
 else
-  missing=(); for p in jq rmlint ncdu tesseract pdftotext; do command -v "$p" >/dev/null || missing+=("$p"); done
+  missing=(); for p in jq rmlint ncdu tesseract pdftotext catdoc; do command -v "$p" >/dev/null || missing+=("$p"); done
   [ "${#missing[@]}" = 0 ] && ok "wszystko jest" || warn "brakuje: ${missing[*]} → uruchom z --with-apt"
 fi
 # jq jest WYMAGANE przez hooki muxera i status line — bez sudo bierzemy statyczną binarkę

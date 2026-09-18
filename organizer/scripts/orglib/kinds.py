@@ -20,10 +20,13 @@ _EXTENSION_TO_KIND: dict[str, str] = {
     # pptx
     "ppt": "pptx",
     "pptx": "pptx",
+    "pps": "pptx",
+    "ppsx": "pptx",
     "odp": "pptx",
     # xlsx
     "xls": "xlsx",
     "xlsx": "xlsx",
+    "xlsm": "xlsx",
     "ods": "xlsx",
     "csv": "xlsx",
     # image
@@ -36,6 +39,7 @@ _EXTENSION_TO_KIND: dict[str, str] = {
     "tiff": "image",
     "webp": "image",
     "heic": "image",
+    "jfif": "image",
     "svg": "image",
     # text
     "txt": "text",
@@ -73,6 +77,7 @@ _EXTENSION_TO_KIND: dict[str, str] = {
     "v": "code",
     "vhd": "code",
     "vhdl": "code",
+    "hs": "code",
     # archive
     "zip": "archive",
     "rar": "archive",

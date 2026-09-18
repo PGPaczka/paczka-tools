@@ -254,9 +254,7 @@ def test_plain_text_decoding(tmp_path: Path, suffix: str, kind: str, encoding: s
 
 @pytest.mark.parametrize(
     ("suffix", "kind"),
-    [(".doc", "docx"), (".rtf", "docx"), (".odt", "docx"),
-     (".ppt", "pptx"), (".odp", "pptx"), (".zip", "archive"),
-     (".mp4", "media"), (".xlsx", "xlsx"), (".bin", "other")],
+    [(".rtf", "docx"), (".zip", "archive"), (".mp4", "media"), (".bin", "other")],
 )
 def test_unsupported_formats(tmp_path: Path, suffix: str, kind: str) -> None:
     """Nieobsługiwany format jest pustym wynikiem, a nie awarią odczytu."""
@@ -355,3 +353,126 @@ def test_pdf_ocr_failure_is_reported_not_silenced(
     )
     with pytest.raises(textextract.ExtractionError, match="brak tesseractu"):
         textextract.extract(path, "pdf")
+
+
+# --------------------------------------------------------------------------- #
+# Arkusze, OpenDocument i stare formaty binarne przez zewnętrzny konwerter
+# --------------------------------------------------------------------------- #
+
+
+def test_xlsx_includes_sheet_names_and_cells(tmp_path: Path) -> None:
+    """Arkusz wnosi do klasyfikacji nazwy zakładek i treść komórek."""
+    openpyxl = pytest.importorskip("openpyxl")
+    path = tmp_path / "oceny.xlsx"
+    workbook = openpyxl.Workbook()
+    sheet = workbook.active
+    sheet.title = "Kolokwium 1"
+    sheet.append(["Nazwisko", "Punkty"])
+    sheet.append(["Kowalski", 42])
+    workbook.save(path)
+    result = textextract.extract(path, "xlsx")
+    assert result.method == "xlsx"
+    assert "Kolokwium 1" in result.text
+    assert "Nazwisko | Punkty" in result.text
+    assert "Kowalski | 42" in result.text
+
+
+def test_xls_is_routed_to_xlrd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stary arkusz czyta xlrd, a nie zewnętrzny konwerter."""
+    path = tmp_path / "stary.xls"
+    path.write_bytes(b"udawany xls")
+    reader = Mock(return_value="Arkusz1\nDane | 7")
+    monkeypatch.setattr(textextract, "_xls_text", reader)
+    result = textextract.extract(path, "xlsx")
+    assert result == textextract.Extraction("Arkusz1\nDane | 7", "xls")
+    reader.assert_called_once()
+
+
+@pytest.mark.parametrize(("suffix", "kind"), [(".odt", "docx"), (".ods", "xlsx"), (".odp", "pptx")])
+def test_odf_documents(tmp_path: Path, suffix: str, kind: str) -> None:
+    """Rodzina OpenDocument idzie jedną ścieżką przez odfpy."""
+    pytest.importorskip("odf")
+    from odf.opendocument import OpenDocumentText
+    from odf.text import H, P
+
+    path = tmp_path / f"dokument{suffix}"
+    document = OpenDocumentText()
+    heading = H(outlinelevel=1, text="Sprawozdanie z laboratorium")
+    document.text.addElement(heading)
+    paragraph = P(text="Pomiary wykonano w semestrze zimowym")
+    document.text.addElement(paragraph)
+    document.save(str(path))
+    result = textextract.extract(path, kind)
+    assert result.method == "odf"
+    assert "Sprawozdanie z laboratorium" in result.text
+    assert "Pomiary wykonano w semestrze zimowym" in result.text
+
+
+def test_ppsx_is_read_by_python_pptx(tmp_path: Path) -> None:
+    """Pokaz .ppsx to ten sam OOXML co .pptx — nie wymaga konwertera."""
+    path = tmp_path / "pokaz.ppsx"
+    presentation = Presentation()
+    slide = presentation.slides.add_slide(presentation.slide_layouts[6])
+    shape = slide.shapes.add_textbox(Inches(1), Inches(1), Inches(4), Inches(1))
+    shape.text = "Pokaz z wykładu"
+    presentation.save(path)
+    result = textextract.extract(path, "pptx")
+    assert result.method == "pptx"
+    assert "Pokaz z wykładu" in result.text
+
+
+@pytest.mark.parametrize(
+    ("suffix", "kind", "binary"),
+    [(".doc", "docx", "catdoc"), (".ppt", "pptx", "catppt"), (".pps", "pptx", "catppt")],
+)
+def test_legacy_binary_uses_external_converter(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, suffix: str, kind: str, binary: str
+) -> None:
+    """Stary format binarny woła właściwą binarkę z pakietu catdoc, bez powłoki."""
+    path = tmp_path / f"stary{suffix}"
+    path.write_bytes(b"binarny format")
+    monkeypatch.setattr(textextract.shutil, "which", lambda name: f"/usr/bin/{name}")
+    run = Mock(return_value=SimpleNamespace(returncode=0, stdout="Wykład 3\n".encode("utf-8"), stderr=b""))
+    monkeypatch.setattr(textextract.subprocess, "run", run)
+    result = textextract.extract(path, kind)
+    assert result == textextract.Extraction("Wykład 3\n", "converter")
+    argv = run.call_args.args[0]
+    assert argv[0] == binary
+    assert Path(argv[-1]).is_absolute()
+    assert run.call_args.kwargs["timeout"] > 0
+
+
+@pytest.mark.parametrize(("suffix", "kind"), [(".doc", "docx"), (".ppt", "pptx"), (".pps", "pptx")])
+def test_missing_converter_is_visible_not_fatal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, suffix: str, kind: str
+) -> None:
+    """Brak pakietu catdoc daje osobną metodę, a nie błąd i nie ciche 'unsupported'."""
+    path = tmp_path / f"stary{suffix}"
+    path.write_bytes(b"binarny format")
+    monkeypatch.setattr(textextract.shutil, "which", lambda name: None)
+    run = Mock(side_effect=AssertionError("nie wolno wołać nieobecnego konwertera"))
+    monkeypatch.setattr(textextract.subprocess, "run", run)
+    assert textextract.extract(path, kind) == textextract.Extraction("", "no_converter")
+    run.assert_not_called()
+
+
+def test_converter_failure_is_extraction_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Konwerter, który się uruchomił i zawiódł, to awaria pliku, nie brak obsługi."""
+    path = tmp_path / "uszkodzony.doc"
+    path.write_bytes(b"binarny format")
+    monkeypatch.setattr(textextract.shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(
+        textextract.subprocess, "run",
+        Mock(return_value=SimpleNamespace(returncode=1, stdout=b"", stderr="nie ten format\n".encode("utf-8"))),
+    )
+    with pytest.raises(textextract.ExtractionError, match="catdoc"):
+        textextract.extract(path, "docx")
+
+
+@pytest.mark.parametrize(("suffix", "kind"), [(".xlsx", "xlsx"), (".odt", "docx"), (".ods", "xlsx")])
+def test_corrupt_sheet_or_odf_raises_extraction_error(tmp_path: Path, suffix: str, kind: str) -> None:
+    """Uszkodzony arkusz i uszkodzony OpenDocument zgłaszają awarię pojedynczego pliku."""
+    path = tmp_path / f"uszkodzony{suffix}"
+    path.write_bytes(b"to nie jest dokument")
+    with pytest.raises(textextract.ExtractionError):
+        textextract.extract(path, kind)

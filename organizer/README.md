@@ -63,6 +63,7 @@ Kolejność uruchamiania (robione raz, na całości źródeł):
 | `dedup_report.py` | baza (`content`/`files`/`folders`) | `reports/dedup_summary.md`, `reports/inventory.jsonl` | tylko odczyt bazy, bez zapisu do źródeł ani do dysku poza `reports/` |
 | `scan_target.py` | `paczka/` w `target_repo` (read-only) | `files` → status `applied`, klasyfikacja `manual` conf=1.0 | `--limit`/`--batch`; nie modyfikuje `target_repo`, tylko odczyt |
 | `extract_text.py` | `files` w statusie `hashed` (bez poddrzew `duplicate_of`) | `20_WORK/extracted_text/{sha256}.txt`, `content.extracted_text_path`/`ocr_done`, `files.normalized_text_hash`/`simhash`/`perceptual_hash`, `files` → `extracted` | praca raz na sha256 (druga kopia i re-run biorą tekst z dysku, `--force` wymusza ponownie); OCR awaryjny tylko dla PDF bez warstwy tekstowej (`--no-ocr` wyłącza, `--ocr-images` dokłada obrazy); brak tekstu ≠ błąd |
+| `db_admin.py refresh-kinds` | `files.extension` + mapa `orglib/kinds.py` | przeliczone `content.content_kind` | domyślnie dry-run, zapis dopiero z `--apply`; potrzebne po dopisaniu rozszerzenia do mapy, bo `content_kind` ustala etap hash |
 
 Uwagi:
 
@@ -75,8 +76,16 @@ Uwagi:
 - `extract_text.py` czyta źródła wyłącznie do odczytu, a zapisuje do `20_WORK`;
   `--text-dir` wskazujący wnętrze `00_SOURCES`, `target_repo` albo `90_MEDIA`
   kończy się kodem 2. Rodzaje bez sensownej treści tekstowej (archiwum, media,
-  `.doc`/`.rtf`/`.odt`, `.xlsx`, obraz bez `--ocr-images`) przechodzą na status
-  `extracted` z pustym wynikiem — to nie jest błąd.
+  `.rtf`, obraz bez `--ocr-images`) przechodzą na status `extracted` z pustym
+  wynikiem — to nie jest błąd.
+- Formaty i czym są czytane: PDF → PyMuPDF (+ pdfplumber awaryjnie, + OCR dla
+  skanów), `.docx` → python-docx, `.pptx`/`.ppsx` → python-pptx, `.xlsx`/`.xlsm`
+  → openpyxl, `.xls` → xlrd, `.odt`/`.ods`/`.odp` → odfpy, `.csv` i tekst/kod →
+  wprost (UTF-8, awaryjnie cp1250), obrazy → phash (+ OCR na żądanie).
+  Stare formaty binarne `.doc`/`.ppt`/`.pps` wymagają **systemowego** pakietu
+  `catdoc` (`catdoc`, `catppt`) — bez niego wynik ma metodę `no_converter`
+  widoczną w podsumowaniu przebiegu, a doinstalowanie pakietu i ponowny
+  `just extract --force` domykają temat bez zmian w kodzie.
 - Kody wyjścia `scan.py`: `0` pełny skan, `3` skan częściowy (coś pominięto —
   nieczytelny katalog, nazwa spoza UTF-8, błąd stat), `1` zły katalog źródeł
   lub nieznana paczka, `2` sprzeczne opcje.

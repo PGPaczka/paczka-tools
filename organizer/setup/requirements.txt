@@ -2,7 +2,10 @@
 PyMuPDF            # tekst z PDF (fitz)
 pdfplumber         # tekst/tabelki z PDF (awaryjnie)
 python-docx        # tekst z DOCX
-python-pptx        # tekst ze slajdów PPTX
+python-pptx        # tekst ze slajdów PPTX (także .ppsx)
+openpyxl           # tekst z arkuszy XLSX/XLSM
+xlrd               # tekst ze starych arkuszy XLS
+odfpy              # tekst z OpenDocument (.odt/.ods/.odp)
 datasketch         # MinHash + LSH (near-dupe + bucketowanie kandydatów)
 imagehash          # perceptual hash obrazów
 Pillow             # obrazy / miniatury
@@ -17,3 +20,6 @@ jsonschema         # walidacja linii planu wg prompts/plan_line.schema.json (val
 anthropic          # backend AI (Claude) — dla llm_client
 openai             # backend AI (Codex) — dla llm_client
 pytest             # testy
+# Stare formaty binarne (.doc/.ppt/.pps) czyta systemowy pakiet catdoc
+# (catdoc, catppt) — instaluje go setup/install.sh --with-apt. Jego brak nie
+# jest błędem: extract_text.py raportuje wtedy metodę 'no_converter'.

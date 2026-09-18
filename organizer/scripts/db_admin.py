@@ -1,4 +1,4 @@
-"""CLI administracyjne bazy organizera: init / reset / stats / eksport decyzji.
+"""CLI administracyjne bazy organizera: init / reset / stats / eksport decyzji / refresh-kinds.
 
 Uruchamianie: ``python scripts/db_admin.py <komenda>`` (katalog scripts/ trafia
 wtedy na sys.path, więc ``from orglib import ...`` działa bez instalacji pakietu).
@@ -13,7 +13,7 @@ from typing import Optional
 
 import typer
 
-from orglib import config, db
+from orglib import config, db, kinds
 
 app = typer.Typer(add_completion=False, help="Administracja bazą 20_WORK/organizer.sqlite.")
 
@@ -137,6 +137,65 @@ def import_manual(
     finally:
         conn.close()
     typer.echo(f"wczytane decyzje: {count} <- {source}")
+
+
+
+@app.command("refresh-kinds")
+def refresh_kinds(
+    db_path: Optional[Path] = DB_OPTION,
+    apply_changes: bool = typer.Option(
+        False, "--apply", help="Zapisz zmiany; bez tej flagi tylko raport (dry-run)."
+    ),
+) -> None:
+    """Przelicza ``content.content_kind`` z rozszerzeń wg aktualnej mapy ``orglib.kinds``.
+
+    ``content_kind`` zapisuje etap hash, więc rozszerzenie dopisane później do mapy
+    (np. ``.jfif`` jako obraz, ``.ppsx`` jako prezentacja) nie zmienia samo z siebie
+    treści już zindeksowanych. Ta komenda domyka różnicę bez ponownego hashowania.
+    Reguła wyboru jest ta sama co w ``hash_files.py``: dla treści o kilku
+    rozszerzeniach wygrywa pierwsze w porządku (source_package, ścieżka).
+    """
+    path = _require_db(db_path)
+    conn = db.connect(path, init=False)
+    try:
+        current = {
+            str(row["sha256"]): str(row["content_kind"] or kinds.DEFAULT_KIND)
+            for row in conn.execute("SELECT sha256, content_kind FROM content")
+        }
+        expected: dict[str, str] = {}
+        for row in conn.execute(
+            "SELECT sha256, extension FROM files WHERE sha256 IS NOT NULL "
+            "ORDER BY source_package, source_relative_path"
+        ):
+            sha = str(row["sha256"])
+            if sha in expected:
+                continue
+            expected[sha] = kinds.content_kind_for(row["extension"])
+        changes = [
+            (sha, current[sha], kind)
+            for sha, kind in expected.items()
+            if sha in current and current[sha] != kind
+        ]
+        summary: dict[tuple[str, str], int] = {}
+        for _, was, becomes in changes:
+            summary[(was, becomes)] = summary.get((was, becomes), 0) + 1
+        for (was, becomes), count in sorted(summary.items(), key=lambda item: -item[1]):
+            typer.echo(f"  {was} -> {becomes}: {count}")
+        typer.echo(f"treści do zmiany: {len(changes)}")
+        if not apply_changes:
+            typer.echo("dry-run — użyj --apply, żeby zapisać")
+            return
+        with conn:
+            conn.executemany(
+                "UPDATE content SET content_kind = ? WHERE sha256 = ?",
+                [(kind, sha) for sha, _, kind in changes],
+            )
+        typer.echo(f"zapisane: {len(changes)}")
+    except sqlite3.Error as exc:
+        typer.echo(f"błąd bazy danych: {exc}", err=True)
+        raise typer.Exit(code=1)
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":
