@@ -126,9 +126,13 @@ subject-plan semester skrot *args:
 subject-validate semester skrot *args:
     {{ python }} scripts/validate_plan.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
 
+# B9: strona przeglądu dla człowieka (diff near-dupe, miniatury, unresolved).
 subject-review semester skrot *args:
-    @test -f scripts/review_report.py || { echo "Brak scripts/review_report.py (TODO B9)" >&2; exit 2; }
     {{ python }} scripts/review_report.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
+
+# E3: przedmioty x etapy liczone z indeksu -> reports/STATUS.md.
+status *args:
+    {{ python }} scripts/status_report.py {{ args }}
 
 subject-apply semester skrot *args:
     @test -f scripts/apply.py || { echo "Brak scripts/apply.py (TODO B10)" >&2; exit 2; }

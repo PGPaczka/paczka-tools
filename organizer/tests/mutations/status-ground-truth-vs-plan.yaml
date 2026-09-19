@@ -1,0 +1,10 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+# Zlanie ground truth z decyzjami planu w jedną liczbę mówiłoby, że przedmiot jest
+# zrobiony, podczas gdy to tylko materiały, które ktoś ułożył ręcznie lata temu.
+name: STATUS liczy ground truth osobno od planu
+file: scripts/status_report.py
+find: '        if str(row["run_id"]) == GROUND_TRUTH_RUN_ID:'
+replace: '        if False:'
+tests:
+- tests/test_status_report.py

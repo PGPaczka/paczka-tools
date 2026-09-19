@@ -1,0 +1,10 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+# Nazwy plików pochodzą z cudzych paczek i trafiają do HTML-a przeglądu. Bez ucieczki
+# znaków nazwa ze znacznikiem staje się kodem na stronie, którą ktoś otworzy i prześle dalej.
+name: strona przeglądu ucieka znaki w nazwach ze źródeł
+file: scripts/review_report.py
+find: '    return html.escape(str(value), quote=True)'
+replace: '    return str(value)'
+tests:
+- tests/test_review_report_cli.py
