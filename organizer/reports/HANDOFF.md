@@ -2,7 +2,7 @@
 
 ## Kontekst ręczny
 
-- Cel bieżącej pracy: sekcja B TODO — skrypty cyklu per-przedmiot. Domknięte B3/B3a, **B6**, **B7 (plan + migracja schematu 1→2)** i **B8**. Łańcuch B1→B3→B6→B7→B8 przechodzi na realnych danych: `just subject-validate 3 AKO` kończy się kodem 0. Materiałów nie ruszano.
+- Cel bieżącej pracy: sekcja B TODO — skrypty cyklu per-przedmiot. Domknięte B3/B3a, **B6**, **B7 (plan + migracja schematu 1→2)**, **B8**, **B9 (review.html)** i **E3 (STATUS.md)**. Łańcuch B1→B3→B6→B7→B8→B9 przechodzi na realnych danych: `just subject-validate 3 AKO` kończy się kodem 0, a `reports/AKO/review.html` jest gotowe do obejrzenia. Materiałów nie ruszano.
 - Aktywny przedmiot `(semestr, skrót, grupa)`: brak — praca narzędziowa. Etap extract sprawdzony smoke testem na syntetycznej paczce w scratchpadzie (PDF tekstowy, PDF-skan, PNG, DOCX, PPTX, TXT, ZIP), nie na realnych źródłach.
 - Ostatni zakończony krok: B8. Nowe pliki w tej sesji: `scripts/{classify,near_dupe,validate_plan}.py`, `scripts/orglib/{classify,near_dupe,plan_lint}.py`, sześć plików testów, 10 specyfikacji mutacji; recepty `just subject-classify|subject-relate|subject-validate`.
 - **Etap extract wykonany na realnych źródłach 2026-09-19** (698 s): 22 774 plików, 18 142 treści, 7788 z tekstem, 5767 z phashem, OCR 194, **37 błędów** (nierozpoznane skany — czekają na `just extract --retry-errors`). Pozostałe 24 938 plików stoi na `hashed` **zgodnie z projektem**: leżą w poddrzewach `duplicate_of` i są wyłącznie prowenancją (sprawdzone: 0 plików na `hashed` poza duplikatami). 911 treści nie ma żadnego przetworzenia — istnieją tylko w duplikatach katalogów.
@@ -45,23 +45,26 @@
 - Znany, świadomie zostawiony fałszywy alarm guarda: `tee` jest na liście słów twardo mutujących, więc potok ze źródeł do `tee` poza nimi zostanie zablokowany — używaj przekierowania `>`. Ogólniej hook blokuje każdą komendę Bash, której **tekst** zawiera ścieżkę źródeł razem ze słowem mutującym (także w komunikacie commita); w takich wypadkach używaj narzędzi Edit/Write zamiast powłoki.
 - Uruchamianie agentów interaktywnie: rozpisane w `README.md`, sekcja „Agenci interaktywni” (pierwsza konfiguracja, `just claude`, trzy tryby sandboxu Codeksa, przekazywanie argumentów **bez** `--`, potwierdzanie konta). `AGENTS.md` i `CLAUDE.md` tylko tam odsyłają — nie duplikuj tej treści.
 - Zakazy dla następnego agenta: nie wykonuj apply bez jawnej zgody na konkretny plan; nie dodawaj sources jako writable root; nie przywracaj `--ignore-user-config` w delegacji Codeksa; nie przestawiaj `classify`/`relate` z powrotem na `claude_cli` bez decyzji użytkownika; nie commituj materiałów razem z narzędziami.
-- Wykonane testy: `just test` **997/997**, `just mutate-check` **24/24**, `just index-check` czysto (37 plików w statusie `error` zgłoszonych jako `info`), `just sources-check` czysto. Wcześniej w tej sesji: `just test` 851/851 (+81 dla B3: 64 kontraktu silnika reguł, 16 CLI, 1 nowy styk e2e), `just mutate-check` **15/15**, `just index-check` czysto, `just skills-check` 5/5. Poprzedni stan: `just test` 770/770 (w tym 38 kontroli środowiska i 114 dla B2/B2b w `tests/test_textextract.py` + `tests/test_extract_text.py`, 6 dla `text_head` i 5 dla `refresh-kinds`); `just skills-check` 5/5. Smoke test etapu extract na syntetycznej paczce: 7 plików / 7 treści, 6 z tekstem, OCR 2, 0 błędów; drugi przebieg 6 treści z dysku.
+- Wykonane testy: `just test` **1034/1034**, `just mutate-check` **26/26**, `just index-check` czysto (37 plików w statusie `error` zgłoszonych jako `info`), `just sources-check` czysto. Wcześniej w tej sesji: `just test` 851/851 (+81 dla B3: 64 kontraktu silnika reguł, 16 CLI, 1 nowy styk e2e), `just mutate-check` **15/15**, `just index-check` czysto, `just skills-check` 5/5. Poprzedni stan: `just test` 770/770 (w tym 38 kontroli środowiska i 114 dla B2/B2b w `tests/test_textextract.py` + `tests/test_extract_text.py`, 6 dla `text_head` i 5 dla `refresh-kinds`); `just skills-check` 5/5. Smoke test etapu extract na syntetycznej paczce: 7 plików / 7 treści, 6 z tekstem, OCR 2, 0 błędów; drugi przebieg 6 treści z dysku.
 - **Baza jest już w schema_version 2** (migracja wykonana przy B7 na realnym indeksie). Kod starszy niż ta sesja jej nie otworzy — to celowe. Kopii bazy nie robiono: migracja idzie `ALTER TABLE` w jednej transakcji i ma test wycofania.
 - **Kolizje celów rozstrzygnięte** (decyzja użytkownika 2026-09-19: katalog źródłowy jako dodatkowy poziom). Na AKO: 184 pozycje w 40 wspólnych ścieżkach → po B7 zero kolizji, walidacja czysta.
-- Następna dokładna czynność: **B9 — `scripts/review_report.py`** (diff HTML near-dupe przez `difflib.HtmlDiff`, miniatury, lista `unresolved`, `STATUS.md`). Wejście gotowe: `plan.jsonl`, `validation.jsonl`, `relations.jsonl` i `unresolved.jsonl` leżą w `reports/AKO/`, a głowy tekstu są w `20_WORK/extracted_text/`. Potem **B10 apply** — ale to już dotyka materiałów, więc dopiero po jawnej akceptacji planu przez użytkownika.
+- **B9 gotowe**: `just subject-review 3 AKO` → `reports/AKO/review.html` (397 kB, samowystarczalna: miniatury jako `data:`). Na AKO: 69 pozycji do obejrzenia, 51 nierozstrzygniętych, 80 klastrów podobieństwa (pokazane 25), 15 tabel diff, 20 miniatur. **E3 gotowe**: `just status` → `reports/STATUS.md` (98 przedmiotów: 1 z planem, 32 tylko ground truth, 65 nietkniętych).
+- **`synapse` (C3) i pełny diff-viewer (C4) NIE są częścią B9** — architektura §13 stawia je po pilotażu, na realnych danych, żeby generator grafu pasował do formatu notatek użytkownika. Gdy przyjdzie ich czas, potrzebny jest dostęp do repo synapse (użytkownik oferował sklonowanie go do katalogu organizera).
+- Następna dokładna czynność: **pilotaż D1 na AKO** — czyli pokazanie użytkownikowi `reports/AKO/review.html`, zebranie decyzji i dopiero po jawnej akceptacji **B10 apply**. Alternatywnie najpierw **B14** (`manual_decisions.py`), bo bez niego decyzje z review nie mają gdzie trafić w sposób trwały. Uwaga: `apply` dotyka materiałów — nigdy bez jawnej zgody na konkretny plan.
 - **Obserwacja do B9 (nie naprawiona):** w relacjach AKO dominuje scaffolding Visual Studio — 807 stron par to `.vcxproj`, 313 `.xml`. To prawdziwe near-dupe (boilerplate), ale dla review szum. Do rozważenia przy review: grupowanie klastrów albo dopisanie `vcxproj` do `syntax.yaml: ignore`. To decyzja o zawartości paczki, więc nie podjęta samodzielnie.
 - Blokery / otwarte decyzje: brak. Znane, świadome ograniczenia: `.rtf` nadal bez czytnika, OCR idzie przez `pytesseract` + rasteryzację PyMuPDF (nie `ocrmypdf`), OCR obrazów jest opt-in (`--ocr-images`).
 - Git: lokalne commity narzędzi, bez push i bez PR. Materiałów nie dotykano; `paczka/` w repo docelowym nietknięta (pomiary ground truth były wyłącznie odczytem).
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-09-19T02:28:59+02:00
+- Odświeżono: 2026-09-19T02:42:48+02:00
 - Branch: `master`
-- Commit: `6ef3243`
+- Commit: `82d914c`
 - Git status:
   ```text
   M reports/HANDOFF.md
   ?? reports/AKO/
+  ?? reports/STATUS.md
   ```
-- Pierwsze otwarte TODO: - [ ] B9. Review: `scripts/review_report.py` — diff HTML near-dupe (`difflib.HtmlDiff`), miniatury, lista `unresolved`, `STATUS.md`
+- Pierwsze otwarte TODO: - [ ] B10. `scripts/apply.py` — kopiowanie wg planu na branch `subject/{SKROT}` w `target_repo` (snapshot przed), status `applied`
 <!-- END AUTO -->
