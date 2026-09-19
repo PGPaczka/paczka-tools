@@ -3,11 +3,11 @@
 Plik **generowany** przez `scripts/status_report.py` (`just status`). Nie edytuj ręcznie;
 źródłem liczb jest operacyjny indeks SQLite, a nie katalogi z raportami.
 
-- Wygenerowano: 2026-09-19T00:38:21Z
+- Wygenerowano: 2026-09-19T01:11:55Z
 - Źródła: 14 paczek, 9540 katalogów (w tym 4386 duplikatów), 48049 plików
 - Statusy plików: error: 37, extracted: 23074, hashed: 24938
 - Treści: 19337 unikalnych, 7788 z wyekstrahowanym tekstem
-- Relacje podobieństwa: 936 · pozycje planu: 2519 · wpisy w `applied`: 1750 (dziś w całości ground truth — `apply` jeszcze nie działał)
+- Relacje podobieństwa: 11871 · pozycje planu: 2519 · wpisy w `applied`: 1750 (dziś w całości ground truth — `apply` jeszcze nie działał)
 
 ## Przedmioty
 

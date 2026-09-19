@@ -45,26 +45,28 @@
 - Znany, świadomie zostawiony fałszywy alarm guarda: `tee` jest na liście słów twardo mutujących, więc potok ze źródeł do `tee` poza nimi zostanie zablokowany — używaj przekierowania `>`. Ogólniej hook blokuje każdą komendę Bash, której **tekst** zawiera ścieżkę źródeł razem ze słowem mutującym (także w komunikacie commita); w takich wypadkach używaj narzędzi Edit/Write zamiast powłoki.
 - Uruchamianie agentów interaktywnie: rozpisane w `README.md`, sekcja „Agenci interaktywni” (pierwsza konfiguracja, `just claude`, trzy tryby sandboxu Codeksa, przekazywanie argumentów **bez** `--`, potwierdzanie konta). `AGENTS.md` i `CLAUDE.md` tylko tam odsyłają — nie duplikuj tej treści.
 - Zakazy dla następnego agenta: nie wykonuj apply bez jawnej zgody na konkretny plan; nie dodawaj sources jako writable root; nie przywracaj `--ignore-user-config` w delegacji Codeksa; nie przestawiaj `classify`/`relate` z powrotem na `claude_cli` bez decyzji użytkownika; nie commituj materiałów razem z narzędziami.
-- Wykonane testy: `just test` **1034/1034**, `just mutate-check` **26/26**, `just index-check` czysto (37 plików w statusie `error` zgłoszonych jako `info`), `just sources-check` czysto. Wcześniej w tej sesji: `just test` 851/851 (+81 dla B3: 64 kontraktu silnika reguł, 16 CLI, 1 nowy styk e2e), `just mutate-check` **15/15**, `just index-check` czysto, `just skills-check` 5/5. Poprzedni stan: `just test` 770/770 (w tym 38 kontroli środowiska i 114 dla B2/B2b w `tests/test_textextract.py` + `tests/test_extract_text.py`, 6 dla `text_head` i 5 dla `refresh-kinds`); `just skills-check` 5/5. Smoke test etapu extract na syntetycznej paczce: 7 plików / 7 treści, 6 z tekstem, OCR 2, 0 błędów; drugi przebieg 6 treści z dysku.
+- Wykonane testy: `just test` **1087/1087**, `just mutate-check` **27/27**, `just index-check` czysto (37 plików w statusie `error` zgłoszonych jako `info`), `just sources-check` czysto. Wcześniej w tej sesji: `just test` 851/851 (+81 dla B3: 64 kontraktu silnika reguł, 16 CLI, 1 nowy styk e2e), `just mutate-check` **15/15**, `just index-check` czysto, `just skills-check` 5/5. Poprzedni stan: `just test` 770/770 (w tym 38 kontroli środowiska i 114 dla B2/B2b w `tests/test_textextract.py` + `tests/test_extract_text.py`, 6 dla `text_head` i 5 dla `refresh-kinds`); `just skills-check` 5/5. Smoke test etapu extract na syntetycznej paczce: 7 plików / 7 treści, 6 z tekstem, OCR 2, 0 błędów; drugi przebieg 6 treści z dysku.
 - **Baza jest już w schema_version 2** (migracja wykonana przy B7 na realnym indeksie). Kod starszy niż ta sesja jej nie otworzy — to celowe. Kopii bazy nie robiono: migracja idzie `ALTER TABLE` w jednej transakcji i ma test wycofania.
 - **Kolizje celów rozstrzygnięte** (decyzja użytkownika 2026-09-19: katalog źródłowy jako dodatkowy poziom). Na AKO: 184 pozycje w 40 wspólnych ścieżkach → po B7 zero kolizji, walidacja czysta.
 - **B9 gotowe**: `just subject-review 3 AKO` → `reports/AKO/review.html` (397 kB, samowystarczalna: miniatury jako `data:`). Na AKO: 69 pozycji do obejrzenia, 51 nierozstrzygniętych, 80 klastrów podobieństwa (pokazane 25), 15 tabel diff, 20 miniatur. **E3 gotowe**: `just status` → `reports/STATUS.md` (98 przedmiotów: 1 z planem, 32 tylko ground truth, 65 nietkniętych).
-- **`synapse` (C3) i pełny diff-viewer (C4) NIE są częścią B9** — architektura §13 stawia je po pilotażu, na realnych danych, żeby generator grafu pasował do formatu notatek użytkownika. Gdy przyjdzie ich czas, potrzebny jest dostęp do repo synapse (użytkownik oferował sklonowanie go do katalogu organizera).
-- Następna dokładna czynność: **pilotaż D1 na AKO** — czyli pokazanie użytkownikowi `reports/AKO/review.html`, zebranie decyzji i dopiero po jawnej akceptacji **B10 apply**. Alternatywnie najpierw **B14** (`manual_decisions.py`), bo bez niego decyzje z review nie mają gdzie trafić w sposób trwały. Uwaga: `apply` dotyka materiałów — nigdy bez jawnej zgody na konkretny plan.
+- **C3 (synapse) zrobione przed pilotażem, na życzenie użytkownika (2026-09-19).** Kontrakt danych: `docs/SYNAPSE.md`, generator: `just synapse`. Kluczowe: synapse (`~/dev/synapse`) to **prototyp designu**, nie aplikacja — dane ma zaszyte w `seedNotes()`, więc dopasowanie polegało na produkowaniu danych w jego kształcie; tamtego repo NIE modyfikowano. Twarde ograniczenie stamtąd: `level` przyjmuje wyłącznie `[1,2,3]`, więc semestr jest w `category`/tagach, a `level` znaczy „jak bardzo ustalone”. Pełny diff-viewer (C4) nadal czeka na pilotaż.
+- **Globalny `near_dupe --all` wykonany**: 11 871 relacji z 13 555 treści z podpisami (1,6 s), eksport w `20_WORK/relations.jsonl` (3,9 MB — celowo poza repo). Relacje między RÓŻNYMI przedmiotami: na razie 1 para (PEiM↔AKO), bo obie strony muszą mieć przypisany przedmiot; przybędzie z każdym przetworzonym przedmiotem.
+- Użytkownik bierze na siebie ręczną ocenę i pilotaż (deklaracja z 2026-09-19). Do obejrzenia: `reports/AKO/review.html`, `20_WORK/synapse/paczka` (mapa przedmiotów) i `20_WORK/synapse/ako` (graf materiałów AKO).
+- Następna dokładna czynność po stronie narzędzi: **B14** (`manual_decisions.py`) — bez niego decyzje z review i ewentualne edycje notatek w synapse nie mają drogi powrotnej do bazy. Potem **B10 apply** — czyli pokazanie użytkownikowi `reports/AKO/review.html`, zebranie decyzji i dopiero po jawnej akceptacji **B10 apply**. Alternatywnie najpierw **B14** (`manual_decisions.py`), bo bez niego decyzje z review nie mają gdzie trafić w sposób trwały. Uwaga: `apply` dotyka materiałów — nigdy bez jawnej zgody na konkretny plan.
 - **Obserwacja do B9 (nie naprawiona):** w relacjach AKO dominuje scaffolding Visual Studio — 807 stron par to `.vcxproj`, 313 `.xml`. To prawdziwe near-dupe (boilerplate), ale dla review szum. Do rozważenia przy review: grupowanie klastrów albo dopisanie `vcxproj` do `syntax.yaml: ignore`. To decyzja o zawartości paczki, więc nie podjęta samodzielnie.
 - Blokery / otwarte decyzje: brak. Znane, świadome ograniczenia: `.rtf` nadal bez czytnika, OCR idzie przez `pytesseract` + rasteryzację PyMuPDF (nie `ocrmypdf`), OCR obrazów jest opt-in (`--ocr-images`).
 - Git: lokalne commity narzędzi, bez push i bez PR. Materiałów nie dotykano; `paczka/` w repo docelowym nietknięta (pomiary ground truth były wyłącznie odczytem).
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-09-19T02:42:48+02:00
+- Odświeżono: 2026-09-19T03:11:55+02:00
 - Branch: `master`
-- Commit: `82d914c`
+- Commit: `a562199`
 - Git status:
   ```text
   M reports/HANDOFF.md
+   M reports/STATUS.md
   ?? reports/AKO/
-  ?? reports/STATUS.md
   ```
 - Pierwsze otwarte TODO: - [ ] B10. `scripts/apply.py` — kopiowanie wg planu na branch `subject/{SKROT}` w `target_repo` (snapshot przed), status `applied`
 <!-- END AUTO -->
