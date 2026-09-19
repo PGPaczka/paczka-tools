@@ -5,6 +5,7 @@
 - Cel bieżącej pracy: sekcja B TODO — skrypty cyklu per-przedmiot. Domknięte B3/B3a, **B6**, **B7 (plan + migracja schematu 1→2)**, **B8**, **B9 (review.html)** i **E3 (STATUS.md)**. Łańcuch B1→B3→B6→B7→B8→B9 przechodzi na realnych danych: `just subject-validate 3 AKO` kończy się kodem 0, a `reports/AKO/review.html` jest gotowe do obejrzenia. Materiałów nie ruszano.
 - **C3 domknięte i sprawdzone oczami (2026-09-19).** `just synapse-view` = eksport vaulta + generator + kopia notatek do viewera; potem `npm run dev` w `vendor/synapse/synapse-viewer`. Graf w stanie „jak sklonowany" NIE był czytalny przy 4 189 węzłach — poprawki są w klonie na gałęzi `feat/paczka-integration` (`dc4e4dc`, `54dbd15`): dopasowanie widoku i symulacja liczą tylko widoczny podgraf, ghosty nie przechodzą filtru typu węzła, tagi mają tryb **all**, doszedł filtr **only connected**. Push do `Billypl/synapse` należy do użytkownika; `synapse-viewer/public/{graph.json,search-index.json}` zostają brudne w klonie — to artefakty buildu, NIE commituj ich tam.
 - Co da się z grafu wyczytać, a czego nie, i co przegląd wykrył w danych (szum `*.vcxproj.xml` w duplikatach, rozdwojony słownik kategorii) — `docs/SYNAPSE.md`, sekcja „Co się z tego realnie wyczytuje".
+- **Studio zaplanowane (2026-09-19), nic jeszcze nie zbudowane.** `organizer/studio/`: `PLAN.md` (decyzja i uzasadnienie), `TODO-studio.md` (fazy S0–S4, tam odhaczaj), `AGENTS.md` + `CLAUDE.md` (zasady zakresu). Rozstrzygnięte: to **osobny podprojekt, nie rozbudowa synapse** — synapse jest jednokierunkowym eksportem do statycznego SPA, a studio musi pisać do bazy i serwować podgląd materiałów. Kolejność wymuszona przez potok: S1 czeka na B14, S3 na B10/B11.
 - Aktywny przedmiot `(semestr, skrót, grupa)`: brak — praca narzędziowa. Etap extract sprawdzony smoke testem na syntetycznej paczce w scratchpadzie (PDF tekstowy, PDF-skan, PNG, DOCX, PPTX, TXT, ZIP), nie na realnych źródłach.
 - Ostatni zakończony krok: C3 (graf + viewer). Wcześniej B9 i E3. Nowe pliki w tej sesji: `scripts/{classify,near_dupe,validate_plan}.py`, `scripts/orglib/{classify,near_dupe,plan_lint}.py`, sześć plików testów, 10 specyfikacji mutacji; recepty `just subject-classify|subject-relate|subject-validate`.
 - **Etap extract wykonany na realnych źródłach 2026-09-19** (698 s): 22 774 plików, 18 142 treści, 7788 z tekstem, 5767 z phashem, OCR 194, **37 błędów** (nierozpoznane skany — czekają na `just extract --retry-errors`). Pozostałe 24 938 plików stoi na `hashed` **zgodnie z projektem**: leżą w poddrzewach `duplicate_of` i są wyłącznie prowenancją (sprawdzone: 0 plików na `hashed` poza duplikatami). 911 treści nie ma żadnego przetworzenia — istnieją tylko w duplikatach katalogów.
@@ -64,14 +65,12 @@
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-09-19T11:29:52+02:00
+- Odświeżono: 2026-09-19T14:19:37+02:00
 - Branch: `master`
-- Commit: `ef52854`
+- Commit: `514b87a`
 - Git status:
   ```text
-  M TODO.md
-   M docs/SYNAPSE.md
-   M justfile
+  M reports/HANDOFF.md
   ?? reports/AKO/
   ```
 - Pierwsze otwarte TODO: - [ ] B10. `scripts/apply.py` — kopiowanie wg planu na branch `subject/{SKROT}` w `target_repo` (snapshot przed), status `applied`
