@@ -2,10 +2,10 @@
 
 ## Kontekst ręczny
 
-- Cel bieżącej pracy: sekcja B TODO — skrypty cyklu per-przedmiot. Domknięte B3/B3a (klasyfikacja), **B6 (relacje podobieństwa)** i **B8 (walidacja planu)**. Nie ruszano pilotażu ani materiałów.
+- Cel bieżącej pracy: sekcja B TODO — skrypty cyklu per-przedmiot. Domknięte B3/B3a, **B6**, **B7 (plan + migracja schematu 1→2)** i **B8**. Łańcuch B1→B3→B6→B7→B8 przechodzi na realnych danych: `just subject-validate 3 AKO` kończy się kodem 0. Materiałów nie ruszano.
 - Aktywny przedmiot `(semestr, skrót, grupa)`: brak — praca narzędziowa. Etap extract sprawdzony smoke testem na syntetycznej paczce w scratchpadzie (PDF tekstowy, PDF-skan, PNG, DOCX, PPTX, TXT, ZIP), nie na realnych źródłach.
 - Ostatni zakończony krok: B8. Nowe pliki w tej sesji: `scripts/{classify,near_dupe,validate_plan}.py`, `scripts/orglib/{classify,near_dupe,plan_lint}.py`, sześć plików testów, 10 specyfikacji mutacji; recepty `just subject-classify|subject-relate|subject-validate`.
-- **W TLE CHODZI `just extract` na realnych źródłach** (uruchomiony 2026-09-19 ok. 01:50). Postęp sprawdzasz zapytaniem o `files.status`; przy ostatnim pomiarze 18 600/48 049, tempo ~3,3 pliku/s, 32 błędy (nierozpoznane skany — czekają na `--retry-errors`). **Dopóki ten przebieg pisze do bazy, nie rób migracji schematu** (B7) ani innych zapisów do realnego indeksu. Po zakończeniu: `just index-check`, potem `just subject-relate 3 AKO` na komplecie podpisów.
+- **Etap extract wykonany na realnych źródłach 2026-09-19** (698 s): 22 774 plików, 18 142 treści, 7788 z tekstem, 5767 z phashem, OCR 194, **37 błędów** (nierozpoznane skany — czekają na `just extract --retry-errors`). Pozostałe 24 938 plików stoi na `hashed` **zgodnie z projektem**: leżą w poddrzewach `duplicate_of` i są wyłącznie prowenancją (sprawdzone: 0 plików na `hashed` poza duplikatami). 911 treści nie ma żadnego przetworzenia — istnieją tylko w duplikatach katalogów.
 - Etap extract **nigdy wcześniej nie przeszedł po realnych źródłach** — wszystkie 48 049 plików stały na `hashed`, zero podpisów, brak katalogu `extracted_text/`. Dlatego klasyfikacja AKO liczona w tej sesji szła BEZ ani jednej głowy tekstu, a B6 na realnych danych znalazł na razie tyle relacji, ile pozwoliły gotowe podpisy.
 - Kontrakt B2: wejście = pliki w statusie `hashed` (bez poddrzew `duplicate_of`), wyjście = `20_WORK/extracted_text/{sha256}.txt` + `content.extracted_text_path`/`ocr_done` + `files.normalized_text_hash`/`simhash`/`perceptual_hash`, status `extracted`. Praca liczona RAZ NA TREŚĆ: druga kopia sha256 i ponowny przebieg biorą tekst z dysku (smoke: 1,6 s → 0,2 s), `--force` wymusza ponowną ekstrakcję. Ścieżka w bazie jest zapisywana względem `work`, więc przeniesienie workspace'u jej nie psuje.
 - Decyzje B2 do zapamiętania (były świadome, nie przypadkowe):
@@ -45,21 +45,23 @@
 - Znany, świadomie zostawiony fałszywy alarm guarda: `tee` jest na liście słów twardo mutujących, więc potok ze źródeł do `tee` poza nimi zostanie zablokowany — używaj przekierowania `>`. Ogólniej hook blokuje każdą komendę Bash, której **tekst** zawiera ścieżkę źródeł razem ze słowem mutującym (także w komunikacie commita); w takich wypadkach używaj narzędzi Edit/Write zamiast powłoki.
 - Uruchamianie agentów interaktywnie: rozpisane w `README.md`, sekcja „Agenci interaktywni” (pierwsza konfiguracja, `just claude`, trzy tryby sandboxu Codeksa, przekazywanie argumentów **bez** `--`, potwierdzanie konta). `AGENTS.md` i `CLAUDE.md` tylko tam odsyłają — nie duplikuj tej treści.
 - Zakazy dla następnego agenta: nie wykonuj apply bez jawnej zgody na konkretny plan; nie dodawaj sources jako writable root; nie przywracaj `--ignore-user-config` w delegacji Codeksa; nie przestawiaj `classify`/`relate` z powrotem na `claude_cli` bez decyzji użytkownika; nie commituj materiałów razem z narzędziami.
-- Wykonane testy: `just test` **851/851** (+81 dla B3: 64 kontraktu silnika reguł, 16 CLI, 1 nowy styk e2e), `just mutate-check` **15/15**, `just index-check` czysto, `just skills-check` 5/5. Poprzedni stan: `just test` 770/770 (w tym 38 kontroli środowiska i 114 dla B2/B2b w `tests/test_textextract.py` + `tests/test_extract_text.py`, 6 dla `text_head` i 5 dla `refresh-kinds`); `just skills-check` 5/5. Smoke test etapu extract na syntetycznej paczce: 7 plików / 7 treści, 6 z tekstem, OCR 2, 0 błędów; drugi przebieg 6 treści z dysku.
-- Następna dokładna czynność: **B7 — `scripts/build_plan.py`**, ale dopiero PO zakończeniu przebiegu extract (B7 robi migrację schematu 1→2, opis przy B7 w `TODO.md`). B7 ma trzy zadania: scalić `plan.det.jsonl` + `plan.ai.jsonl` w `plan.jsonl` (`_meta`, `plan_hash`), przenieść decyzje do bazy z eksportem do JSONL (decyzja użytkownika 2026-09-19) i **rozstrzygnąć kolizje celów**.
-- **Kolizje celów — zmierzone, czeka na decyzję użytkownika o sposobie rozwiązania.** `just subject-validate 3 AKO` odrzucił plan AKO: 40 ścieżek docelowych, w które trafiają 184 różne treści. Rozkład: 24 ścieżki po 2 treści, ale są też po 17 i po 23. Wzorzec jest jednoznaczny — to katalogi rozwiązań zadań: `…/kolokwium2/Zadanie 23/main.c`, `…/Laby/2019/lab_5/5.4/main.c`, `…/funkcjarekurencja/main.c`. Nazwa pliku (`main.c`, `func.asm`) nie niesie informacji, niesie ją KATALOG źródłowy.
+- Wykonane testy: `just test` **997/997**, `just mutate-check` **24/24**, `just index-check` czysto (37 plików w statusie `error` zgłoszonych jako `info`), `just sources-check` czysto. Wcześniej w tej sesji: `just test` 851/851 (+81 dla B3: 64 kontraktu silnika reguł, 16 CLI, 1 nowy styk e2e), `just mutate-check` **15/15**, `just index-check` czysto, `just skills-check` 5/5. Poprzedni stan: `just test` 770/770 (w tym 38 kontroli środowiska i 114 dla B2/B2b w `tests/test_textextract.py` + `tests/test_extract_text.py`, 6 dla `text_head` i 5 dla `refresh-kinds`); `just skills-check` 5/5. Smoke test etapu extract na syntetycznej paczce: 7 plików / 7 treści, 6 z tekstem, OCR 2, 0 błędów; drugi przebieg 6 treści z dysku.
+- **Baza jest już w schema_version 2** (migracja wykonana przy B7 na realnym indeksie). Kod starszy niż ta sesja jej nie otworzy — to celowe. Kopii bazy nie robiono: migracja idzie `ALTER TABLE` w jednej transakcji i ma test wycofania.
+- **Kolizje celów rozstrzygnięte** (decyzja użytkownika 2026-09-19: katalog źródłowy jako dodatkowy poziom). Na AKO: 184 pozycje w 40 wspólnych ścieżkach → po B7 zero kolizji, walidacja czysta.
+- Następna dokładna czynność: **B9 — `scripts/review_report.py`** (diff HTML near-dupe przez `difflib.HtmlDiff`, miniatury, lista `unresolved`, `STATUS.md`). Wejście gotowe: `plan.jsonl`, `validation.jsonl`, `relations.jsonl` i `unresolved.jsonl` leżą w `reports/AKO/`, a głowy tekstu są w `20_WORK/extracted_text/`. Potem **B10 apply** — ale to już dotyka materiałów, więc dopiero po jawnej akceptacji planu przez użytkownika.
+- **Obserwacja do B9 (nie naprawiona):** w relacjach AKO dominuje scaffolding Visual Studio — 807 stron par to `.vcxproj`, 313 `.xml`. To prawdziwe near-dupe (boilerplate), ale dla review szum. Do rozważenia przy review: grupowanie klastrów albo dopisanie `vcxproj` do `syntax.yaml: ignore`. To decyzja o zawartości paczki, więc nie podjęta samodzielnie.
 - Blokery / otwarte decyzje: brak. Znane, świadome ograniczenia: `.rtf` nadal bez czytnika, OCR idzie przez `pytesseract` + rasteryzację PyMuPDF (nie `ocrmypdf`), OCR obrazów jest opt-in (`--ocr-images`).
 - Git: lokalne commity narzędzi, bez push i bez PR. Materiałów nie dotykano; `paczka/` w repo docelowym nietknięta (pomiary ground truth były wyłącznie odczytem).
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-09-19T01:59:23+02:00
+- Odświeżono: 2026-09-19T02:28:59+02:00
 - Branch: `master`
-- Commit: `437e419`
+- Commit: `6ef3243`
 - Git status:
   ```text
   M reports/HANDOFF.md
   ?? reports/AKO/
   ```
-- Pierwsze otwarte TODO: - [ ] B7. `scripts/build_plan.py` → `reports/{SKROT}/plan.jsonl` (schema_version, `_meta`, plan_hash)
+- Pierwsze otwarte TODO: - [ ] B9. Review: `scripts/review_report.py` — diff HTML near-dupe (`difflib.HtmlDiff`), miniatury, lista `unresolved`, `STATUS.md`
 <!-- END AUTO -->
