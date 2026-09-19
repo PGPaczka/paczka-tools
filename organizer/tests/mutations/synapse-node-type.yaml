@@ -1,0 +1,11 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+# Typ węzła (semestr/przedmiot/plik) jest podstawą czytania grafu na trzech poziomach
+# i domyślnego filtra dla dużych vaultów. Zgubiony w eksporcie = płaska chmura.
+name: typ węzła nie gubi się po drodze do notatki
+file: scripts/orglib/synapse_vault.py
+find: '    lines = ["---", f"title: {_yaml_scalar(note.title)}", f"type: {_yaml_scalar(note.type)}",'
+replace: '    lines = ["---", f"title: {_yaml_scalar(note.title)}", f"tytul: {_yaml_scalar(note.type)}",'
+tests:
+- tests/test_synapse_vault.py
+- tests/test_synapse_export_cli.py

@@ -1,0 +1,11 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+# Bez rodzaju relacji graf pokazuje, ŻE coś jest powiązane, ale nie CZYM —
+# a to było jedyne twarde wymaganie użytkownika wobec tego widoku.
+name: rodzaj relacji dociera z bazy do front mattera vaulta
+file: scripts/orglib/synapse_vault.py
+find: '        row: dict[str, Any] = {"target": self.target, "kind": self.kind}'
+replace: '        row: dict[str, Any] = {"target": self.target, "kind": "related"}'
+tests:
+- tests/test_synapse_vault.py
+- tests/test_synapse_export_cli.py

@@ -300,6 +300,19 @@ zmianie. W klastrach jest to, czego nie rozstrzygnie żadna heurystyka: diff HTM
 (`difflib.HtmlDiff`) dla tekstu albo dwie miniatury obok siebie dla skanów.
 Strona niczego nie zatwierdza — zgoda na `apply` to osobna, jawna decyzja.
 
+Graf relacji dla `synapse` (osobna aplikacja użytkownika — generator .NET + viewer Svelte):
+
+```bash
+just synapse         # vault w 20_WORK/synapse/vault: semestry, przedmioty, pliki
+just vendor-check    # nasz vault przez PRAWDZIWY generator + walidacja ich schematem
+```
+
+`scripts/synapse_export.py` pisze notatki `.md`, w których **relacje mają rodzaj**
+(`belongs_to`, `near_duplicate`, `older_version`) i pewność z etapu B6 — dzięki czemu graf
+pokazuje nie tylko, ŻE materiały są powiązane, ale CZYM. Kontrakt (w tym zmiany wprowadzone
+w samym synapse) opisuje `docs/SYNAPSE.md`; klon narzędzia leży w `vendor/synapse` i nie
+wchodzi do tego repo.
+
 `scripts/status_report.py` liczy stan całości z indeksu: ile treści jest już
 w paczce (ground truth), ile ma plan, ile czeka na obejrzenie i czego nikt jeszcze
 nie tknął. Ground truth jest liczony osobno od planu — inaczej raport twierdziłby,

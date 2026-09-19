@@ -130,6 +130,14 @@ subject-validate semester skrot *args:
 subject-review semester skrot *args:
     {{ python }} scripts/review_report.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
 
+# C3: vault dla synapse (semestr -> przedmiot -> plik) z indeksu; bez gita.
+synapse *args:
+    {{ python }} scripts/synapse_export.py {{ args }}
+
+# C3: nasz vault przepuszczony przez PRAWDZIWY generator z vendor/synapse.
+vendor-check *args:
+    {{ python }} -m pytest -m vendor {{ args }}
+
 # E3: przedmioty x etapy liczone z indeksu -> reports/STATUS.md.
 status *args:
     {{ python }} scripts/status_report.py {{ args }}
