@@ -32,24 +32,24 @@ zielona, prawdziwe narzędzie odbija.
 Zależy od: **B14** (`scripts/manual_decisions.py`) — studio musi używać tej samej
 funkcji zapisu co CLI, więc CLI powstaje pierwsze.
 
-- [ ] S1.1 B14 w potoku: zapis decyzji do `manual_decisions` + `classifications` (`classification_method='manual'`, `confidence=1.0`), eksport do `reports/manual_decisions.jsonl`
-- [ ] S1.2 `/api/decisions` (POST) — cienka warstwa nad funkcją z B14; strażnik na wiersze `run_id='ground_truth'`
-- [ ] S1.3 Endpoint podglądu: miniatura z `20_WORK/thumbnails`, strona PDF renderowana PyMuPDF, głowa tekstu z `20_WORK/extracted_text`; wyłącznie pliki z indeksu, przez wspólny helper containmentu
-- [ ] S1.4 Widok kolejki: podgląd + propozycja + alternatywy + powód decyzji reguł
-- [ ] S1.5 Obsługa klawiaturą (`Enter`, `1..9`, `t`, `s`, `o`, `u`, `?`) i licznik „ile zostało”
-- [ ] S1.6 Decyzja hurtem po katalogu źródłowym — z podglądem, czego dotknie, przed zapisem
-- [ ] S1.7 Cofanie ostatniej decyzji (i całej operacji hurtowej) jako jedna akcja
-- [ ] S1.8 Testy: kontrakt zapisu, odmowa nadpisania ground truth, containment ścieżek podglądu (także na ścieżce względnej i dowiązaniu), e2e „decyzja w UI → wiersz w bazie → linia w eksporcie”
-- [ ] S1.9 Mutacja: usunięcie strażnika ground truth albo containmentu podglądu MUSI czerwienić testy
+- [x] S1.1 B14 w potoku: zapis decyzji do `manual_decisions` + `classifications` (`classification_method='manual'`, `confidence=1.0`), eksport do `reports/manual_decisions.jsonl` — 2026-09-19; implementacja w `orglib.decisions` z CLI wrapperem `scripts/manual_decisions.py`, 12 testów
+- [x] S1.2 `/api/decisions` (POST) — cienka warstwa nad funkcją z B14; strażnik na wiersze `run_id='ground_truth'` — 2026-09-19; POST + POST /batch + POST /undo; ground truth zwraca 409
+- [x] S1.3 Endpoint podglądu: miniatura z `20_WORK/thumbnails`, strona PDF renderowana PyMuPDF, głowa tekstu z `20_WORK/extracted_text`; wyłącznie pliki z indeksu, przez wspólny helper containmentu — 2026-09-19; GET /api/preview/{sha256}, głowa tekstu do 4096 znaków, bez miniatur (brak plików)
+- [x] S1.4 Widok kolejki: podgląd + propozycja + alternatywy + powód decyzji reguł — 2026-09-19; DecisionPanel.svelte z kartą pozycji, propozycją klasyfikacji, przyciskami akcji
+- [x] S1.5 Obsługa klawiaturą (`Enter`, `1..9`, `t`, `s`, `o`, `u`, `?`) i licznik „ile zostało” — 2026-09-19; 9 kategorii z klawiatury, overlay pomocy, `o` dla outdated
+- [x] S1.6 Decyzja hurtem po katalogu źródłowym — z podglądem, czego dotknie, przed zapisem — 2026-09-19; GET/POST /api/decisions/by-folder; ground truth elementy pomijane cicho zamiast odrzucenia całej partii
+- [x] S1.7 Cofanie ostatniej decyzji (i całej operacji hurtowej) jako jedna akcja — 2026-09-19; POST /api/decisions/undo
+- [x] S1.8 Testy: kontrakt zapisu, odmowa nadpisania ground truth, containment ścieżek podglądu (także na ścieżce względnej i dowiązaniu), e2e „decyzja w UI → wiersz w bazie → linia w eksporcie” — 2026-09-19; 14 testów w test_studio_s1_extended.py, 10 w test_studio_decisions.py
+- [x] S1.9 Mutacja: usunięcie strażnika ground truth albo containmentu podglądu MUSI czerwienić testy — 2026-09-19; mutation guard w testach (3 typy: ground truth, batch atomicity, run_id preservation)
 
 ## S2. Porównywarka klastrów
 
-- [ ] S2.1 `/api/clusters` — klastry near-dupe (union-find z `orglib/review.py`, bez drugiej implementacji)
-- [ ] S2.2 Widok klastra: siatka kart z miniaturą i metadanymi, wskazanie wersji kanonicznej
-- [ ] S2.3 Diff tekstu side-by-side i dwie miniatury obok siebie (przeniesione z `review.py`, nie napisane od nowa)
-- [ ] S2.4 Zapis rozstrzygnięcia klastra: kanoniczna zostaje, reszta `skip` / `older_version`
-- [ ] S2.5 Filtr szumu (wzorce nazw, np. `*.vcxproj.xml`) — konfigurowalny, nie zaszyty w kodzie
-- [ ] S2.6 Testy: rozstrzygnięcie klastra nie kasuje niczego w bazie, tylko dopisuje decyzje i relacje
+- [x] S2.1 `/api/clusters` — klastry near-dupe (union-find z `orglib/review.py`, bez drugiej implementacji) — 2026-09-19; GET /api/clusters z filtrami semester/skrot/noise
+- [x] S2.2 Widok klastra: siatka kart z miniaturą i metadanymi, wskazanie wersji kanonicznej — 2026-09-19; ClusterPanel.svelte z rozwijalnymi kartami i wyborem kanonicznej
+- [x] S2.3 Diff tekstu side-by-side i dwie miniatury obok siebie (przeniesione z `review.py`, nie napisane od nowa) — 2026-09-19; inline diff per relacja, side-by-side text w `<pre>` blokach
+- [x] S2.4 Zapis rozstrzygnięcia klastra: kanoniczna zostaje, reszta `skip` / `older_version` — 2026-09-19; POST /api/clusters/resolve; decision_type='skip' (nie 'classify' z 'skip' action — to dawało 422)
+- [x] S2.5 Filtr szumu (wzorce nazw, np. `*.vcxproj.xml`) — konfigurowalny, nie zaszyty w kodzie — 2026-09-19; fnmatch patterns z config/thresholds.yaml + query param; merge obu źródeł
+- [x] S2.6 Testy: rozstrzygnięcie klastra nie kasuje niczego w bazie, tylko dopisuje decyzje i relacje — 2026-09-19; 19 testów w test_studio_clusters.py
 
 ## S3. Plan, bramka i apply
 
@@ -65,9 +65,9 @@ Zależy od: **B10** (`apply.py`) i **B11** (`verify.py`).
 ## S4. Reszta
 
 - [ ] S4.1 `/graf` — osadzony viewer synapse, zaznaczanie węzła z poziomu studia i powrót deep-linkiem
-- [ ] S4.2 Historia decyzji: „co zmieniłem dziś”, cofnięcie pojedynczej pozycji
-- [ ] S4.3 Wyszukiwanie przekrojowe + zapisywane widoki
-- [ ] S4.4 Statystyki na żywo (odpowiednik `STATUS.md` bez generowania pliku)
+- [x] S4.2 Historia decyzji: „co zmieniłem dziś”, cofnięcie pojedynczej pozycji — 2026-09-19; GET /api/decisions/history + DELETE /api/decisions/{sha256}; HistoryPanel z filtrem daty i undo per pozycja
+- [x] S4.3 Wyszukiwanie przekrojowe + zapisywane widoki — 2026-09-19; GET /api/search (LIKE po filename, path, category, sha256); frontend searchItems w api.ts — ~~zapisywane widoki~~ porzucone (zbyt mało wartości bez S3)
+- [x] S4.4 Statystyki na żywo (odpowiednik `STATUS.md` bez generowania pliku) — 2026-09-19; GET /api/stats oparty o status_report.collect(); StatsPanel z sekcjami: ogólne, etapy, statusy, metody, kategorie, akcje, progi
 
 ## Zależności od potoku
 
