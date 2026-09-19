@@ -1,0 +1,15 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+# Przywraca naiwne dzielenie pliku, przez które U+2028 z głowy tekstu rozerwał
+# 2570-liniowy manifest na 2573 kawałki (awaria 2026-09-19).
+name: linie JSONL rozdziela wyłącznie \n
+file: scripts/orglib/jsonl.py
+find: |-2
+      with Path(path).open(encoding="utf-8") as handle:
+          for number, line in enumerate(handle, start=1):
+replace: |-2
+      with Path(path).open(encoding="utf-8") as handle:
+          for number, line in enumerate(handle.read().splitlines(), start=1):
+tests:
+- tests/test_jsonl.py
+- tests/test_near_dupe_cli.py

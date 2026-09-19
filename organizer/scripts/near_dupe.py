@@ -23,9 +23,7 @@ nr 10) i nie wykonuje ``apply``.
 from __future__ import annotations
 
 import json
-import os
 import sqlite3
-import tempfile
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Optional
@@ -34,6 +32,7 @@ import typer
 
 from orglib import config, db
 from orglib.classify import detect_year
+from orglib.jsonl import read_jsonl, write_atomic
 from orglib.near_dupe import METHOD_PREFIX, Relation, Signature, build_relations
 
 app = typer.Typer(add_completion=False, help=__doc__)
@@ -108,23 +107,11 @@ def replace_own_relations(
 
 def write_export(relations: list[Relation], output: Path) -> None:
     """Deterministyczny eksport (posortowany), żeby diff w gicie był czytelny."""
-    output.parent.mkdir(parents=True, exist_ok=True)
-    temporary: Path | None = None
-    try:
-        with tempfile.NamedTemporaryFile(
-            mode="w", encoding="utf-8", dir=output.parent,
-            prefix=".relations-", suffix=".tmp", delete=False,
-        ) as handle:
-            temporary = Path(handle.name)
-            for relation in relations:
-                row = {"schema_version": 1, **relation.as_row()}
-                handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, output)
-    finally:
-        if temporary is not None and temporary.exists():
-            temporary.unlink()
+    write_atomic(
+        ({"schema_version": 1, **relation.as_row()} for relation in relations),
+        output,
+        prefix=".relations-",
+    )
 
 
 @app.command()
@@ -175,11 +162,7 @@ def relate(
                 raise ValueError(
                     f"brak manifestu: {manifest_path} — najpierw `just subject-prepare`"
                 )
-            rows = [
-                json.loads(line)
-                for line in manifest_path.read_text(encoding="utf-8").splitlines()
-                if line.strip()
-            ]
+            rows = read_jsonl(manifest_path)
             wanted = {str(row["sha256"]) for row in rows if row.get("sha256")}
             target_dir = out_dir if out_dir is not None else manifest_path.parent
         export_path = target_dir / EXPORT_NAME

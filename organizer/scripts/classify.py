@@ -36,6 +36,7 @@ import typer
 
 from orglib import config, db
 from orglib.classify import GroundTruth, classify_row, load_rules, unambiguous_labels
+from orglib.jsonl import read_jsonl
 
 app = typer.Typer(add_completion=False, help=__doc__)
 
@@ -46,23 +47,6 @@ _SCHEMA_PATH = config.ORGANIZER_ROOT / "prompts" / "plan_line.schema.json"
 
 PLAN_NAME = "plan.det.jsonl"
 UNRESOLVED_NAME = "unresolved.jsonl"
-
-
-def read_jsonl(path: Path) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    with path.open(encoding="utf-8") as handle:
-        for number, line in enumerate(handle, start=1):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                row = json.loads(line)
-            except json.JSONDecodeError as exc:
-                raise ValueError(f"{path}:{number}: niepoprawny JSON ({exc})") from exc
-            if not isinstance(row, dict):
-                raise ValueError(f"{path}:{number}: linia nie jest obiektem JSON")
-            rows.append(row)
-    return rows
 
 
 def load_ground_truth(database: Path) -> dict[str, GroundTruth]:

@@ -194,6 +194,30 @@ def test_refuses_to_export_into_material_trees(workspace, manifest, tree):
     assert not forbidden.exists()
 
 
+def test_manifest_with_a_unicode_line_separator_is_still_one_line(workspace, tmp_path):
+    """Regresja z realnego przebiegu: `text_head` z PDF-a zawierał U+2028.
+
+    `json.dumps(..., ensure_ascii=False)` zapisuje ten znak surowo (jest legalny
+    wewnątrz stringa JSON), a `str.splitlines()` traktuje go jak koniec linii — więc
+    2570 linii manifestu rozpadło się na 2573 kawałki i etap padał na „Unterminated
+    string”. Plik JSONL rozdziela WYŁĄCZNIE `\n`.
+    """
+    manifest_path = tmp_path / "manifest_slice.jsonl"
+    manifest_path.write_text(
+        "".join(
+            json.dumps({"sha256": sha, "text_head": "tekst\u2028z separatorem"}, ensure_ascii=False)
+            + "\n"
+            for sha in (SHA_A, SHA_B)
+        ),
+        encoding="utf-8",
+    )
+
+    result = invoke(manifest_path, tmp_path / "out")
+
+    assert result.exit_code == 0, result.output
+    assert "treści: 2" in result.output
+
+
 def test_year_from_source_paths_makes_it_an_older_version(workspace, tmp_path):
     """Rok bierze się ze ŚCIEŻEK w indeksie, nie z manifestu — tak samo jak w B3."""
     conn = db.connect(workspace.work_db)

@@ -33,6 +33,7 @@ import jsonschema
 import typer
 
 from orglib import config
+from orglib.jsonl import read_jsonl
 from orglib.llm_client import (
     LLMClient,
     LLMError,
@@ -111,23 +112,6 @@ def allowed_categories(subject: config.Subject) -> list[str]:
         if not forms or subject_forms & {str(f).upper() for f in forms}:
             allowed.append(str(name))
     return allowed
-
-
-def read_jsonl(path: Path) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    with path.open(encoding="utf-8") as handle:
-        for number, line in enumerate(handle, start=1):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                row = json.loads(line)
-            except json.JSONDecodeError as exc:
-                raise ValueError(f"{path}:{number}: niepoprawny JSON ({exc})") from exc
-            if not isinstance(row, dict):
-                raise ValueError(f"{path}:{number}: linia nie jest obiektem JSON")
-            rows.append(row)
-    return rows
 
 
 def existing_hashes(path: Path) -> set[str]:

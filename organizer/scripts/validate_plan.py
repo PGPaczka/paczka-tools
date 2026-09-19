@@ -31,6 +31,7 @@ import typer
 
 from orglib import config, db
 from orglib.classify import load_rules
+from orglib.jsonl import read_jsonl
 from orglib.plan_lint import Finding, summarize, tree_diff, validate_rows
 
 app = typer.Typer(add_completion=False, help=__doc__)
@@ -43,23 +44,6 @@ _PLAN_CANDIDATES = ("plan.jsonl", "plan.det.jsonl")
 
 _SCHEMA_PATH = config.ORGANIZER_ROOT / "prompts" / "plan_line.schema.json"
 _MEDIA_ROOT = "90_MEDIA"
-
-
-def read_jsonl(path: Path) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    with path.open(encoding="utf-8") as handle:
-        for number, line in enumerate(handle, start=1):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                row = json.loads(line)
-            except json.JSONDecodeError as exc:
-                raise ValueError(f"{path}:{number}: niepoprawny JSON ({exc})") from exc
-            if not isinstance(row, dict):
-                raise ValueError(f"{path}:{number}: linia nie jest obiektem JSON")
-            rows.append(row)
-    return rows
 
 
 def load_ground_truth(database: Path) -> dict[str, str]:
