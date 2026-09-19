@@ -79,16 +79,17 @@ Wszystkie pięć jest pilnowanych testami, a punkty 1–2 i rodzaj relacji dodat
 ## Jak to uruchomić
 
 ```bash
-just synapse                      # vault w 20_WORK/synapse/vault (+ README obok)
+just synapse                      # sam vault w 20_WORK/synapse/vault (+ README obok)
 just synapse --include-unassigned # razem z materiałem bez decyzji
 just vendor-check                 # nasz vault przez PRAWDZIWY generator + walidacja schematem
 
-# graf i podgląd
-dotnet run --project vendor/synapse/Synapse.Generator/Synapse.Generator -c Release -- \
-  --vault ../../20_WORK/synapse/vault \
-  --out vendor/synapse/synapse-viewer/public/graph.json --no-git
+just synapse-view                 # eksport + generator + notatki dla viewera, jedną komendą
 cd vendor/synapse/synapse-viewer && npm install && npm run dev
 ```
+
+`just synapse-view` robi trzy rzeczy: eksportuje vault, przepuszcza go przez generator do
+`vendor/synapse/synapse-viewer/public/graph.json` i kopiuje same `.md` do `public/vault/`
+— bez tej kopii panel szczegółów pokazuje sam wyciąg zamiast treści notatki.
 
 Uwaga: generowanie do `public/graph.json` nadpisuje ich przykładowy graf w klonie.
 To plik śledzony w tamtym repo — po zabawie `git -C vendor/synapse checkout -- synapse-viewer/public`.
@@ -99,3 +100,48 @@ To plik śledzony w tamtym repo — po zabawie `git -C vendor/synapse checkout -
 (4 182 `belongs_to`, 1 183 `near_duplicate`, 104 `older_version`), 128 ghostów,
 **0 ostrzeżeń, 0 sierot**, `graph.json` przechodzi walidację `graph.schema.v2.json`.
 Generowanie vaulta i grafu: kilka sekund.
+
+## Co się z tego realnie wyczytuje
+
+Przejechane przeglądarką po całym vaulcie (2026-09-19). Pytania, które mają sens przy
+pracy nad paczką, i sposób zadania ich w viewerze:
+
+| Pytanie | Jak zapytać | Odpowiedź dziś |
+|---|---|---|
+| Co w tym przedmiocie czeka na moją decyzję? | Tagi `#ako` + `#do-przegladu`, tryb **all** | 69 plików w całej paczce ma `level 3` |
+| Których przedmiotów nikt jeszcze nie tknął? | Node type `subject` + status **Not started** | 65 z 98; `completed` 32, `in-progress` 1 |
+| Co jest duplikatem czego? | Relacja `near duplicate` + **only connected** | 365 plików, 119 klastrów, największy 81 |
+| Który plik jest starszą wersją którego? | Relacja `older version` + **only connected** | 102 węzły, 104 krawędzie skierowane |
+| Skąd wziął się ten plik i ile ma kopii? | Klik w węzeł → panel „Prowenancja” | pełna lista ścieżek źródłowych |
+| Co dokładnie zrobi plan dla tego pliku? | Widok **Cards** | decyzja + ścieżka docelowa + pewność |
+| Co wskazuje poza paczkę? | Ghosty (128) — bez filtra typu węzła | duplikaty w materiale bez decyzji |
+| Jak duży jest przedmiot i z czego się składa? | Node type `subject` → klik → backlinki | kategorie i liczby w treści notatki |
+
+Do pytań typu „pokaż mi listę” lepszy jest widok **Cards** niż graf: karta pokazuje
+kategorię, status, decyzję i tagi bez klikania. Graf odpowiada na pytania o **kształt** —
+gdzie są skupiska duplikatów, który przedmiot wisi sam, co wychodzi poza paczkę.
+
+### Granice, o których trzeba wiedzieć
+
+- **Bez „only connected” filtr relacji jest bezużyteczny przy tej skali**: rysuje 4 189
+  węzłów, z czego kilka tysięcy bez jednej widocznej krawędzi.
+- **119 rozłącznych klastrów rozjeżdża się po dużym obszarze** — po dopasowaniu widoku
+  każdy z nich jest plamką. Do konkretnego klastra wchodzi się przez wyszukiwarkę, nie
+  przez panoramowanie.
+- **Układ całego grafu (4 189 węzłów) liczy się ~12 s.** Domyślny widok to szkielet
+  105 węzłów właśnie dlatego.
+- **Ghost + filtr typu węzła się wykluczają**: ghost nie ma typu, więc przy aktywnym
+  filtrze typu znika. Duplikat, którego bliźniak leży w materiale bez decyzji, przepada
+  wtedy razem z nim (508 plików z relacją `near_duplicate` → 365 widocznych).
+
+### Co ten przegląd wykrył w samych danych
+
+- **513 z 1 183 relacji `near_duplicate` to `.xml`↔`.xml`**, a największy klaster (81
+  plików) to pliki projektowe Visual Studio (`*.vcxproj.xml`). To szum budowania, nie
+  materiał dydaktyczny — kandydat do `ignore` w `syntax.yaml` albo do osobnej kategorii.
+- **Słownik kategorii jest rozdwojony**: `wykład` (116) obok `wyklad` (42), `cwiczenia`
+  (81) obok `ćwiczenia` (5), do tego `stara_paczka` (196), `sources` (2), `Filozofia`,
+  `Prawo_Patentowe`, `Język_Polski`. Część bierze się z nazw katalogów ground truth,
+  część z kluczy `syntax.yaml`. W legendzie i filtrach widać to od razu.
+- **Mediana pewności duplikatu to 0,67** (min 0,56, max 1,0) — większość par to podobieństwo,
+  nie identyczność, więc ręczna ocena jest tu na miejscu.

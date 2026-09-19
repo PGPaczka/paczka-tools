@@ -138,6 +138,20 @@ synapse *args:
 vendor-check *args:
     {{ python }} -m pytest -m vendor {{ args }}
 
+# C3: eksport + generator + notatki dla viewera. graph.json i search-index.json
+# w vendor/synapse to ARTEFAKTY BUILDU - nie commituj ich w tamtym repo.
+synapse-view *args:
+    {{ python }} scripts/synapse_export.py {{ args }}
+    dotnet run --project vendor/synapse/Synapse.Generator/Synapse.Generator \
+      -c Release --nologo -- \
+      --vault ../../20_WORK/synapse/vault \
+      --out vendor/synapse/synapse-viewer/public/graph.json \
+      --no-git
+    rsync -a --delete --prune-empty-dirs \
+      --include='*/' --include='*.md' --exclude='*' \
+      ../../20_WORK/synapse/vault/ vendor/synapse/synapse-viewer/public/vault/
+    @echo "podglad: cd vendor/synapse/synapse-viewer && npm run dev"
+
 # E3: przedmioty x etapy liczone z indeksu -> reports/STATUS.md.
 status *args:
     {{ python }} scripts/status_report.py {{ args }}
