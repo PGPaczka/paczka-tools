@@ -11,13 +11,21 @@ gdy coś okazało się inne, niż zakładał plan. Rzeczy porzucone przekreślaj
 
 ## S0. Szkielet (tylko odczyt)
 
-- [ ] S0.1 `fastapi` i `uvicorn` w `setup/requirements.txt`, instalacja w `.venv`, wpis w README (sekcja Zależności)
-- [ ] S0.2 `studio/api/` — aplikacja FastAPI: nasłuch wyłącznie `127.0.0.1`, sprawdzenie `schema_version` przy starcie, baza otwierana `mode=ro` dopóki nie ma zapisu
-- [ ] S0.3 Endpointy odczytu: `/api/subjects` (przedmioty × etapy), `/api/subjects/{sem}/{skrot}`, `/api/items` (filtry: status, kategoria, pewność, `needs_review`), `/api/items/{sha256}`
-- [ ] S0.4 `studio/web/` — Svelte + Vite; pulpit: lista przedmiotów, postęp, kolejka „co następne”
-- [ ] S0.5 Recepty `just studio` i `just studio-dev`
-- [ ] S0.6 Testy: kontrakt API ↔ `orglib` (te same liczby co `status_report`), warstwa `cli_contract` dla launchera, smoke startu serwera
-- [ ] S0.7 Bramka bezpieczeństwa w testach: serwer odmawia startu z adresem innym niż loopback; brak jakiegokolwiek endpointu zapisu w fazie S0
+- [x] S0.1 `fastapi` i `uvicorn` w `setup/requirements.txt`, instalacja w `.venv`, wpis w README (sekcja Zależności) — 2026-09-19; doszło też `httpx` (TestClient FastAPI i smoke startu serwera go wymagają)
+- [x] S0.2 `studio/api/` — aplikacja FastAPI: nasłuch wyłącznie `127.0.0.1`, sprawdzenie `schema_version` przy starcie, baza otwierana `mode=ro` dopóki nie ma zapisu — 2026-09-19; kontrola wersji siedzi w `lifespan`, bo przy `--reload` aplikację importuje podproces, a kontrola na poziomie modułu milczałaby właśnie w trybie deweloperskim
+- [x] S0.3 Endpointy odczytu: `/api/subjects` (przedmioty × etapy), `/api/subjects/{sem}/{skrot}`, `/api/items` (filtry: status, kategoria, pewność, `needs_review`), `/api/items/{sha256}` — 2026-09-19; kubełek pewności liczy SERWER (`thresholds.yaml`), bo to reguła, a nie sposób malowania paska; wieloznaczny skrót (SEM7 SI) to 409, nie zgadywanie
+- [x] S0.4 `studio/web/` — Svelte + Vite; pulpit: lista przedmiotów, postęp, kolejka „co następne” — 2026-09-19; `npm install` wywraca się na peer-depach vitest 4 (błąd arborista), stąd `studio/web/.npmrc` z `legacy-peer-deps` i komentarzem, kiedy go skasować
+- [x] S0.5 Recepty `just studio`, `just studio-dev` (+ `just studio-build`) — 2026-09-19; `studio-dev` startuje backend przez `setsid`, bo sam TERM na rodzica nie zatrzymuje podprocesu przeładowywania uvicorna i po zamknięciu Vite zostawał osierocony serwer
+- [x] S0.6 Testy: kontrakt API ↔ `orglib` (te same liczby co `status_report`), warstwa `cli_contract` dla launchera, smoke startu serwera — 2026-09-19; smoke dotyka też `/api/subjects` i `/api/items`, bo `TestClient` przepuścił błąd, który żywy serwer pokazał od razu (patrz niżej)
+- [x] S0.7 Bramka bezpieczeństwa w testach: serwer odmawia startu z adresem innym niż loopback; brak jakiegokolwiek endpointu zapisu w fazie S0 — 2026-09-19; odmowa ma kod wyjścia 2 (jak `validate_plan`), mutacja `tests/mutations/studio-loopback-only.yaml` wychodzi WYKRYTA
+
+**Czego nie przewidywał plan (S0):** połączenie SQLite zakładane w zależności
+FastAPI trafiało do INNEGO wątku puli niż wykonanie endpointu, więc `/api/items`
+zwracało 500 na żywym serwerze, a `TestClient` świecił na zielono (obsługiwał oba
+kroki w jednym wątku). Stąd `check_same_thread=False` przy połączeniu ro, czerwony
+test `test_connection_survives_a_thread_handover` i rozszerzony smoke na prawdziwym
+procesie. To ta sama klasa wpadki co historyczne `--ignore-user-config`: atrapa
+zielona, prawdziwe narzędzie odbija.
 
 ## S1. Kolejka decyzji (pierwszy zapis)
 

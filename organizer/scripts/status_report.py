@@ -25,6 +25,16 @@ app = typer.Typer(add_completion=False, help=__doc__)
 REPORT_NAME = "STATUS.md"
 GROUND_TRUTH_RUN_ID = "ground_truth"
 
+#: Etapy przedmiotu od najpilniejszego do najspokojniejszego — kolejność kolejki
+#: pracy. Nazwy MUSZĄ pokrywać się z tym, co zwraca :func:`stage_of`; studio
+#: (`studio/api/queries.py`) czyta tę stałą zamiast powtarzać własną listę.
+STAGE_ORDER: tuple[str, ...] = (
+    "plan do przeglądu",
+    "plan gotowy",
+    "tylko ground truth",
+    "nietknięty",
+)
+
 
 def collect(conn: sqlite3.Connection) -> dict[str, Any]:
     """Wszystkie liczby w kilku zapytaniach — bez przeglądania plików."""
@@ -127,7 +137,7 @@ def render(data: dict[str, Any], subjects: list[config.Subject], generated_at: s
             "ground_truth": 0, "planned": 0, "needs_review": 0, "actions": {}, "decided_at": None
         })
         by_stage[stage_of(entry)].append(f"{subject.skrot} (sem {subject.semester})")
-    for stage in ("plan do przeglądu", "plan gotowy", "tylko ground truth", "nietknięty"):
+    for stage in STAGE_ORDER:
         names = sorted(by_stage.get(stage, []))
         if not names:
             continue

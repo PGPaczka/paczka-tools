@@ -1,0 +1,103 @@
+/* Tokeny wspólne z synapse-viewer (carbon dark) — oba widoki mają wyglądać
+   jak jedno narzędzie, a nie jak dwa projekty tego samego człowieka. */
+:root {
+  --bg: #0d1117;
+  --bg-deep: #010409;
+  --panel: #161b22;
+  --panel-2: #1c2128;
+  --panel-3: #21262d;
+  --border: #30363d;
+  --border-2: #21262d;
+  --text: #e6edf3;
+  --muted: #8b949e;
+  --muted-2: #6e7681;
+  --accent: #58a6ff;
+  --accent-dim: #1f6feb;
+  --green: #3fb950;
+  --amber: #d29922;
+  --gray: #7d8590;
+  --orange: #f0883e;
+  --red: #f85149;
+  --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  height: 100%;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+input {
+  font: inherit;
+  color: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-2);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Etykiety wartości, które zawsze znaczą to samo w całym widoku. */
+.tag {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 10.5px;
+  line-height: 17px;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.tag.copy { color: var(--green); border-color: rgba(63, 185, 80, 0.4); }
+.tag.skip { color: var(--gray); }
+.tag.media { color: var(--orange); border-color: rgba(240, 136, 62, 0.4); }
+.tag.quarantine { color: var(--red); border-color: rgba(248, 81, 73, 0.4); }
+.tag.review { color: var(--amber); border-color: rgba(210, 153, 34, 0.45); }
+.tag.auto { color: var(--green); border-color: rgba(63, 185, 80, 0.4); }
+.tag.unresolved { color: var(--red); border-color: rgba(248, 81, 73, 0.4); }
+.tag.brak { color: var(--muted-2); }

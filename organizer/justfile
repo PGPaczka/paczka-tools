@@ -163,3 +163,22 @@ subject-apply semester skrot *args:
 subject-verify semester skrot *args:
     @test -f scripts/verify.py || { echo "Brak scripts/verify.py (TODO B11)" >&2; exit 2; }
     {{ python }} scripts/verify.py reports/plan.{{ skrot }}.{{ semester }}.jsonl {{ args }}
+
+# S0: studio — lokalny warsztat nad indeksem (studio/PLAN.md). Faza S0 jest TYLKO
+# do odczytu, a serwer nasłuchuje wyłącznie na 127.0.0.1 (adres spoza pętli
+# zwrotnej = odmowa startu, kod 2). Serwuje zbudowany front z studio/web/dist.
+studio *args:
+    {{ python }} -m studio.api {{ args }}
+
+# Praca nad widokiem: backend z przeładowaniem + Vite z proxy na /api.
+# Wszystko w JEDNEJ linii, bo każda linia recepty to osobna powłoka — inaczej
+# trap nie posprzątałby backendu po zamknięciu Vite. `setsid` daje backendowi
+# własną grupę procesów, więc trap ubija też podproces przeładowywania uvicorna
+# (sam TERM na rodzica go nie zatrzymuje — sprawdzone).
+studio-dev port="8765" web_port="5173":
+    [ -d studio/web/node_modules ] || npm --prefix studio/web install; setsid {{ python }} -m studio.api --reload --port {{ port }} & API=$!; trap 'kill -TERM -$API 2>/dev/null || kill -TERM $API 2>/dev/null || true' EXIT INT TERM; PACZKA_STUDIO_API=http://127.0.0.1:{{ port }} npm --prefix studio/web run dev -- --port {{ web_port }} --strictPort
+
+# Front do postaci, którą serwuje `just studio`.
+studio-build:
+    [ -d studio/web/node_modules ] || npm --prefix studio/web install
+    npm --prefix studio/web run build

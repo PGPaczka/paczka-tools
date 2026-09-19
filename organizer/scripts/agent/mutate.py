@@ -37,7 +37,8 @@ app = typer.Typer(add_completion=False, help=__doc__)
 
 #: Co kopiujemy do piaskownicy. `.venv` świadomie pomijamy — interpreter bierzemy
 #: z prawdziwego repo, kopiowanie środowiska trwałoby dłużej niż sam test.
-_COPIED = ("scripts", "tests", "config", "prompts", "setup", "pytest.ini", ".agents", ".claude")
+_COPIED = ("scripts", "studio", "tests", "config", "prompts", "setup", "pytest.ini",
+           "justfile", ".agents", ".claude")
 
 ORGANIZER = Path(__file__).resolve().parents[2]
 

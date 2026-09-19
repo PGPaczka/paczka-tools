@@ -19,6 +19,9 @@ PyYAML             # config
 jsonschema         # walidacja linii planu wg prompts/plan_line.schema.json (validate_plan.py)
 anthropic          # backend AI (Claude) — dla llm_client
 openai             # backend AI (Codex) — dla llm_client
+fastapi            # backend studia (studio/api) — lokalne API nad indeksem
+uvicorn            # serwer ASGI studia; nasłuch wyłącznie 127.0.0.1
+httpx              # klient HTTP: TestClient FastAPI i smoke startu serwera w testach
 pytest             # testy
 hypothesis         # własności granicy ścieżek (tests/test_path_safety_properties.py)
 # Stare formaty binarne (.doc/.ppt/.pps) czyta systemowy pakiet catdoc

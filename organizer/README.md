@@ -363,6 +363,29 @@ Semestry magisterskie pozostają poza zakresem (D3).
 Dalsze skrypty B3 i B6–B14 (poza istniejącymi B2/B4) są nadal do implementacji.
 Nie uruchamiaj jeszcze docelowego Quickstart e2e poniżej.
 
+## Studio — lokalny warsztat nad indeksem
+
+Widok do pracy nad paczką: pulpit przedmiotów, kolejka „co następne”, przeglądanie
+treści z decyzjami potoku. Plan i uzasadnienia: `studio/PLAN.md`, stan prac:
+`studio/TODO-studio.md`. **Faza S0 jest wyłącznie do odczytu** — nie ma żadnego
+endpointu zapisu (pilnuje tego test), a baza jest otwierana w trybie `mode=ro`.
+
+```bash
+just studio-build     # front do postaci, którą serwuje `just studio`
+just studio           # http://127.0.0.1:8765 — API + zbudowany front
+just studio-dev       # praca nad widokiem: backend --reload + Vite z proxy na /api
+just studio --check   # preflight: adres i baza, bez zajmowania portu
+```
+
+Serwer nasłuchuje **wyłącznie na pętli zwrotnej**: adres spoza `127.0.0.0/8`/`::1`
+to odmowa startu z kodem 2, nie ostrzeżenie (`just studio --host 0.0.0.0` nie
+wystartuje). Na tym założeniu stoi decyzja, że studio nie ma kont ani autoryzacji —
+dlatego bramka ma własny test i własną mutację (`tests/mutations/studio-loopback-only.yaml`).
+
+Liczby w widoku pochodzą z tego samego kodu co `just status`: `/api/subjects` woła
+`status_report.collect`, a nie własne zapytania. Front niczego nie przelicza
+(`studio/AGENTS.md`, reguła 1).
+
 ## Układ
 
 ```
@@ -377,6 +400,7 @@ paczka-tools/organizer/          # ← tu odpalasz `just claude` lub `just codex
 ├── config/                      # paths.yaml, subjects.yaml, syntax.yaml, thresholds.yaml
 ├── prompts/                     # prompty AI (classify_ambiguous, relate_cluster)
 ├── scripts/                     # etapy pipeline (Python)
+├── studio/                      # lokalny warsztat nad indeksem: api/ (FastAPI) + web/ (Svelte)
 ├── reports/                     # SOURCES_TREE.md, inventory, plany, handoff (w gicie)
 │   └── bootstrap/               # historyczne raporty wstępne
 └── setup/                       # install.sh, PLUGINS.md, requirements.txt, statusline.sh
@@ -510,6 +534,7 @@ sudo apt update && sudo apt install -y \
 - **poppler-utils** — `pdftotext` awaryjnie
 - **rclone** — sync z Google Drive
 - **gh** — automatyzacja issue/PR (cross-repo do `paczka-content`)
+- **Node.js 20+** (`node`, `npm`) — front studia (`studio/web`, Svelte + Vite)
 
 ### Python (self-contained w tym folderze)
 ```bash
@@ -533,6 +558,9 @@ pytesseract        # OCR (backend tesseract)
 sqlite-utils       # wygodna praca z SQLite
 typer              # CLI
 PyYAML             # config
+fastapi            # backend studia (studio/api)
+uvicorn            # serwer ASGI studia (tylko 127.0.0.1)
+httpx              # klient HTTP w testach studia
 anthropic          # backend AI (Claude) — dla llm_client
 openai             # backend AI (Codex) — dla llm_client
 ```

@@ -1,0 +1,12 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+# Studio nie ma kont ani autoryzacji WYŁĄCZNIE dlatego, że słucha pętla zwrotna.
+# Ta mutacja przepuszcza dowolny adres (0.0.0.0 włącznie) — czyli wystawia cały
+# indeks paczki na sieć lokalną. Musi być czerwono.
+name: adres spoza pętli zwrotnej odmawia startu studia (S0.7)
+file: studio/api/server.py
+find: '    if not address.is_loopback:'
+replace: '    if False:'
+tests:
+- tests/test_studio_server.py
+- tests/test_studio_cli_contract.py
