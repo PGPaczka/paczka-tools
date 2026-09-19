@@ -20,3 +20,9 @@ organizer/reports/review/*.html
 organizer/reports/rmlint.json
 organizer/reports/ncdu.json
 organizer/reports/rmlint.sh
+
+# --- cudze repozytoria sklonowane do wglądu (kontrakty, do których się dopasowujemy) ---
+# `organizer/vendor/synapse` = klon Billypl/synapse. Trzymamy go lokalnie, żeby eksport
+# pisać wobec REALNEGO kontraktu (Synapse.Generator + schema/), a nie wobec kopii, która
+# akurat leży na dysku. Do repo narzędzi nie wchodzi — to osobny projekt z własną historią.
+organizer/vendor/
