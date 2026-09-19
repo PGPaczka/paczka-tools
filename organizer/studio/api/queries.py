@@ -17,6 +17,7 @@ from typing import Any, Mapping, Sequence
 
 import status_report
 from orglib import config
+from orglib.review import build_clusters
 
 #: run_id, pod którym scan_target zapisuje treści leżące już w repo produktu.
 GROUND_TRUTH_RUN_ID = status_report.GROUND_TRUTH_RUN_ID
@@ -370,4 +371,95 @@ def item_detail(
         "plan_items": [dict(p) for p in plan],
         "applied": [dict(a) for a in applied],
         "manual_decision": None if manual is None else dict(manual),
+    }
+
+
+def clusters(
+    conn: sqlite3.Connection,
+    *,
+    semester: int | None = None,
+    skrot: str | None = None,
+    noise_patterns: Sequence[str] = (),
+    thresholds: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Klastry near-dupe: union-find z ``orglib.review.build_clusters``.
+
+    Opcjonalne filtry semester/skrot zawężają do relacji, których co najmniej
+    jeden koniec ma klasyfikację w danym przedmiocie.
+    """
+    auto_apply, review_min = confidence_limits(thresholds)
+
+    if semester is not None or skrot is not None:
+        clauses: list[str] = []
+        params: list[Any] = []
+        if semester is not None:
+            clauses.append("cl.semester = ?")
+            params.append(semester)
+        if skrot is not None:
+            clauses.append("cl.subject_key = ?")
+            params.append(skrot)
+        where = " AND ".join(clauses)
+        sha_rows = conn.execute(
+            f"SELECT DISTINCT cl.sha256 FROM classifications cl WHERE {where}", params
+        ).fetchall()
+        known = {row["sha256"] for row in sha_rows}
+        rel_rows = conn.execute(
+            "SELECT source_sha256, target_sha256, relation_type, confidence, "
+            "detection_method, reason FROM relations"
+        ).fetchall()
+        raw_relations = [
+            dict(r) for r in rel_rows
+            if r["source_sha256"] in known or r["target_sha256"] in known
+        ]
+    else:
+        rel_rows = conn.execute(
+            "SELECT source_sha256, target_sha256, relation_type, confidence, "
+            "detection_method, reason FROM relations"
+        ).fetchall()
+        raw_relations = [dict(r) for r in rel_rows]
+
+    groups = build_clusters(raw_relations)
+
+    if noise_patterns:
+        import fnmatch
+        def _is_noise(path: str) -> bool:
+            return any(fnmatch.fnmatch(path, pat) for pat in noise_patterns)
+    else:
+        _is_noise = None
+
+    all_shas = {sha for cluster in groups for sha in cluster.members}
+    if all_shas:
+        placeholders = ",".join("?" * len(all_shas))
+        item_rows = conn.execute(
+            f"SELECT {_ITEM_COLUMNS} {_ITEM_FROM} WHERE c.sha256 IN ({placeholders})",
+            list(all_shas),
+        ).fetchall()
+        item_map = {row["sha256"]: _with_bucket(row, auto_apply, review_min) for row in item_rows}
+    else:
+        item_map = {}
+
+    result: list[dict[str, Any]] = []
+    for cluster in groups:
+        members = []
+        skip_cluster = False
+        for sha in cluster.members:
+            item = item_map.get(sha)
+            if item and _is_noise and item.get("source_relative_path"):
+                if _is_noise(item["source_relative_path"]):
+                    skip_cluster = True
+                    break
+            members.append(item or {"sha256": sha})
+        if skip_cluster:
+            continue
+        result.append({
+            "members": members,
+            "relations": cluster.relations,
+            "size": cluster.size,
+            "strength": cluster.strength,
+            "has_older_version": cluster.has_older_version(),
+        })
+
+    return {
+        "total": len(result),
+        "clusters": result,
     }

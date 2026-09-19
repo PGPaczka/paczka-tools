@@ -14,6 +14,10 @@
   import QueuePanel from './components/QueuePanel.svelte';
   import SubjectList from './components/SubjectList.svelte';
   import SubjectPanel from './components/SubjectPanel.svelte';
+  import DecisionPanel from './components/DecisionPanel.svelte';
+  import ClusterPanel from './components/ClusterPanel.svelte';
+
+  type Mode = 'browse' | 'decide' | 'clusters';
 
   /** Ile pozycji dokłada „Pokaż więcej”. */
   const PAGE = 30;
@@ -35,6 +39,7 @@
   let page = $state<ItemsPage | null>(null);
   let loadingItems = $state(false);
 
+  let mode = $state<Mode>('browse');
   let list: SubjectList | undefined = $state();
 
   const semesters = $derived(
@@ -96,6 +101,22 @@
       return;
     }
     if (typing || event.metaKey || event.ctrlKey || event.altKey) return;
+    if (event.key === 'd' && mode === 'browse') {
+      event.preventDefault();
+      mode = 'decide';
+      return;
+    }
+    if (event.key === 'c' && mode === 'browse') {
+      event.preventDefault();
+      mode = 'clusters';
+      return;
+    }
+    if (event.key === 'b' && mode !== 'browse') {
+      event.preventDefault();
+      mode = 'browse';
+      return;
+    }
+    if (mode !== 'browse') return;
     if (event.key === '/') {
       event.preventDefault();
       list?.focusSearch();
@@ -165,7 +186,7 @@
   <header>
     <div class="brand">
       <strong>Paczka Studio</strong>
-      <span class="phase">S0 · tylko odczyt</span>
+      <span class="phase">{mode === 'browse' ? 'S0 · przeglądarka' : mode === 'decide' ? 'S1 · decyzje' : 'S2 · klastry'}</span>
     </div>
 
     {#if dashboard}
@@ -183,6 +204,22 @@
         <span class="dim">schema v{health.schema_version}</span>
       {/if}
       <button onclick={loadDashboard} title="Przeładuj liczby z bazy">odśwież</button>
+        <button
+          class="mode-toggle"
+          class:active={mode === 'decide'}
+          onclick={() => (mode = mode === 'decide' ? 'browse' : 'decide')}
+          title="d / b — tryb decyzji"
+        >
+          decyzje
+        </button>
+        <button
+          class="mode-toggle"
+          class:active={mode === 'clusters'}
+          onclick={() => (mode = mode === 'clusters' ? 'browse' : 'clusters')}
+          title="c / b — klastry"
+        >
+          klastry
+        </button>
     </div>
   </header>
 
@@ -205,16 +242,30 @@
         bind:semester
         {semesters}
       />
-      <SubjectPanel
-        row={selected}
-        {detail}
-        {page}
-        loading={loadingItems}
-        error={detailError}
-        bind:category
-        bind:onlyReview
-        onMore={() => (limit += PAGE)}
-      />
+      {#if mode === 'decide'}
+        <DecisionPanel
+          semester={selected?.semester}
+          skrot={selected?.skrot}
+          onDecided={loadDashboard}
+        />
+      {:else if mode === 'clusters'}
+        <ClusterPanel
+          semester={selected?.semester}
+          skrot={selected?.skrot}
+          onResolved={loadDashboard}
+        />
+      {:else}
+        <SubjectPanel
+          row={selected}
+          {detail}
+          {page}
+          loading={loadingItems}
+          error={detailError}
+          bind:category
+          bind:onlyReview
+          onMore={() => (limit += PAGE)}
+        />
+      {/if}
     </main>
   {/if}
 </div>
@@ -278,6 +329,11 @@
   .right button:hover {
     color: var(--text);
     border-color: var(--accent-dim);
+  }
+  .mode-toggle.active {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--text);
   }
   .dim {
     color: var(--muted-2);

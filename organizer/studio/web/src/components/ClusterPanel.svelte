@@ -1,0 +1,403 @@
+<script lang="ts">
+  import {
+    getClusters,
+    resolveCluster,
+    type Cluster,
+    type ClustersPage,
+    type Item,
+  } from '../lib/api';
+  import { basename, bytes, percent } from '../lib/format';
+
+  interface Props {
+    semester?: number | null;
+    skrot?: string | null;
+    onResolved?: () => void;
+  }
+
+  let { semester = null, skrot = null, onResolved }: Props = $props();
+
+  let page = $state<ClustersPage | null>(null);
+  let loading = $state(false);
+  let error = $state<string | null>(null);
+  let success = $state<string | null>(null);
+  let noiseFilter = $state('');
+
+  let expandedIndex = $state<number | null>(null);
+  let selectedCanonical = $state<string | null>(null);
+
+  async function load(): Promise<void> {
+    loading = true;
+    error = null;
+    try {
+      const filters: Record<string, unknown> = {};
+      if (semester) filters.semester = semester;
+      if (skrot) filters.skrot = skrot;
+      if (noiseFilter.trim()) filters.noise = noiseFilter.trim();
+      page = await getClusters(filters as any);
+    } catch (exc) {
+      error = exc instanceof Error ? exc.message : String(exc);
+    } finally {
+      loading = false;
+    }
+  }
+
+  function toggle(index: number): void {
+    if (expandedIndex === index) {
+      expandedIndex = null;
+      selectedCanonical = null;
+    } else {
+      expandedIndex = index;
+      selectedCanonical = null;
+    }
+  }
+
+  function selectCanonical(sha: string): void {
+    selectedCanonical = sha;
+  }
+
+  async function resolve(cluster: Cluster): Promise<void> {
+    if (!selectedCanonical) return;
+    error = null;
+    success = null;
+    const members = cluster.members.map((m) => m.sha256);
+    try {
+      const result = await resolveCluster(selectedCanonical, members);
+      success = `Klaster rozstrzygnięty: ${result.skipped} oznaczonych jako skip`;
+      expandedIndex = null;
+      selectedCanonical = null;
+      onResolved?.();
+      await load();
+    } catch (exc) {
+      error = exc instanceof Error ? exc.message : String(exc);
+    }
+  }
+
+  function relationLabel(type: string): string {
+    switch (type) {
+      case 'near_duplicate': return 'near-dupe';
+      case 'older_version': return 'starsza wersja';
+      case 'related': return 'powiązany';
+      default: return type;
+    }
+  }
+
+  $effect(() => {
+    const _deps = [semester, skrot];
+    load();
+  });
+</script>
+
+<div class="cluster-panel">
+  <div class="header">
+    <h3>Klastry near-dupe</h3>
+    <span class="total num">{page?.total ?? 0} klastrów</span>
+  </div>
+
+  <div class="noise-row">
+    <input
+      type="text"
+      bind:value={noiseFilter}
+      placeholder="Filtr szumu (fnmatch, np. *.vcxproj*)"
+      onchange={load}
+    />
+    <button onclick={load} title="Przeładuj klastry">odśwież</button>
+  </div>
+
+  {#if error}
+    <div class="msg error">{error}</div>
+  {/if}
+  {#if success}
+    <div class="msg success">{success}</div>
+  {/if}
+
+  {#if loading}
+    <div class="empty">Wczytuję klastry…</div>
+  {:else if !page || page.total === 0}
+    <div class="empty">Brak klastrów</div>
+  {:else}
+    <div class="cluster-list">
+      {#each page.clusters as cluster, i}
+        <div class="cluster-card" class:expanded={expandedIndex === i}>
+          <button class="cluster-header" onclick={() => toggle(i)}>
+            <span class="size num">{cluster.size} treści</span>
+            <span class="tag" class:older={cluster.has_older_version}>
+              {cluster.has_older_version ? 'wersje' : 'duplikaty'}
+            </span>
+            <span class="strength num">{percent(cluster.strength)}</span>
+            <span class="arrow">{expandedIndex === i ? '▾' : '▸'}</span>
+          </button>
+
+          {#if expandedIndex === i}
+            <div class="cluster-body">
+              <div class="members-grid">
+                {#each cluster.members as member}
+                  <button
+                    class="member-card"
+                    class:canonical={selectedCanonical === member.sha256}
+                    onclick={() => selectCanonical(member.sha256)}
+                    title="Kliknij, żeby oznaczyć jako kanoniczną"
+                  >
+                    <div class="member-sha mono">{member.sha256.slice(0, 12)}…</div>
+                    {#if member.filename}
+                      <div class="member-name">{member.filename}</div>
+                    {/if}
+                    {#if member.content_kind}
+                      <span class="tag kind">{member.content_kind}</span>
+                    {/if}
+                    {#if member.size_bytes}
+                      <span class="member-size dim">{bytes(member.size_bytes)}</span>
+                    {/if}
+                    {#if member.confidence !== undefined && member.confidence !== null}
+                      <span class="member-conf num">{percent(member.confidence)}</span>
+                    {/if}
+                    {#if member.action}
+                      <span class="tag action-tag">{member.action}</span>
+                    {/if}
+                    {#if selectedCanonical === member.sha256}
+                      <div class="canonical-badge">kanoniczna</div>
+                    {/if}
+                  </button>
+                {/each}
+              </div>
+
+              <div class="relations-section">
+                <div class="label dim">Relacje:</div>
+                {#each cluster.relations as rel}
+                  <div class="relation-row">
+                    <span class="mono dim">{rel.source_sha256.slice(0, 8)}…</span>
+                    <span class="tag rel-type">{relationLabel(rel.relation_type)}</span>
+                    <span class="mono dim">{rel.target_sha256.slice(0, 8)}…</span>
+                    <span class="num">{percent(rel.confidence)}</span>
+                    {#if rel.reason}
+                      <span class="dim reason">{rel.reason}</span>
+                    {/if}
+                  </div>
+                {/each}
+              </div>
+
+              <div class="resolve-actions">
+                <button
+                  class="resolve-btn"
+                  disabled={!selectedCanonical}
+                  onclick={() => resolve(cluster)}
+                >
+                  Rozstrzygnij → reszta skip
+                </button>
+                {#if !selectedCanonical}
+                  <span class="dim hint">Kliknij kartę, żeby wybrać wersję kanoniczną</span>
+                {/if}
+              </div>
+            </div>
+          {/if}
+        </div>
+      {/each}
+    </div>
+  {/if}
+</div>
+
+<style>
+  .cluster-panel {
+    padding: 12px;
+    overflow-y: auto;
+  }
+  .header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .header h3 {
+    margin: 0;
+    font-size: 14px;
+  }
+  .total {
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .noise-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .noise-row input {
+    flex: 1;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 12px;
+    background: var(--bg-deep);
+    color: var(--text);
+  }
+  .noise-row button {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--muted);
+    background: transparent;
+    cursor: pointer;
+  }
+  .noise-row button:hover {
+    border-color: var(--accent-dim);
+    color: var(--text);
+  }
+  .cluster-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .cluster-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .cluster-card.expanded {
+    border-color: var(--accent-dim);
+  }
+  .cluster-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 12px;
+    border: none;
+    background: var(--bg-deep);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 12px;
+    text-align: left;
+  }
+  .cluster-header:hover {
+    background: var(--bg);
+  }
+  .arrow {
+    margin-left: auto;
+    color: var(--muted-2);
+  }
+  .cluster-body {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .members-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 8px;
+  }
+  .member-card {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 10px;
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-deep);
+    cursor: pointer;
+    text-align: left;
+    color: var(--text);
+    font-size: 12px;
+    transition: border-color 0.15s;
+  }
+  .member-card:hover {
+    border-color: var(--accent-dim);
+  }
+  .member-card.canonical {
+    border-color: var(--tag-ok);
+    background: color-mix(in srgb, var(--tag-ok) 8%, var(--bg-deep));
+  }
+  .member-sha {
+    font-size: 10px;
+    color: var(--muted-2);
+  }
+  .member-name {
+    font-weight: 600;
+    font-size: 12px;
+    word-break: break-all;
+  }
+  .member-size {
+    font-size: 11px;
+  }
+  .member-conf {
+    font-size: 11px;
+  }
+  .canonical-badge {
+    margin-top: 4px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    background: var(--tag-ok);
+    color: var(--bg);
+    text-align: center;
+    font-weight: 600;
+  }
+  .relations-section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .relation-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+  }
+  .reason {
+    font-size: 10px;
+  }
+  .resolve-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .resolve-btn {
+    padding: 6px 14px;
+    border: 1px solid var(--tag-ok);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--tag-ok);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .resolve-btn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--tag-ok) 15%, transparent);
+  }
+  .resolve-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
+  .hint {
+    font-size: 11px;
+  }
+  .tag {
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    background: color-mix(in srgb, var(--border) 50%, transparent);
+  }
+  .tag.older {
+    color: var(--warn);
+  }
+  .msg {
+    padding: 6px 10px;
+    margin-bottom: 8px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .msg.error {
+    background: color-mix(in srgb, var(--warn) 15%, transparent);
+    color: var(--warn);
+  }
+  .msg.success {
+    background: color-mix(in srgb, var(--tag-ok) 15%, transparent);
+    color: var(--tag-ok);
+  }
+  .empty {
+    padding: 24px;
+    text-align: center;
+    color: var(--muted);
+  }
+  .label {
+    font-size: 11px;
+  }
+</style>
