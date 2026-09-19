@@ -1,0 +1,18 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+# Przywraca `executescript`, który ZATWIERDZA otwartą transakcję — czyli migracja
+# przestaje być atomowa i przerwana zostawia bazę w połowie drogi (48 tys. plików
+# stanu, którego nie da się tanio odtworzyć).
+name: migracja schematu jest atomowa
+file: scripts/orglib/db.py
+find: |-2
+      conn.execute("BEGIN")
+      try:
+          for statement in steps:
+              conn.execute(statement)
+replace: |-2
+      conn.execute("BEGIN")
+      try:
+          conn.executescript(";\n".join(steps))
+tests:
+- tests/test_db_migration.py

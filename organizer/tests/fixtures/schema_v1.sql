@@ -73,9 +73,6 @@ CREATE TABLE IF NOT EXISTS content (
 );
 
 -- Decyzja klasyfikacyjna dla treści (semestr + przedmiot + slot docelowy); klucz naturalny: sha256.
--- `action`, `reason` i `needs_review` doszły w schema_version 2: bez nich w bazie mieściła się
--- tylko połowa linii planu (prompts/plan_line.schema.json), więc JSONL nie mógł być eksportem
--- z bazy, tylko osobnym źródłem prawdy.
 CREATE TABLE IF NOT EXISTS classifications (
     sha256                TEXT PRIMARY KEY REFERENCES content(sha256),
     semester              INTEGER NOT NULL,
@@ -90,10 +87,7 @@ CREATE TABLE IF NOT EXISTS classifications (
     confidence            REAL CHECK (confidence IS NULL OR (confidence >= 0.0 AND confidence <= 1.0)),
     model_name            TEXT,
     run_id                TEXT,
-    decided_at            TEXT,
-    action                TEXT CHECK (action IS NULL OR action IN ('copy', 'quarantine', 'skip', 'media')),
-    reason                TEXT,
-    needs_review          INTEGER NOT NULL DEFAULT 0
+    decided_at            TEXT
 );
 
 -- Relacje między treściami (near-dupe / starsza wersja / powiązane), nigdy kasowanie;
@@ -125,12 +119,10 @@ CREATE TABLE IF NOT EXISTS manual_decisions (
 
 -- Pozycje planu (jedna treść może trafić w wiele miejsc docelowych);
 -- klucz naturalny: (sha256, target_relative_path).
--- `media` doszło w schema_version 2: plan tę akcję wystawiał od początku (duże nagrania idą
--- poza paczkę, do 90_MEDIA), a CHECK jej nie przyjmował.
 CREATE TABLE IF NOT EXISTS plan_items (
     sha256               TEXT NOT NULL REFERENCES content(sha256),
     target_relative_path TEXT NOT NULL,
-    action               TEXT NOT NULL CHECK (action IN ('copy', 'quarantine', 'skip', 'media')),
+    action               TEXT NOT NULL CHECK (action IN ('copy', 'quarantine', 'skip')),
     status               TEXT NOT NULL DEFAULT 'planned'
                          CHECK (status IN ('planned', 'validated', 'applied', 'verified', 'failed')),
     plan_run_id          TEXT NOT NULL,

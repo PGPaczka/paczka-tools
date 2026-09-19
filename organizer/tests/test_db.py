@@ -515,7 +515,7 @@ def test_cli_init_creates_database(tmp_path: Path) -> None:
 
     assert result.exit_code == 0, result.output
     assert path.exists()
-    assert "schema_version: 1" in result.output
+    assert f"schema_version: {db.SCHEMA_VERSION}" in result.output
 
 
 def test_cli_stats_prints_all_tables(tmp_path: Path) -> None:
@@ -621,13 +621,14 @@ def test_seeded_folder_path_matches_helper(conn: sqlite3.Connection) -> None:
 
 def test_newer_schema_version_leaves_database_untouched(tmp_path: Path) -> None:
     path = tmp_path / "przyszla.sqlite"
+    future = db.SCHEMA_VERSION + 1
     raw = sqlite3.connect(path)
     with raw:
         raw.execute("CREATE TABLE schema_version (version INTEGER PRIMARY KEY, applied_at TEXT)")
-        raw.execute("INSERT INTO schema_version VALUES (2, '2026-01-01T00:00:00Z')")
+        raw.execute("INSERT INTO schema_version VALUES (?, '2026-01-01T00:00:00Z')", (future,))
     raw.close()
 
-    with pytest.raises(RuntimeError, match="schema_version=2"):
+    with pytest.raises(RuntimeError, match=f"schema_version={future}"):
         db.connect(path)
 
     raw = sqlite3.connect(path)

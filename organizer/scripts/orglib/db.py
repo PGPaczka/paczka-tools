@@ -15,7 +15,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping, Sequence
 
 #: Wersja DDL w schema.sql. Baza z wyższą wersją jest odrzucana.
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 #: Statusy pliku w kolejności maszyny stanów (przejścia tylko do przodu).
 FILE_STATUSES: tuple[str, ...] = (
@@ -123,12 +123,60 @@ def current_schema_version(conn: sqlite3.Connection) -> int | None:
     return None if row["v"] is None else int(row["v"])
 
 
+#: Migracje istniejących baz, wersja po wersji. Każda ma dwie połowy, bo pomiędzy nimi
+#: wykonuje się ``schema.sql``: ``before`` przygotowuje miejsce (dodaje kolumny, odsuwa
+#: tabelę, której CHECK trzeba zmienić), ``after`` przenosi dane i sprząta.
+#:
+#: Dlaczego przebudowa, a nie „ALTER TABLE ... CHECK”: SQLite nie umie zmienić ograniczenia
+#: w miejscu. Dlatego stara tabela jest przemianowana, ``schema.sql`` tworzy nową pod właściwą
+#: nazwą, a dane przepisujemy. Indeksy starej tabeli kasujemy JAWNIE — po przemianowaniu
+#: zostają przy niej ze swoimi nazwami, więc ``CREATE INDEX IF NOT EXISTS`` na nowej tabeli
+#: byłby pustą operacją i nowa tabela zostałaby bez indeksów.
+_MIGRATIONS: dict[int, dict[str, tuple[str, ...]]] = {
+    2: {
+        "before": (
+            "ALTER TABLE classifications ADD COLUMN action TEXT "
+            "CHECK (action IS NULL OR action IN ('copy', 'quarantine', 'skip', 'media'))",
+            "ALTER TABLE classifications ADD COLUMN reason TEXT",
+            "ALTER TABLE classifications ADD COLUMN needs_review INTEGER NOT NULL DEFAULT 0",
+            "DROP INDEX IF EXISTS idx_plan_items_status",
+            "DROP INDEX IF EXISTS idx_plan_items_run",
+            "ALTER TABLE plan_items RENAME TO plan_items_v1",
+        ),
+        "after": (
+            "INSERT INTO plan_items (sha256, target_relative_path, action, status, plan_run_id) "
+            "SELECT sha256, target_relative_path, action, status, plan_run_id FROM plan_items_v1",
+            "DROP TABLE plan_items_v1",
+        ),
+    },
+}
+
+
+def _statements(sql: str) -> list[str]:
+    """Rozbija nasz DDL na pojedyncze polecenia (bez komentarzy liniowych).
+
+    Potrzebne, bo ``executescript`` **zatwierdza** otwartą transakcję, zanim wykona
+    skrypt — czyli migracja przez niego nie jest atomowa (sprawdzone testem:
+    przerwana w połowie zostawiała bazę z przemianowaną tabelą i starą wersją).
+    Nasz schemat to same CREATE TABLE/INDEX, więc podział po średniku wystarcza;
+    pilnuje tego test porównujący wynik z ``executescript``.
+    """
+    without_comments = "\n".join(
+        line for line in sql.splitlines() if not line.strip().startswith("--")
+    )
+    return [statement.strip() for statement in without_comments.split(";") if statement.strip()]
+
+
 def init_schema(conn: sqlite3.Connection) -> None:
-    """Wykonuje schema.sql i zapisuje wersję schematu. Idempotentne.
+    """Wykonuje schema.sql, migruje starszą bazę i zapisuje wersję schematu. Idempotentne.
 
     Wersję sprawdza PRZED wykonaniem DDL: baza nowsza niż :data:`SCHEMA_VERSION`
     podnosi ``RuntimeError`` i zostaje nietknięta (starszy kod nie dopisuje jej
     swoich tabel).
+
+    Migracja i DDL idą w JEDNEJ transakcji — przerwana migracja ma nie zostawić bazy
+    w połowie drogi. Odtworzenie tej bazy od zera kosztuje ponowne zahashowanie
+    dziesiątek GB źródeł, więc to nie jest teoretyczne wymaganie.
     """
     current = current_schema_version(conn)
     if current is not None and current > SCHEMA_VERSION:
@@ -136,14 +184,28 @@ def init_schema(conn: sqlite3.Connection) -> None:
             f"baza ma schema_version={current}, a ten kod obsługuje {SCHEMA_VERSION} "
             "— zaktualizuj organizer albo użyj innej bazy"
         )
-    ddl = _SCHEMA_PATH.read_text(encoding="utf-8")
-    with conn:
-        conn.executescript(ddl)
+    ddl = _statements(_SCHEMA_PATH.read_text(encoding="utf-8"))
+    pending = [] if current is None else [
+        version for version in sorted(_MIGRATIONS) if current < version <= SCHEMA_VERSION
+    ]
+    steps = [
+        *(s for version in pending for s in _MIGRATIONS[version]["before"]),
+        *ddl,
+        *(s for version in pending for s in _MIGRATIONS[version]["after"]),
+    ]
+    conn.execute("BEGIN")
+    try:
+        for statement in steps:
+            conn.execute(statement)
         if current is None or current < SCHEMA_VERSION:
             conn.execute(
                 "INSERT OR IGNORE INTO schema_version (version, applied_at) VALUES (?, ?)",
                 (SCHEMA_VERSION, now_iso()),
             )
+    except Exception:
+        conn.execute("ROLLBACK")
+        raise
+    conn.execute("COMMIT")
 
 
 def _check_ident(name: str) -> str:
