@@ -176,7 +176,7 @@ CLI nad `orglib/llm_client.py` (backend anthropic/openai/`claude -p`/`codex exec
 z `config/thresholds.yaml: llm`, cache po sha256 promptu w `20_WORK/ai_cache.sqlite`);
 smoke test backendów, nieużywany w automatycznym cyklu per-przedmiot.
 
-## Skrypty cyklu per-przedmiot — gotowe B1, B2, B3, B5, B6, B8
+## Skrypty cyklu per-przedmiot — gotowe B1, B2, B3, B5, B6, B7, B8
 
 Po pierwszym przebiegu przygotuj wycinek z **istniejącego indeksu SQLite**:
 
@@ -249,6 +249,25 @@ deterministyczny `relations.jsonl` (ślad w gicie, wsad dla review B9 i dla pól
 `related_to`/`relation` w planie B7). Zapis jest **podmianą własnego wycinka** —
 kasuje wyłącznie wiersze z `detection_method` zaczynającym się od `near_dupe:`
 i tylko dla par z przetwarzanego zakresu, więc decyzje ręczne (B14) zostają.
+
+Decyzje scala w jeden plan etap B7:
+
+```bash
+just subject-plan 3 AKO --dry-run   # co powstanie, ile kolizji, jaki plan_hash
+just subject-plan 3 AKO             # plan.jsonl + zapis do bazy
+```
+
+`scripts/build_plan.py` łączy `plan.det.jsonl`, `plan.ai.jsonl` i `relations.jsonl`
+w `plan.jsonl`: pierwsza linia to nagłówek `{"_meta": …}` z `plan_hash`, dalej jedna
+decyzja na treść. Przy dwóch decyzjach o tej samej treści wygrywa mocniejsza metoda
+(człowiek > deterministyka > heurystyka > model), a odrzucona trafia do podsumowania.
+Kolizje ścieżek rozstrzyga **katalog źródłowy** (`kol_02/Zadanie 23/main.c`), więc
+komplet plików jednego rozwiązania zostaje razem; przy nierozstrzygalnej kolizji
+wchodzi krótki skrót sha256 — żadna treść nie znika po cichu.
+
+Od tego etapu **źródłem prawdy jest baza**: decyzje lądują w `classifications`,
+pozycje planu w `plan_items`, a `plan.jsonl` jest ich eksportem do gita. Zapis
+podmienia wycinek jednego przedmiotu i nigdy nie dotyka wierszy ground truth.
 
 Zanim cokolwiek ruszy materiały, plan przechodzi przez bramkę:
 
