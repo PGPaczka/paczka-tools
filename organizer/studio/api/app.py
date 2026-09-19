@@ -161,6 +161,43 @@ def create_app(
             raise HTTPException(status_code=404, detail=f"brak treści {sha256} w indeksie")
         return detail
 
+    # --- S1: preview ---
+
+    @app.get("/api/preview/{sha256}", tags=["preview"])
+    def get_preview(
+        sha256: str = PathParam(pattern=SHA256_PATTERN),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ) -> dict[str, Any]:
+        """Podgląd treści (S1.3): głowa tekstu, metadane. Bez miniatur jeśli brak plików."""
+        row = conn.execute(
+            "SELECT sha256, content_kind, extracted_text_path, cas_path "
+            "FROM content WHERE sha256 = ?", (sha256,)
+        ).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"brak treści {sha256}")
+
+        text_head = None
+        text_path = row["extracted_text_path"]
+        if text_path:
+            resolved = Path(text_path)
+            try:
+                real = resolved.resolve(strict=True)
+            except (OSError, ValueError):
+                real = None
+            if real and real.is_file():
+                try:
+                    text_head = real.read_text(encoding="utf-8", errors="replace")[:4096]
+                except OSError:
+                    pass
+
+        return {
+            "sha256": sha256,
+            "content_kind": row["content_kind"],
+            "text_head": text_head,
+            "has_text": text_head is not None,
+            "has_thumbnail": False,
+        }
+
     # --- S1: decisions (write endpoints) ---
 
     @app.post("/api/decisions", tags=["decisions"])
@@ -222,6 +259,42 @@ def create_app(
         if undone is None:
             raise HTTPException(status_code=404, detail="brak decyzji do cofnięcia")
         return {"undone": undone}
+
+    @app.get("/api/decisions/by-folder", tags=["decisions"])
+    def get_items_by_folder(
+        folder: str = Query(..., min_length=1),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ) -> dict[str, Any]:
+        """Treści z danego katalogu źródłowego — podgląd przed decyzją hurtową (S1.6)."""
+        return queries.items_by_folder(conn, folder, limits)
+
+    @app.post("/api/decisions/by-folder", tags=["decisions"])
+    def post_decisions_by_folder(
+        body: dict[str, Any] = Body(...),
+        conn: sqlite3.Connection = Depends(get_rw_conn),
+    ) -> dict[str, Any]:
+        """Decyzja hurtowa dla wszystkich treści z katalogu źródłowego (S1.6)."""
+        folder = body.get("folder")
+        decision_type = body.get("decision_type", "skip")
+        decided_by = body.get("decided_by", "studio")
+        if not folder:
+            raise HTTPException(status_code=422, detail="brak pola folder")
+        preview = queries.items_by_folder(conn, folder, limits)
+        decisions = [
+            {"sha256": item["sha256"], "decision_type": decision_type,
+             **({k: body[k] for k in ("semester", "subject_key", "category", "action") if k in body})}
+            for item in preview["items"]
+            if item.get("run_id") != "ground_truth"
+        ]
+        if not decisions:
+            raise HTTPException(status_code=404, detail=f"brak treści w katalogu {folder}")
+        try:
+            results = record_batch(conn, decisions, decided_by=decided_by)
+            return {"folder": folder, "count": len(results), "decisions": results}
+        except GroundTruthConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     # --- S2: clusters ---
 

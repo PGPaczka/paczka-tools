@@ -327,6 +327,26 @@ def _with_bucket(row: sqlite3.Row, auto_apply: float, review_min: float) -> dict
     return item
 
 
+def items_by_folder(
+    conn: sqlite3.Connection,
+    folder: str,
+    thresholds: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Treści z danego katalogu źródłowego — do podglądu przed decyzją hurtową."""
+    auto_apply, review_min = confidence_limits(thresholds)
+    rows = conn.execute(
+        f"SELECT {_ITEM_COLUMNS} {_ITEM_FROM} "
+        "WHERE f.folder_path = ? OR f.source_relative_path LIKE ? || '/%' "
+        "ORDER BY f.source_relative_path",
+        (folder, folder),
+    ).fetchall()
+    return {
+        "folder": folder,
+        "total": len(rows),
+        "items": [_with_bucket(row, auto_apply, review_min) for row in rows],
+    }
+
+
 def item_detail(
     conn: sqlite3.Connection, sha256: str, thresholds: Mapping[str, Any] | None = None
 ) -> dict[str, Any] | None:

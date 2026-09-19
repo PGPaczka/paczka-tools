@@ -2,12 +2,18 @@
   import {
     postDecision,
     postUndo,
+    postDecisionBatch,
     getItems,
     type Item,
     type ItemsPage,
     type DecisionRequest,
   } from '../lib/api';
   import { basename, bytes, percent, dirname } from '../lib/format';
+
+  const CATEGORIES = [
+    'egzamin', 'kolokwia', 'laboratoria', 'cwiczenia', 'projekt',
+    'seminarium', 'wyklad', 'opracowania', 'inne',
+  ] as const;
 
   interface Props {
     semester?: number | null;
@@ -23,6 +29,7 @@
   let error = $state<string | null>(null);
   let success = $state<string | null>(null);
   let history = $state<string[]>([]);
+  let showHelp = $state(false);
 
   async function loadNext(): Promise<void> {
     loading = true;
@@ -47,13 +54,17 @@
     error = null;
     success = null;
 
+    const dtype = (action === 'skip' || action === 'quarantine')
+      ? action
+      : action === 'outdated' ? 'outdated' : 'classify';
+
     const decision: DecisionRequest = {
       sha256: item.sha256,
-      decision_type: action === 'skip' || action === 'quarantine' ? action : 'classify',
+      decision_type: dtype,
       semester: item.semester ?? semester ?? undefined,
       subject_key: item.subject_key ?? skrot ?? undefined,
       category: category ?? item.category ?? undefined,
-      action: action === 'quarantine' ? 'quarantine' : action === 'skip' ? undefined : action,
+      action: dtype === 'classify' ? action : dtype === 'quarantine' ? 'quarantine' : undefined,
     };
 
     try {
@@ -84,7 +95,21 @@
   function onKey(event: KeyboardEvent): void {
     const target = event.target as HTMLElement | null;
     if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA') return;
+
+    if (event.key === '?') {
+      event.preventDefault();
+      showHelp = !showHelp;
+      return;
+    }
+
     if (!current) return;
+
+    const digit = parseInt(event.key, 10);
+    if (digit >= 1 && digit <= 9 && digit <= CATEGORIES.length) {
+      event.preventDefault();
+      decide('copy', CATEGORIES[digit - 1]);
+      return;
+    }
 
     switch (event.key) {
       case 'Enter':
@@ -106,6 +131,10 @@
       case 'm':
         event.preventDefault();
         decide('media');
+        break;
+      case 'o':
+        event.preventDefault();
+        decide('outdated');
         break;
     }
   }
@@ -175,6 +204,22 @@
         {/if}
       </div>
 
+      <div class="categories">
+        <div class="label dim">Kategoria (1-9):</div>
+        <div class="cat-buttons">
+          {#each CATEGORIES as cat, i}
+            <button
+              class="cat-btn"
+              class:current={current.category === cat}
+              onclick={() => decide('copy', cat)}
+              title="{i + 1}"
+            >
+              <kbd>{i + 1}</kbd> {cat}
+            </button>
+          {/each}
+        </div>
+      </div>
+
       <div class="actions">
         <button class="action-btn accept" onclick={() => decide('copy')} title="Enter">
           Akceptuj (copy)
@@ -188,6 +233,9 @@
         <button class="action-btn media" onclick={() => decide('media')} title="m">
           Media
         </button>
+        <button class="action-btn outdated" onclick={() => decide('outdated')} title="o">
+          Outdated
+        </button>
         <button class="action-btn undo" onclick={undo} disabled={!history.length} title="u">
           Cofnij ({history.length})
         </button>
@@ -195,11 +243,36 @@
 
       <div class="shortcuts dim">
         <kbd>Enter</kbd> akceptuj &nbsp;
+        <kbd>1-9</kbd> kategoria &nbsp;
         <kbd>s</kbd> pomiń &nbsp;
         <kbd>q</kbd> kwarantanna &nbsp;
         <kbd>m</kbd> media &nbsp;
-        <kbd>u</kbd> cofnij
+        <kbd>o</kbd> outdated &nbsp;
+        <kbd>u</kbd> cofnij &nbsp;
+        <kbd>?</kbd> pomoc
       </div>
+    </div>
+  {/if}
+
+  {#if showHelp}
+    <div class="help-panel">
+      <h4>Skróty klawiszowe</h4>
+      <table>
+        <tr><td><kbd>Enter</kbd></td><td>Akceptuj z bieżącą kategorią (copy)</td></tr>
+        <tr><td><kbd>1</kbd>–<kbd>9</kbd></td><td>Akceptuj z wybraną kategorią</td></tr>
+        <tr><td><kbd>s</kbd></td><td>Pomiń (skip)</td></tr>
+        <tr><td><kbd>q</kbd></td><td>Kwarantanna</td></tr>
+        <tr><td><kbd>m</kbd></td><td>Media</td></tr>
+        <tr><td><kbd>o</kbd></td><td>Oznacz jako outdated</td></tr>
+        <tr><td><kbd>u</kbd></td><td>Cofnij ostatnią decyzję</td></tr>
+        <tr><td><kbd>?</kbd></td><td>Pokaż/ukryj tę pomoc</td></tr>
+      </table>
+      <h4>Kategorie</h4>
+      <table>
+        {#each CATEGORIES as cat, i}
+          <tr><td><kbd>{i + 1}</kbd></td><td>{cat}</td></tr>
+        {/each}
+      </table>
     </div>
   {/if}
 </div>
@@ -354,5 +427,72 @@
     border-radius: 3px;
     font-size: 11px;
     background: var(--tag-bg, color-mix(in srgb, var(--border) 50%, transparent));
+  }
+  .categories {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .cat-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .cat-btn {
+    padding: 3px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    color: var(--text);
+    background: transparent;
+  }
+  .cat-btn:hover {
+    border-color: var(--accent-dim);
+  }
+  .cat-btn.current {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+  }
+  .cat-btn kbd {
+    padding: 0 3px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    font-size: 10px;
+    background: var(--bg-deep);
+  }
+  .action-btn.outdated {
+    color: var(--muted-2);
+  }
+  .help-panel {
+    margin-top: 8px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--bg-deep);
+    font-size: 12px;
+  }
+  .help-panel h4 {
+    margin: 0 0 6px;
+    font-size: 12px;
+  }
+  .help-panel table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .help-panel td {
+    padding: 2px 6px;
+    font-size: 11px;
+  }
+  .help-panel td:first-child {
+    width: 60px;
+    text-align: center;
+  }
+  .help-panel kbd {
+    padding: 1px 4px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-size: 10px;
+    background: var(--bg);
   }
 </style>

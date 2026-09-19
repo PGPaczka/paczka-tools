@@ -238,6 +238,37 @@ export const postDecisionBatch = (decisions: DecisionRequest[], decidedBy = 'stu
 
 export const postUndo = () => postJson<UndoResult>('/api/decisions/undo', {});
 
+// --- S1: preview + bulk ---
+
+export interface Preview {
+  sha256: string;
+  content_kind: string | null;
+  text_head: string | null;
+  has_text: boolean;
+  has_thumbnail: boolean;
+}
+
+export interface FolderItems {
+  folder: string;
+  total: number;
+  items: Item[];
+}
+
+export interface FolderDecisionResult {
+  folder: string;
+  count: number;
+  decisions: DecisionResult[];
+}
+
+export const getPreview = (sha256: string, signal?: AbortSignal) =>
+  fetchJson<Preview>(`/api/preview/${sha256}`, signal);
+
+export const getItemsByFolder = (folder: string, signal?: AbortSignal) =>
+  fetchJson<FolderItems>(`/api/decisions/by-folder?folder=${encodeURIComponent(folder)}`, signal);
+
+export const postDecisionByFolder = (folder: string, decisionType: string, extra: Record<string, unknown> = {}) =>
+  postJson<FolderDecisionResult>('/api/decisions/by-folder', { folder, decision_type: decisionType, ...extra });
+
 // --- S2: clusters ---
 
 export interface ClusterRelation {
