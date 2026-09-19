@@ -1,14 +1,13 @@
-"""Aplikacja FastAPI studia. Faza S0: każdy endpoint jest tylko do odczytu.
+"""Aplikacja FastAPI studia.
+
+S0 = endpointy odczytu (dashboard, przedmioty, lista treści).
+S1 = ``POST /api/decisions`` — zapis ręcznych decyzji przez ``orglib.decisions``.
 
 Fabryka :func:`create_app` dostaje ścieżkę bazy, żeby test mógł podstawić własną,
 a `just studio` nie musiał nic konfigurować. Sprawdzenie ``schema_version``
 siedzi w ``lifespan``, nie w module: uvicorn z ``--reload`` importuje aplikację
 w podprocesie, więc kontrola na poziomie importu milczałaby dokładnie w tym
 trybie, w którym pracuje się najczęściej.
-
-Czego tu NIE ma i mieć nie będzie w tej fazie: jakiegokolwiek endpointu zapisu,
-CORS-a (dev działa przez proxy Vite, więc przeglądarka i tak widzi jedno
-źródło) i serwowania plików źródłowych (to S1.3, z containmentem ścieżek).
 """
 
 from __future__ import annotations
@@ -18,11 +17,12 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, AsyncIterator, Iterator, Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Path as PathParam, Query
+from fastapi import Body, Depends, FastAPI, HTTPException, Path as PathParam, Query
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from orglib import config
+from orglib.decisions import GroundTruthConflict, record_batch, record_decision, undo_last
 
 from . import ORGANIZER_ROOT, database, queries
 
@@ -81,6 +81,13 @@ def create_app(
 
     def get_conn() -> Iterator[sqlite3.Connection]:
         yield from database.connection(database_path)
+
+    def get_rw_conn() -> Iterator[sqlite3.Connection]:
+        conn = database.open_readwrite(database_path)
+        try:
+            yield conn
+        finally:
+            conn.close()
 
     @app.get("/api/health", tags=["studio"])
     def health() -> dict[str, Any]:
@@ -153,6 +160,129 @@ def create_app(
         if detail is None:
             raise HTTPException(status_code=404, detail=f"brak treści {sha256} w indeksie")
         return detail
+
+    # --- S1: decisions (write endpoints) ---
+
+    @app.post("/api/decisions", tags=["decisions"])
+    def post_decision(
+        body: dict[str, Any] = Body(...),
+        conn: sqlite3.Connection = Depends(get_rw_conn),
+    ) -> dict[str, Any]:
+        """Zapisuje jedną ręczną decyzję (S1.2)."""
+        try:
+            sha256 = body["sha256"]
+            decision_type = body["decision_type"]
+        except KeyError as exc:
+            raise HTTPException(status_code=422, detail=f"brak wymaganego pola: {exc}") from exc
+        try:
+            result = record_decision(
+                conn,
+                sha256=sha256,
+                decision_type=decision_type,
+                decided_by=body.get("decided_by", "studio"),
+                semester=body.get("semester"),
+                subject_key=body.get("subject_key"),
+                category=body.get("category"),
+                target_relative_path=body.get("target_relative_path"),
+                action=body.get("action"),
+                relation_override=body.get("relation_override"),
+                note=body.get("note"),
+            )
+            conn.commit()
+            return result
+        except GroundTruthConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post("/api/decisions/batch", tags=["decisions"])
+    def post_decisions_batch(
+        body: dict[str, Any] = Body(...),
+        conn: sqlite3.Connection = Depends(get_rw_conn),
+    ) -> dict[str, Any]:
+        """Zapisuje partię decyzji atomowo (S1.6)."""
+        decisions = body.get("decisions", [])
+        decided_by = body.get("decided_by", "studio")
+        if not decisions:
+            raise HTTPException(status_code=422, detail="pusta lista decyzji")
+        try:
+            results = record_batch(conn, decisions, decided_by=decided_by)
+            return {"count": len(results), "decisions": results}
+        except GroundTruthConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post("/api/decisions/undo", tags=["decisions"])
+    def post_undo(
+        conn: sqlite3.Connection = Depends(get_rw_conn),
+    ) -> dict[str, Any]:
+        """Cofa ostatnią decyzję (S1.7)."""
+        undone = undo_last(conn)
+        if undone is None:
+            raise HTTPException(status_code=404, detail="brak decyzji do cofnięcia")
+        return {"undone": undone}
+
+    # --- S2: clusters ---
+
+    @app.get("/api/clusters", tags=["clusters"])
+    def get_clusters(
+        semester: Optional[int] = Query(None, ge=1, le=7),
+        skrot: Optional[str] = Query(None, max_length=64),
+        noise: Optional[str] = Query(None, description="Wzorce szumu oddzielone przecinkiem (fnmatch)"),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ) -> dict[str, Any]:
+        """Klastry near-dupe (S2.1): grupy treści powiązanych relacjami."""
+        noise_patterns = [p.strip() for p in noise.split(",") if p.strip()] if noise else []
+        return queries.clusters(
+            conn, semester=semester, skrot=skrot,
+            noise_patterns=noise_patterns, thresholds=limits,
+        )
+
+    @app.post("/api/clusters/resolve", tags=["clusters"])
+    def resolve_cluster(
+        body: dict[str, Any] = Body(...),
+        conn: sqlite3.Connection = Depends(get_rw_conn),
+    ) -> dict[str, Any]:
+        """Rozstrzyga klaster: kanoniczna treść zostaje, reszta → skip/older_version (S2.4)."""
+        canonical_sha = body.get("canonical_sha256")
+        members = body.get("members", [])
+        if not canonical_sha or not members:
+            raise HTTPException(status_code=422, detail="brak canonical_sha256 lub members")
+        if canonical_sha not in members:
+            raise HTTPException(status_code=422, detail="canonical_sha256 musi być w members")
+
+        decisions = []
+        for sha in members:
+            if sha == canonical_sha:
+                continue
+            decisions.append({
+                "sha256": sha,
+                "decision_type": "skip",
+                "note": f"duplikat kanoniczny: {canonical_sha[:16]}…",
+            })
+        decided_by = body.get("decided_by", "studio")
+        try:
+            results = record_batch(conn, decisions, decided_by=decided_by)
+            return {"canonical": canonical_sha, "skipped": len(results), "decisions": results}
+        except GroundTruthConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.get("/api/queue", tags=["decisions"])
+    def get_queue(
+        semester: Optional[int] = Query(None, ge=1, le=7),
+        skrot: Optional[str] = Query(None, max_length=64),
+        limit: int = Query(1, ge=1, le=100),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ) -> dict[str, Any]:
+        """Następna pozycja do przeglądu (S1.4): treść z najniższą pewnością i needs_review=1."""
+        return queries.items(
+            conn, semester=semester, skrot=skrot,
+            needs_review=True, thresholds=limits,
+            limit=limit, offset=0,
+        )
 
     if WEB_DIST.is_dir():
         app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")

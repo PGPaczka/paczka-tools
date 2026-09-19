@@ -28,6 +28,18 @@ class SchemaMismatch(RuntimeError):
     """Baza ma inną wersję schematu, niż obsługuje ten kod."""
 
 
+def open_readwrite(db_path: Path) -> sqlite3.Connection:
+    """Otwiera indeks w trybie do zapisu (S1+: decyzje ręczne)."""
+    path = Path(db_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"brak bazy: {path} — najpierw wykonaj first-pass")
+    conn = sqlite3.connect(path, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
+    return conn
+
+
 def open_readonly(db_path: Path) -> sqlite3.Connection:
     """Otwiera indeks w trybie tylko do odczytu (``mode=ro`` + ``query_only``).
 

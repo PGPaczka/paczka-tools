@@ -120,6 +120,10 @@ subject-ai-resolve semester skrot *args:
 subject-plan semester skrot *args:
     {{ python }} scripts/build_plan.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
 
+# B14: zapis ręcznej decyzji z review. Studio (S1) używa tej samej biblioteki.
+subject-decide *args:
+    {{ python }} scripts/manual_decisions.py {{ args }}
+
 # Stabilne nazwy dalszych etapów — czekają na skrypty z TODO B9-B14.
 
 # B8: bramka przed apply. Kod wyjścia 2 = planu NIE WOLNO wykonać.
@@ -177,6 +181,10 @@ studio *args:
 # (sam TERM na rodzica go nie zatrzymuje — sprawdzone).
 studio-dev port="8765" web_port="5173":
     [ -d studio/web/node_modules ] || npm --prefix studio/web install; setsid {{ python }} -m studio.api --reload --port {{ port }} & API=$!; trap 'kill -TERM -$API 2>/dev/null || kill -TERM $API 2>/dev/null || true' EXIT INT TERM; PACZKA_STUDIO_API=http://127.0.0.1:{{ port }} npm --prefix studio/web run dev -- --port {{ web_port }} --strictPort
+
+# Syntetyczna baza demo (studio bez prawdziwych materiałów).
+studio-seed *args:
+    {{ python }} -m studio.seed_demo {{ args }}
 
 # Front do postaci, którą serwuje `just studio`.
 studio-build:

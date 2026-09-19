@@ -184,3 +184,114 @@ export const getSubject = (semester: number, skrot: string, grupa?: string, sign
 
 export const getItems = (filters: ItemFilters, signal?: AbortSignal) =>
   fetchJson<ItemsPage>(itemsUrl(filters), signal);
+
+// --- S1: decisions ---
+
+export interface DecisionRequest {
+  sha256: string;
+  decision_type: 'classify' | 'relation' | 'outdated' | 'skip' | 'quarantine';
+  decided_by?: string;
+  semester?: number;
+  subject_key?: string;
+  category?: string;
+  target_relative_path?: string;
+  action?: string;
+  relation_override?: string;
+  note?: string;
+}
+
+export interface DecisionResult {
+  sha256: string;
+  decision_type: string;
+  decided_at: string;
+}
+
+export interface UndoResult {
+  undone: Record<string, string>;
+}
+
+async function postJson<T>(url: string, body: unknown): Promise<T> {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', accept: 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    let detail = `${response.status} ${response.statusText}`;
+    try {
+      const data = await response.json();
+      if (data && typeof data.detail === 'string') detail = data.detail;
+    } catch { /* no JSON */ }
+    throw new Error(detail);
+  }
+  return (await response.json()) as T;
+}
+
+export const postDecision = (decision: DecisionRequest) =>
+  postJson<DecisionResult>('/api/decisions', decision);
+
+export const postDecisionBatch = (decisions: DecisionRequest[], decidedBy = 'studio') =>
+  postJson<{ count: number; decisions: DecisionResult[] }>('/api/decisions/batch', {
+    decisions,
+    decided_by: decidedBy,
+  });
+
+export const postUndo = () => postJson<UndoResult>('/api/decisions/undo', {});
+
+// --- S2: clusters ---
+
+export interface ClusterRelation {
+  source_sha256: string;
+  target_sha256: string;
+  relation_type: string;
+  confidence: number;
+  detection_method: string;
+  reason: string;
+}
+
+export interface Cluster {
+  members: Item[];
+  relations: ClusterRelation[];
+  size: number;
+  strength: number;
+  has_older_version: boolean;
+}
+
+export interface ClustersPage {
+  total: number;
+  clusters: Cluster[];
+}
+
+export interface ResolveResult {
+  canonical: string;
+  skipped: number;
+  decisions: DecisionResult[];
+}
+
+export const getClusters = (
+  filters: { semester?: number; skrot?: string; noise?: string } = {},
+  signal?: AbortSignal,
+) => {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
+  }
+  const query = params.toString();
+  return fetchJson<ClustersPage>(query ? `/api/clusters?${query}` : '/api/clusters', signal);
+};
+
+export const resolveCluster = (canonicalSha256: string, members: string[], decidedBy = 'studio') =>
+  postJson<ResolveResult>('/api/clusters/resolve', {
+    canonical_sha256: canonicalSha256,
+    members,
+    decided_by: decidedBy,
+  });
+
+export const getQueue = (filters: { semester?: number; skrot?: string; limit?: number } = {}, signal?: AbortSignal) => {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== null) params.set(key, String(value));
+  }
+  const query = params.toString();
+  return fetchJson<ItemsPage>(query ? `/api/queue?${query}` : '/api/queue', signal);
+};

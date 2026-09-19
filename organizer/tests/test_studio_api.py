@@ -265,15 +265,12 @@ def test_unknown_content_is_404_and_a_non_sha_is_422(client) -> None:
     assert client.get("/api/items/nie-jest-sha").status_code == 422
 
 
-def test_phase_s0_exposes_no_write_endpoint(client) -> None:
-    """Pierwszy POST ma przejść przez ten test świadomie, nie przy okazji (S0.7)."""
-    methods = {
-        method
-        for route in client.app.routes
-        for method in getattr(route, "methods", set())
-    }
-
-    assert methods <= {"GET", "HEAD", "OPTIONS"}, f"endpoint zapisu w fazie S0: {methods}"
+def test_s1_write_endpoints_exist(client) -> None:
+    """S1: endpointy zapisu decyzji są wystawione (zastępuje test S0.7 no-write)."""
+    paths = {getattr(route, "path", "") for route in client.app.routes}
+    assert "/api/decisions" in paths
+    assert "/api/decisions/batch" in paths
+    assert "/api/decisions/undo" in paths
 
 
 def test_connection_refuses_writes_even_if_someone_tries(index) -> None:
