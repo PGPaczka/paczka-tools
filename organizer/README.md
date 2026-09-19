@@ -300,17 +300,6 @@ zmianie. W klastrach jest to, czego nie rozstrzygnie żadna heurystyka: diff HTM
 (`difflib.HtmlDiff`) dla tekstu albo dwie miniatury obok siebie dla skanów.
 Strona niczego nie zatwierdza — zgoda na `apply` to osobna, jawna decyzja.
 
-Graf relacji dla `synapse` (osobne repo użytkownika — prototyp designu) buduje:
-
-```bash
-just synapse                                   # mapa przedmiotów (98 notatek)
-just synapse --scope subject --semester 3 --skrot AKO --vault ako   # graf materiałów
-```
-
-`scripts/synapse_export.py` zapisuje vault `.md` z wikilinkami plus `synapse.json`
-w kształcie `seedNotes()` z prototypu. Pełne mapowanie typów z bazy na pola notatki
-(w tym dlaczego semestr NIE może trafić do `level`) jest w `docs/SYNAPSE.md`.
-
 `scripts/status_report.py` liczy stan całości z indeksu: ile treści jest już
 w paczce (ground truth), ile ma plan, ile czeka na obejrzenie i czego nikt jeszcze
 nie tknął. Ground truth jest liczony osobno od planu — inaczej raport twierdziłby,

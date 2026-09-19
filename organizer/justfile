@@ -130,10 +130,6 @@ subject-validate semester skrot *args:
 subject-review semester skrot *args:
     {{ python }} scripts/review_report.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
 
-# C3: vault dla synapse (notatki .md z wikilinkami) z indeksu -> work/synapse/{vault}.
-synapse *args:
-    {{ python }} scripts/synapse_export.py {{ args }}
-
 # E3: przedmioty x etapy liczone z indeksu -> reports/STATUS.md.
 status *args:
     {{ python }} scripts/status_report.py {{ args }}
