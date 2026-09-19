@@ -369,6 +369,57 @@ def create_app(
             limit=limit, offset=0,
         )
 
+    # --- S4: history, search, stats ---
+
+    @app.get("/api/decisions/history", tags=["decisions"])
+    def get_decision_history(
+        decided_by: Optional[str] = Query(None),
+        since: Optional[str] = Query(None, description="ISO-8601 date, np. 2026-09-19"),
+        limit: int = Query(100, ge=1, le=500),
+        offset: int = Query(0, ge=0),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ) -> dict[str, Any]:
+        """Historia ręcznych decyzji (S4.2)."""
+        return queries.decision_history(
+            conn, decided_by=decided_by, since=since, limit=limit, offset=offset,
+        )
+
+    @app.delete("/api/decisions/{sha256}", tags=["decisions"])
+    def delete_decision(
+        sha256: str = PathParam(pattern=SHA256_PATTERN),
+        conn: sqlite3.Connection = Depends(get_rw_conn),
+    ) -> dict[str, Any]:
+        """Cofa konkretną decyzję po sha256 (S4.2)."""
+        row = conn.execute(
+            "SELECT * FROM manual_decisions WHERE sha256 = ?", (sha256,)
+        ).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail=f"brak decyzji dla {sha256[:16]}…")
+        with conn:
+            conn.execute("DELETE FROM manual_decisions WHERE sha256 = ?", (sha256,))
+            existing = conn.execute(
+                "SELECT run_id FROM classifications WHERE sha256 = ?", (sha256,)
+            ).fetchone()
+            if existing and str(existing["run_id"]) == "manual_decision":
+                conn.execute("DELETE FROM classifications WHERE sha256 = ?", (sha256,))
+        return {"undone": dict(row)}
+
+    @app.get("/api/search", tags=["search"])
+    def get_search(
+        q: str = Query(..., min_length=1, max_length=200),
+        limit: int = Query(50, ge=1, le=200),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ) -> dict[str, Any]:
+        """Wyszukiwanie przekrojowe (S4.3)."""
+        return queries.search(conn, q, thresholds=limits, limit=limit)
+
+    @app.get("/api/stats", tags=["stats"])
+    def get_stats(
+        conn: sqlite3.Connection = Depends(get_conn),
+    ) -> dict[str, Any]:
+        """Statystyki na żywo — odpowiednik STATUS.md (S4.4)."""
+        return queries.live_stats(conn, catalog, limits)
+
     if WEB_DIST.is_dir():
         app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")
     else:

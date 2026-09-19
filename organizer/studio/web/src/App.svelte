@@ -16,8 +16,10 @@
   import SubjectPanel from './components/SubjectPanel.svelte';
   import DecisionPanel from './components/DecisionPanel.svelte';
   import ClusterPanel from './components/ClusterPanel.svelte';
+  import HistoryPanel from './components/HistoryPanel.svelte';
+  import StatsPanel from './components/StatsPanel.svelte';
 
-  type Mode = 'browse' | 'decide' | 'clusters';
+  type Mode = 'browse' | 'decide' | 'clusters' | 'history' | 'stats';
 
   /** Ile pozycji dokłada „Pokaż więcej”. */
   const PAGE = 30;
@@ -111,6 +113,11 @@
       mode = 'clusters';
       return;
     }
+    if (event.key === 'h' && mode === 'browse') {
+      event.preventDefault();
+      mode = 'history';
+      return;
+    }
     if (event.key === 'b' && mode !== 'browse') {
       event.preventDefault();
       mode = 'browse';
@@ -186,7 +193,13 @@
   <header>
     <div class="brand">
       <strong>Paczka Studio</strong>
-      <span class="phase">{mode === 'browse' ? 'S0 · przeglądarka' : mode === 'decide' ? 'S1 · decyzje' : 'S2 · klastry'}</span>
+      <span class="phase">{
+        mode === 'browse' ? 'S0 · przeglądarka' :
+        mode === 'decide' ? 'S1 · decyzje' :
+        mode === 'clusters' ? 'S2 · klastry' :
+        mode === 'history' ? 'S4 · historia' :
+        'S4 · statystyki'
+      }</span>
     </div>
 
     {#if dashboard}
@@ -219,6 +232,22 @@
           title="c / b — klastry"
         >
           klastry
+        </button>
+        <button
+          class="mode-toggle"
+          class:active={mode === 'history'}
+          onclick={() => (mode = mode === 'history' ? 'browse' : 'history')}
+          title="h / b — historia"
+        >
+          historia
+        </button>
+        <button
+          class="mode-toggle"
+          class:active={mode === 'stats'}
+          onclick={() => (mode = mode === 'stats' ? 'browse' : 'stats')}
+          title="statystyki"
+        >
+          statystyki
         </button>
     </div>
   </header>
@@ -254,6 +283,10 @@
           skrot={selected?.skrot}
           onResolved={loadDashboard}
         />
+      {:else if mode === 'history'}
+        <HistoryPanel onChanged={loadDashboard} />
+      {:else if mode === 'stats'}
+        <StatsPanel />
       {:else}
         <SubjectPanel
           row={selected}

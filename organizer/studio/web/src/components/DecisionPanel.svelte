@@ -258,20 +258,24 @@
     <div class="help-panel">
       <h4>Skróty klawiszowe</h4>
       <table>
-        <tr><td><kbd>Enter</kbd></td><td>Akceptuj z bieżącą kategorią (copy)</td></tr>
-        <tr><td><kbd>1</kbd>–<kbd>9</kbd></td><td>Akceptuj z wybraną kategorią</td></tr>
-        <tr><td><kbd>s</kbd></td><td>Pomiń (skip)</td></tr>
-        <tr><td><kbd>q</kbd></td><td>Kwarantanna</td></tr>
-        <tr><td><kbd>m</kbd></td><td>Media</td></tr>
-        <tr><td><kbd>o</kbd></td><td>Oznacz jako outdated</td></tr>
-        <tr><td><kbd>u</kbd></td><td>Cofnij ostatnią decyzję</td></tr>
-        <tr><td><kbd>?</kbd></td><td>Pokaż/ukryj tę pomoc</td></tr>
+        <tbody>
+          <tr><td><kbd>Enter</kbd></td><td>Akceptuj z bieżącą kategorią (copy)</td></tr>
+          <tr><td><kbd>1</kbd>–<kbd>9</kbd></td><td>Akceptuj z wybraną kategorią</td></tr>
+          <tr><td><kbd>s</kbd></td><td>Pomiń (skip)</td></tr>
+          <tr><td><kbd>q</kbd></td><td>Kwarantanna</td></tr>
+          <tr><td><kbd>m</kbd></td><td>Media</td></tr>
+          <tr><td><kbd>o</kbd></td><td>Oznacz jako outdated</td></tr>
+          <tr><td><kbd>u</kbd></td><td>Cofnij ostatnią decyzję</td></tr>
+          <tr><td><kbd>?</kbd></td><td>Pokaż/ukryj tę pomoc</td></tr>
+        </tbody>
       </table>
       <h4>Kategorie</h4>
       <table>
-        {#each CATEGORIES as cat, i}
-          <tr><td><kbd>{i + 1}</kbd></td><td>{cat}</td></tr>
-        {/each}
+        <tbody>
+          {#each CATEGORIES as cat, i}
+            <tr><td><kbd>{i + 1}</kbd></td><td>{cat}</td></tr>
+          {/each}
+        </tbody>
       </table>
     </div>
   {/if}
