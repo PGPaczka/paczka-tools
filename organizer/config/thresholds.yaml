@@ -25,6 +25,13 @@ near_duplicate:
   simhash_hamming_max: 3     # maks. odległość Hamminga simhash uznawana za near-dupe
   minhash_jaccard_min: 0.85  # min. Jaccard (MinHash/LSH) uznawany za near-dupe
   phash_hamming_max: 8       # obrazy: maks. odległość perceptual hash
+  noise_patterns:            # fnmatch — klastry z pasującą ścieżką pliku pomijane w UI
+    - "*.vcxproj*"
+    - "*.sln"
+    - "*.suo"
+    - "*/__pycache__/*"
+    - "*/node_modules/*"
+    - "*/.git/*"
 
 folder_overlap:
   report_min_ratio: 0.50     # raportuj pary katalogów o pokryciu >= 50%

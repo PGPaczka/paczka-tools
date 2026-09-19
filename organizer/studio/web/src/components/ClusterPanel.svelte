@@ -1,8 +1,10 @@
 <script lang="ts">
   import {
     getClusters,
+    getClusterDiff,
     resolveCluster,
     type Cluster,
+    type ClusterDiff,
     type ClustersPage,
     type Item,
   } from '../lib/api';
@@ -25,6 +27,10 @@
   let expandedIndex = $state<number | null>(null);
   let selectedCanonical = $state<string | null>(null);
 
+  let diff = $state<ClusterDiff | null>(null);
+  let diffLoading = $state(false);
+  let diffPair = $state<[string, string] | null>(null);
+
   async function load(): Promise<void> {
     loading = true;
     error = null;
@@ -45,14 +51,37 @@
     if (expandedIndex === index) {
       expandedIndex = null;
       selectedCanonical = null;
+      diff = null;
+      diffPair = null;
     } else {
       expandedIndex = index;
       selectedCanonical = null;
+      diff = null;
+      diffPair = null;
     }
   }
 
   function selectCanonical(sha: string): void {
     selectedCanonical = sha;
+  }
+
+  async function loadDiff(leftSha: string, rightSha: string): Promise<void> {
+    if (diffPair && diffPair[0] === leftSha && diffPair[1] === rightSha) {
+      diff = null;
+      diffPair = null;
+      return;
+    }
+    diffLoading = true;
+    diff = null;
+    diffPair = [leftSha, rightSha];
+    try {
+      diff = await getClusterDiff(leftSha, rightSha);
+    } catch (exc) {
+      error = exc instanceof Error ? exc.message : String(exc);
+      diffPair = null;
+    } finally {
+      diffLoading = false;
+    }
   }
 
   async function resolve(cluster: Cluster): Promise<void> {
@@ -65,6 +94,8 @@
       success = `Klaster rozstrzygnięty: ${result.skipped} oznaczonych jako skip`;
       expandedIndex = null;
       selectedCanonical = null;
+      diff = null;
+      diffPair = null;
       onResolved?.();
       await load();
     } catch (exc) {
@@ -97,7 +128,7 @@
     <input
       type="text"
       bind:value={noiseFilter}
-      placeholder="Filtr szumu (fnmatch, np. *.vcxproj*)"
+      placeholder="Dodatkowy filtr szumu (fnmatch, domyślne w config)"
       onchange={load}
     />
     <button onclick={load} title="Przeładuj klastry">odśwież</button>
@@ -165,7 +196,10 @@
                 {#each cluster.relations as rel}
                   <div class="relation-row">
                     <span class="mono dim">{rel.source_sha256.slice(0, 8)}…</span>
-                    <span class="tag rel-type">{relationLabel(rel.relation_type)}</span>
+                    <button class="diff-btn" onclick={() => loadDiff(rel.source_sha256, rel.target_sha256)}
+                      title="Pokaż porównanie">
+                      {relationLabel(rel.relation_type)}
+                    </button>
                     <span class="mono dim">{rel.target_sha256.slice(0, 8)}…</span>
                     <span class="num">{percent(rel.confidence)}</span>
                     {#if rel.reason}
@@ -174,6 +208,70 @@
                   </div>
                 {/each}
               </div>
+
+              {#if diffLoading}
+                <div class="diff-panel">
+                  <div class="empty">Wczytuję porównanie…</div>
+                </div>
+              {:else if diff}
+                <div class="diff-panel">
+                  <div class="diff-header">
+                    <span class="tag">{diff.diff_type === 'text' ? 'diff tekstu' : 'porównanie metadanych'}</span>
+                    {#if diff.relation}
+                      <span class="dim">{diff.relation.reason}</span>
+                    {/if}
+                    <button class="close-diff" onclick={() => { diff = null; diffPair = null; }}>zamknij</button>
+                  </div>
+
+                  <div class="diff-sides">
+                    <div class="diff-side">
+                      <div class="diff-side-header">
+                        <span class="mono">{diff.left.sha256.slice(0, 12)}…</span>
+                        {#if diff.left.filename}
+                          <span class="diff-filename">{diff.left.filename}</span>
+                        {/if}
+                      </div>
+                      <div class="diff-meta">
+                        {#if diff.left.content_kind}<span class="tag">{diff.left.content_kind}</span>{/if}
+                        {#if diff.left.size_bytes}<span class="dim">{bytes(diff.left.size_bytes)}</span>{/if}
+                        {#if diff.left.category}<span>kat: {diff.left.category}</span>{/if}
+                        {#if diff.left.action}<span>→ {diff.left.action}</span>{/if}
+                        {#if diff.left.confidence !== null && diff.left.confidence !== undefined}
+                          <span class="num">{percent(diff.left.confidence)}</span>
+                        {/if}
+                      </div>
+                      {#if diff.left_text}
+                        <pre class="diff-text">{diff.left_text}</pre>
+                      {:else}
+                        <div class="no-text dim">brak wyekstrahowanego tekstu</div>
+                      {/if}
+                    </div>
+
+                    <div class="diff-side">
+                      <div class="diff-side-header">
+                        <span class="mono">{diff.right.sha256.slice(0, 12)}…</span>
+                        {#if diff.right.filename}
+                          <span class="diff-filename">{diff.right.filename}</span>
+                        {/if}
+                      </div>
+                      <div class="diff-meta">
+                        {#if diff.right.content_kind}<span class="tag">{diff.right.content_kind}</span>{/if}
+                        {#if diff.right.size_bytes}<span class="dim">{bytes(diff.right.size_bytes)}</span>{/if}
+                        {#if diff.right.category}<span>kat: {diff.right.category}</span>{/if}
+                        {#if diff.right.action}<span>→ {diff.right.action}</span>{/if}
+                        {#if diff.right.confidence !== null && diff.right.confidence !== undefined}
+                          <span class="num">{percent(diff.right.confidence)}</span>
+                        {/if}
+                      </div>
+                      {#if diff.right_text}
+                        <pre class="diff-text">{diff.right_text}</pre>
+                      {:else}
+                        <div class="no-text dim">brak wyekstrahowanego tekstu</div>
+                      {/if}
+                    </div>
+                  </div>
+                </div>
+              {/if}
 
               <div class="resolve-actions">
                 <button
@@ -342,8 +440,91 @@
     gap: 6px;
     font-size: 11px;
   }
+  .diff-btn {
+    padding: 1px 6px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-size: 10px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .diff-btn:hover {
+    border-color: var(--accent-dim);
+    background: var(--bg-deep);
+  }
   .reason {
     font-size: 10px;
+  }
+  .diff-panel {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px;
+    background: var(--bg);
+  }
+  .diff-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .close-diff {
+    margin-left: auto;
+    padding: 2px 8px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    font-size: 10px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .close-diff:hover {
+    color: var(--text);
+  }
+  .diff-sides {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .diff-side {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  .diff-side-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+  }
+  .diff-filename {
+    font-weight: 600;
+    font-size: 12px;
+  }
+  .diff-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 11px;
+  }
+  .diff-text {
+    margin: 0;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-deep);
+    font-size: 11px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  .no-text {
+    padding: 12px;
+    text-align: center;
+    font-size: 11px;
   }
   .resolve-actions {
     display: flex;

@@ -239,6 +239,18 @@ def create_app(
             noise_patterns=noise_patterns, thresholds=limits,
         )
 
+    @app.get("/api/clusters/diff", tags=["clusters"])
+    def get_cluster_diff(
+        left: str = Query(..., pattern=SHA256_PATTERN),
+        right: str = Query(..., pattern=SHA256_PATTERN),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ) -> dict[str, Any]:
+        """Porównanie dwóch treści z klastra (S2.3): metadane + głowy tekstu."""
+        result = queries.cluster_diff(conn, left, right, thresholds=limits)
+        if result is None:
+            raise HTTPException(status_code=404, detail="nie znaleziono jednej lub obu treści")
+        return result
+
     @app.post("/api/clusters/resolve", tags=["clusters"])
     def resolve_cluster(
         body: dict[str, Any] = Body(...),

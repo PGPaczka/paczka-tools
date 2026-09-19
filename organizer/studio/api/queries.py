@@ -12,12 +12,13 @@ dosumować.
 
 from __future__ import annotations
 
+import fnmatch
 import sqlite3
 from typing import Any, Mapping, Sequence
 
 import status_report
 from orglib import config
-from orglib.review import build_clusters
+from orglib.review import TEXT_KINDS, build_clusters
 
 #: run_id, pod którym scan_target zapisuje treści leżące już w repo produktu.
 GROUND_TRUTH_RUN_ID = status_report.GROUND_TRUTH_RUN_ID
@@ -420,10 +421,13 @@ def clusters(
 
     groups = build_clusters(raw_relations)
 
-    if noise_patterns:
-        import fnmatch
+    config_noise = list(
+        dict((thresholds or {}).get("near_duplicate") or {}).get("noise_patterns") or []
+    )
+    all_noise = config_noise + list(noise_patterns)
+    if all_noise:
         def _is_noise(path: str) -> bool:
-            return any(fnmatch.fnmatch(path, pat) for pat in noise_patterns)
+            return any(fnmatch.fnmatch(path, pat) for pat in all_noise)
     else:
         _is_noise = None
 
@@ -462,4 +466,72 @@ def clusters(
     return {
         "total": len(result),
         "clusters": result,
+    }
+
+
+def _read_text_head(path: str | None, max_bytes: int = 4096) -> str | None:
+    """Czyta początek wyekstrahowanego tekstu. Zwraca None gdy pliku nie ma."""
+    if not path:
+        return None
+    from pathlib import Path
+    p = Path(path)
+    if not p.is_file():
+        return None
+    try:
+        return p.read_text(encoding="utf-8", errors="replace")[:max_bytes]
+    except OSError:
+        return None
+
+
+def cluster_diff(
+    conn: sqlite3.Connection,
+    left_sha: str,
+    right_sha: str,
+    thresholds: Mapping[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    """Dane do porównania dwóch treści z klastra: metadane + głowy tekstu."""
+    auto_apply, review_min = confidence_limits(thresholds)
+    placeholders = ",".join("?" * 2)
+    rows = conn.execute(
+        f"SELECT {_ITEM_COLUMNS} {_ITEM_FROM} WHERE c.sha256 IN ({placeholders})",
+        [left_sha, right_sha],
+    ).fetchall()
+    by_sha = {row["sha256"]: _with_bucket(row, auto_apply, review_min) for row in rows}
+    left_item = by_sha.get(left_sha)
+    right_item = by_sha.get(right_sha)
+    if not left_item or not right_item:
+        return None
+
+    left_text_path = conn.execute(
+        "SELECT extracted_text_path FROM content WHERE sha256 = ?", (left_sha,)
+    ).fetchone()
+    right_text_path = conn.execute(
+        "SELECT extracted_text_path FROM content WHERE sha256 = ?", (right_sha,)
+    ).fetchone()
+
+    left_text = _read_text_head(
+        left_text_path["extracted_text_path"] if left_text_path else None
+    )
+    right_text = _read_text_head(
+        right_text_path["extracted_text_path"] if right_text_path else None
+    )
+
+    relation = conn.execute(
+        "SELECT relation_type, confidence, detection_method, reason "
+        "FROM relations WHERE "
+        "  (source_sha256 = ? AND target_sha256 = ?) OR "
+        "  (source_sha256 = ? AND target_sha256 = ?)",
+        (left_sha, right_sha, right_sha, left_sha),
+    ).fetchone()
+
+    left_kind = left_item.get("content_kind") or ""
+    right_kind = right_item.get("content_kind") or ""
+
+    return {
+        "left": left_item,
+        "right": right_item,
+        "left_text": left_text,
+        "right_text": right_text,
+        "diff_type": "text" if left_kind in TEXT_KINDS and right_kind in TEXT_KINDS else "meta",
+        "relation": dict(relation) if relation else None,
     }

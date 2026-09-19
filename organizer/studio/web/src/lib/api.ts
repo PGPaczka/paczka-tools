@@ -280,6 +280,18 @@ export const getClusters = (
   return fetchJson<ClustersPage>(query ? `/api/clusters?${query}` : '/api/clusters', signal);
 };
 
+export interface ClusterDiff {
+  left: Item;
+  right: Item;
+  left_text: string | null;
+  right_text: string | null;
+  diff_type: 'text' | 'meta';
+  relation: ClusterRelation | null;
+}
+
+export const getClusterDiff = (leftSha: string, rightSha: string, signal?: AbortSignal) =>
+  fetchJson<ClusterDiff>(`/api/clusters/diff?left=${leftSha}&right=${rightSha}`, signal);
+
 export const resolveCluster = (canonicalSha256: string, members: string[], decidedBy = 'studio') =>
   postJson<ResolveResult>('/api/clusters/resolve', {
     canonical_sha256: canonicalSha256,

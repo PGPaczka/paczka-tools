@@ -1,4 +1,4 @@
-"""S2: klastry near-dupe — kontrakt API, rozstrzyganie, filtr szumu."""
+"""S2: klastry near-dupe — kontrakt API, rozstrzyganie, filtr szumu, diff."""
 
 from __future__ import annotations
 
@@ -202,3 +202,90 @@ def test_resolve_empty_members_is_422(client) -> None:
         "members": [],
     })
     assert resp.status_code == 422
+
+
+# --- S2.3: diff endpoint ---
+
+def test_diff_returns_both_sides(client) -> None:
+    resp = client.get(f"/api/clusters/diff?left={SHA['a']}&right={SHA['b']}")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["left"]["sha256"] == SHA["a"]
+    assert body["right"]["sha256"] == SHA["b"]
+    assert body["diff_type"] in ("text", "meta")
+
+
+def test_diff_includes_relation(client) -> None:
+    body = client.get(f"/api/clusters/diff?left={SHA['a']}&right={SHA['b']}").json()
+    assert body["relation"] is not None
+    assert body["relation"]["relation_type"] == "near_duplicate"
+
+
+def test_diff_with_text_files(index, tmp_path) -> None:
+    """When extracted text is available, diff returns it."""
+    text_dir = tmp_path / "texts"
+    text_dir.mkdir()
+    left_text = text_dir / "left.txt"
+    right_text = text_dir / "right.txt"
+    left_text.write_text("Treść pierwszego pliku.\nDruga linia.", encoding="utf-8")
+    right_text.write_text("Treść drugiego pliku.\nDruga linia zmieniona.", encoding="utf-8")
+
+    conn = db.connect(index)
+    conn.execute("UPDATE content SET extracted_text_path = ? WHERE sha256 = ?",
+                 (str(left_text), SHA["a"]))
+    conn.execute("UPDATE content SET extracted_text_path = ? WHERE sha256 = ?",
+                 (str(right_text), SHA["b"]))
+    conn.commit()
+    conn.close()
+
+    app = create_app(index, subjects=SUBJECTS, thresholds=THRESHOLDS)
+    with TestClient(app) as c:
+        body = c.get(f"/api/clusters/diff?left={SHA['a']}&right={SHA['b']}").json()
+        assert body["left_text"] is not None
+        assert "pierwszego" in body["left_text"]
+        assert body["right_text"] is not None
+        assert "drugiego" in body["right_text"]
+
+
+def test_diff_missing_sha_is_404(client) -> None:
+    fake = "0" * 64
+    resp = client.get(f"/api/clusters/diff?left={SHA['a']}&right={fake}")
+    assert resp.status_code == 404
+
+
+def test_diff_without_extracted_text(client) -> None:
+    body = client.get(f"/api/clusters/diff?left={SHA['a']}&right={SHA['b']}").json()
+    assert body["left_text"] is None
+    assert body["right_text"] is None
+
+
+# --- S2.5: config noise patterns ---
+
+def test_config_noise_patterns_applied(index) -> None:
+    """Noise patterns from thresholds config are applied automatically."""
+    thresholds_with_noise = {
+        "confidence": {"auto_apply": 0.90, "review_min": 0.70},
+        "near_duplicate": {"noise_patterns": ["*.vcxproj*"]},
+    }
+    app = create_app(index, subjects=SUBJECTS, thresholds=thresholds_with_noise)
+    with TestClient(app) as c:
+        body = c.get("/api/clusters").json()
+        member_paths = {
+            m.get("source_relative_path")
+            for cluster in body["clusters"]
+            for m in cluster["members"]
+        }
+        assert not any(p and "vcxproj" in p for p in member_paths)
+
+
+def test_config_noise_combined_with_query_param(index) -> None:
+    """Config noise + query noise are merged."""
+    thresholds_with_noise = {
+        "confidence": {"auto_apply": 0.90, "review_min": 0.70},
+        "near_duplicate": {"noise_patterns": ["*.vcxproj*"]},
+    }
+    app = create_app(index, subjects=SUBJECTS, thresholds=thresholds_with_noise)
+    with TestClient(app) as c:
+        without = c.get("/api/clusters").json()["total"]
+        with_extra = c.get("/api/clusters?noise=p_d*").json()["total"]
+        assert with_extra <= without
