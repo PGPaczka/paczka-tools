@@ -176,7 +176,7 @@ CLI nad `orglib/llm_client.py` (backend anthropic/openai/`claude -p`/`codex exec
 z `config/thresholds.yaml: llm`, cache po sha256 promptu w `20_WORK/ai_cache.sqlite`);
 smoke test backendów, nieużywany w automatycznym cyklu per-przedmiot.
 
-## Skrypty cyklu per-przedmiot — gotowe B1, B2, B3, B5, B6, B7, B8
+## Skrypty cyklu per-przedmiot — gotowe B1, B2, B3, B5, B6, B7, B8, B9
 
 Po pierwszym przebiegu przygotuj wycinek z **istniejącego indeksu SQLite**:
 
@@ -284,6 +284,26 @@ Windowsie** — repo klonują studenci, więc znak `<>:"|?*`, nazwa zastrzeżona
 Wypisuje też dry-run diff: ile plików w ilu katalogach plan dołożyłby do paczki.
 Ustalenia lądują w `validation.jsonl` obok planu. Niezgodność nazwy z konwencją
 (`lab_3` zamiast `lab_03`) jest **ostrzeżeniem**, bo da się ją poprawić automatycznie.
+
+Do decyzji człowieka służy strona przeglądu:
+
+```bash
+just subject-review 3 AKO      # reports/{SKROT}/review.html
+just status                    # reports/STATUS.md — przedmioty x etapy
+```
+
+`scripts/review_report.py` buduje **samowystarczalną** stronę (miniatury wbudowane
+jako `data:`), więc da się ją otworzyć i przesłać bez dostępu do repo. Sekcje idą
+w kolejności tego, co blokuje: ustalenia walidacji → pozycje `needs_review` od
+najmniej pewnych → `unresolved` → **klastry podobieństwa** → media → drzewo po
+zmianie. W klastrach jest to, czego nie rozstrzygnie żadna heurystyka: diff HTML
+(`difflib.HtmlDiff`) dla tekstu albo dwie miniatury obok siebie dla skanów.
+Strona niczego nie zatwierdza — zgoda na `apply` to osobna, jawna decyzja.
+
+`scripts/status_report.py` liczy stan całości z indeksu: ile treści jest już
+w paczce (ground truth), ile ma plan, ile czeka na obejrzenie i czego nikt jeszcze
+nie tknął. Ground truth jest liczony osobno od planu — inaczej raport twierdziłby,
+że przedmiot jest zrobiony, choć to tylko materiały ułożone ręcznie lata temu.
 
 Opcje `--db PLIK` i `--out-dir KATALOG` pozwalają jawnie wskazać indeks oraz
 dokładny katalog wyjściowy. Domyślna baza pochodzi z `config/paths.yaml`.

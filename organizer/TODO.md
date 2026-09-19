@@ -103,7 +103,14 @@ Legenda: `[ ]` do zrobienia · `[x]` zrobione · `[~]` w toku · ~~przekreślone
   - Podział na `error`/`warning` wynika z `syntax.yaml: naming_rules`: niezgodność nazwy z konwencją (np. `lab_3` zamiast `lab_03`) jest auto-poprawialna, więc ostrzega; wyjście poza katalog przedmiotu, kolizja, nadpisanie ręcznie ułożonego materiału i kopiowanie poniżej progu pewności blokują.
   - Kontrola „nadpisanie ground truth" czyta tabelę `applied` (co JUŻ leży w paczce) — plan, który chce położyć inną treść pod istniejącą ścieżką, jest zatrzymywany (reguła twarda nr 2).
   - Testy: `tests/test_plan_lint.py` (37), `tests/test_validate_plan_cli.py` (12), 2 mutacje (znaki zakazane w nazwie; kod wyjścia jako bramka). (2026-09-19)
-- [ ] B9. Review: `scripts/review_report.py` — diff HTML near-dupe (`difflib.HtmlDiff`), miniatury, lista `unresolved`, `STATUS.md`
+- [x] B9. `scripts/review_report.py` + `scripts/orglib/review.py` — `review.html`: samowystarczalna strona przeglądu jednego przedmiotu (miniatury wbudowane jako `data:`, więc da się ją przesłać bez dostępu do repo). Recepta `just subject-review SEM SKROT`. Sekcje w kolejności tego, co blokuje: ustalenia walidacji (B8) → pozycje `needs_review` od najmniej pewnych → `unresolved` → **klastry podobieństwa z diffem HTML (`difflib.HtmlDiff`) albo dwiema miniaturami obok siebie** → media poza paczkę → drzewo po zmianie. Ustalenia:
+  - **Klastry, nie pary**: relacje (B6) sklejamy przez union-find, bo człowiek myśli grupami („te pięć skanów to jedno kolokwium”), a nie parami A-B, B-C. Sortowane po wielkości i pewności; pokazujemy JEDNĄ reprezentatywną parę na klaster (pełny diff każdy z każdym to C4).
+  - **Miniatury liczone raz na treść** (cache w `20_WORK/thumbnails`), tworzone tylko dla par w klastrach — nie dla 5937 obrazów „na zapas”. Ze źródeł wyłącznie odczyt, przez `config.resolve_within_sources`.
+  - **Nazwy ze źródeł są ekranowane** przed wstawieniem do HTML (pilnuje tego mutacja): pochodzą z cudzych paczek, a strona ma być przesyłalna.
+  - Strona niczego nie zatwierdza i mówi to wprost; zmiany planu robi się przez ponowne zbudowanie, nie przez edycję `plan.jsonl` (bo `plan_hash` przestanie się zgadzać).
+  - Zmierzone na AKO: 2519 pozycji, 69 do obejrzenia, 51 nierozstrzygniętych, 80 klastrów (pokazane 25), 15 tabel diff, 20 miniatur, 397 kB strony.
+  - `STATUS.md` wydzielony do osobnego skryptu — patrz E3 (jeden skrypt = jeden zakres: review dotyczy jednego przedmiotu, status całości).
+  - Testy: `tests/test_review.py` (15), `tests/test_review_report_cli.py` (10, w tym kontrola poprawności HTML i ekranowania), 1 mutacja. (2026-09-19)
 - [ ] B10. `scripts/apply.py` — kopiowanie wg planu na branch `subject/{SKROT}` w `target_repo` (snapshot przed), status `applied`
 - [ ] B11. `scripts/verify.py` — hash po kopii == sha256, drzewo == plan, status `verified`
 - [ ] B12. `scripts/provenance.py` — `reports/provenance.jsonl` + README per przedmiot do `paczka_meta/` + `00_SOURCES/linki.txt` z `source_packages`
@@ -141,6 +148,6 @@ Legenda: `[ ]` do zrobienia · `[x]` zrobione · `[~]` w toku · ~~przekreślone
 
 - [x] E1. README: sekcja „Skrypty” z realnymi nazwami i kolejnością po A3–A6 (2026-09-17)
 - [x] E2. `reports/SOURCES_TREE.md` (generowany przez `scan.py`; pierwszy snapshot: 14 paczek, 9 540 katalogów, 48 049 plików, 37,0 GiB) (2026-09-17)
-- [ ] E3. `STATUS.md` (generowany: przedmioty × etapy + liczby)
+- [x] E3. `scripts/status_report.py` → `reports/STATUS.md` (recepta `just status`): globalne liczby (paczki, katalogi, pliki wg statusu, treści, relacje, pozycje planu) + tabela **przedmioty × etapy** i kolejka pracy. Liczone z indeksu, nie z katalogów raportów — od B7 to baza jest źródłem prawdy o decyzjach. **Ground truth liczony OSOBNO od planu** (pilnuje tego mutacja): zlanie ich w jedną liczbę mówiłoby, że przedmiot jest zrobiony, gdy to tylko materiały ułożone ręcznie lata temu. Pierwszy przebieg: 98 przedmiotów — 1 z planem do przeglądu (AKO), 32 tylko z ground truth, 65 nietkniętych. Testy: `tests/test_status_report.py` (12). (2026-09-19)
 - [x] E4. `reports/HANDOFF.md` + `just handoff`: wspólny checkpoint sesji dla Claude, Codexa i człowieka. (2026-09-17)
 - [x] E5. Porządek plików: generowany `SOURCES_TREE.md` w `reports/`, historyczne raporty w `reports/bootstrap/`, mapa raportów i aktualizacja odwołań; kod pipeline'u i dane poza repo bez przenosin. (2026-09-18)

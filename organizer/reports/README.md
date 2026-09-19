@@ -9,6 +9,8 @@ Ten katalog zawiera wersjonowane wyniki i stan pracy, nie dokumentację kodu
 | `SOURCES_TREE.md` | Snapshot drzewa źródeł generowany przez `scripts/scan.py`. |
 | `inventory.jsonl`, `dedup_summary.md` | Wyniki `scripts/dedup_report.py`. |
 | `folder_overlap.csv` | Wynik `scripts/fold_hash.py`. |
+| `STATUS.md` | Przedmioty × etapy i kolejka pracy; generuje `scripts/status_report.py` (`just status`). |
+| `{SKROT}/` | Artefakty jednego przedmiotu: `manifest_slice.jsonl` (B1), `plan.det.jsonl` i `unresolved.jsonl` (B3), `relations.jsonl` (B6), `plan.ai.jsonl` (B5), `plan.jsonl` (B7), `validation.jsonl` (B8), `review.html` (B9). |
 | `bootstrap/` | Historyczne raporty wstępnej oceny rozmiarów i duplikatów. |
 
 Raporty w `bootstrap/` zachowują oryginalną treść, w tym ścieżki zapisane
