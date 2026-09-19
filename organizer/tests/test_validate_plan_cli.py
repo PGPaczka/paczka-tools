@@ -137,6 +137,41 @@ def test_ground_truth_overwrite_is_caught_from_the_index(workspace, tmp_path):
     assert "nadpisanie_ground_truth" in result.output
 
 
+def test_plan_header_is_not_validated_as_a_decision(workspace, tmp_path):
+    """Nagłówek `_meta` z B7 nie jest decyzją — walidator ma go rozpoznać, nie odrzucić."""
+    from orglib.plan_build import META_KEY, plan_hash
+
+    row = plan_line()
+    plan = write_plan(
+        tmp_path / "plan.jsonl",
+        {META_KEY: {"schema_version": 1, "items": 1, "plan_hash": plan_hash([row])}},
+        row,
+    )
+
+    result = invoke(tmp_path, plan=plan)
+
+    assert result.exit_code == 0, result.output
+    assert "pozycje: 1" in result.output
+
+
+def test_a_plan_edited_after_building_is_rejected(workspace, tmp_path):
+    """`plan_hash` jest po to, żeby `apply` wykonał dokładnie ten plan, który zaakceptowano."""
+    from orglib.plan_build import META_KEY, plan_hash
+
+    row = plan_line()
+    plan = write_plan(
+        tmp_path / "plan.jsonl",
+        {META_KEY: {"schema_version": 1, "items": 1, "plan_hash": plan_hash([row])}},
+        plan_line(target_rel="paczka/SEM3/AKO_Architektura_Komputerów/inne/podmieniony.pdf",
+                  category="inne"),
+    )
+
+    result = invoke(tmp_path, plan=plan)
+
+    assert result.exit_code == 2
+    assert "plan_hash" in result.output
+
+
 def test_missing_plan_is_a_preparation_error(workspace, tmp_path):
     result = invoke(tmp_path, plan=tmp_path / "nie_ma.jsonl")
 

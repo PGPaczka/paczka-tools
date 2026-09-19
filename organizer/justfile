@@ -116,10 +116,11 @@ subject-relate semester skrot *args:
 subject-ai-resolve semester skrot *args:
     {{ python }} scripts/ai_resolve.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
 
-# Stabilne nazwy dalszych etapów — czekają na skrypty z TODO B2-B14.
+# B7: scalenie decyzji w jeden plan.jsonl (+ zapis do bazy, JSONL jest eksportem).
 subject-plan semester skrot *args:
-    @test -f scripts/build_plan.py || { echo "Brak scripts/build_plan.py (TODO B7)" >&2; exit 2; }
     {{ python }} scripts/build_plan.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
+
+# Stabilne nazwy dalszych etapów — czekają na skrypty z TODO B9-B14.
 
 # B8: bramka przed apply. Kod wyjścia 2 = planu NIE WOLNO wykonać.
 subject-validate semester skrot *args:

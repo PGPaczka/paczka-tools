@@ -1,0 +1,10 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+# Bez tej kontroli plan zmieniony po akceptacji przechodzi walidację, a `apply`
+# wykonuje coś innego, niż zatwierdził człowiek.
+name: walidator sprawdza plan_hash z nagłówka
+file: scripts/validate_plan.py
+find: '        if declared and declared != actual:'
+replace: '        if False:'
+tests:
+- tests/test_validate_plan_cli.py

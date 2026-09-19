@@ -32,6 +32,7 @@ import typer
 from orglib import config, db
 from orglib.classify import load_rules
 from orglib.jsonl import read_jsonl
+from orglib.plan_build import META_KEY, plan_hash
 from orglib.plan_lint import Finding, summarize, tree_diff, validate_rows
 
 app = typer.Typer(add_completion=False, help=__doc__)
@@ -123,8 +124,13 @@ def validate(
             raise ValueError(f"brak pliku planu: {', '.join(missing)}")
 
         rows: list[dict[str, Any]] = []
+        metas: list[dict[str, Any]] = []
         for path in plans:
-            rows.extend(read_jsonl(path))
+            for row in read_jsonl(path):
+                # Nagłówek planu (B7) nie jest decyzją i nie podlega schematowi linii.
+                (metas if META_KEY in row else rows).append(
+                    row[META_KEY] if META_KEY in row else row
+                )
         report_path = report if report is not None else plans[0].parent / REPORT_NAME
         config.check_output_target(report_path, paths)
 
@@ -163,6 +169,17 @@ def validate(
         media_root=_MEDIA_ROOT,
         ground_truth=ground_truth,
     ))
+
+    # Odcisk planu z nagłówka musi zgadzać się z zawartością: inaczej plik został
+    # zmieniony po zbudowaniu i `apply` wykonałby coś innego, niż zaakceptował człowiek.
+    for meta in metas:
+        declared = str(meta.get("plan_hash") or "")
+        actual = plan_hash(rows)
+        if declared and declared != actual:
+            findings.append(Finding(
+                "error", "plan_hash",
+                f"plan_hash z nagłówka ({declared[:12]}…) nie zgadza się z zawartością ({actual[:12]}…)",
+            ))
 
     counts = summarize(findings)
     diff = tree_diff(rows)

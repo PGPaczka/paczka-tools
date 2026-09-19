@@ -1,0 +1,10 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+# Klucz `classifications` to samo sha256, więc bez tej ochrony zapis planu nadpisuje
+# wiersz ground truth — jedyny ślad, że materiał już leży w paczce.
+name: zapis planu nie tyka wierszy ground truth
+file: scripts/build_plan.py
+find: '                if sha not in protected:'
+replace: '                if True:'
+tests:
+- tests/test_build_plan_cli.py

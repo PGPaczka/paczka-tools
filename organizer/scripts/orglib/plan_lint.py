@@ -51,6 +51,13 @@ _CONTROL = re.compile(r"[\x00-\x1f]")
 #: Numer slotu w nazwie katalogu docelowego (lab_03, kol_02) — kontrola dopełnienia.
 _SLOT_NUMBER = re.compile(r"^(lab|kol)_(\d+)$")
 
+#: Ile pierwszych poziomów pod katalogiem przedmiotu pochodzi z NASZYCH szablonów
+#: (kategoria, wariant, slot). Głębiej leżą katalogi przepisane ze źródła przy
+#: rozstrzyganiu kolizji (B7) — ich nazw nie zmieniamy, więc nie oceniamy ich
+#: konwencji nazewniczej: `…/lab_02/lab_2/main.c` jest poprawne, bo `lab_2` to nazwa,
+#: którą nadał autor materiału.
+_TEMPLATE_LEVELS = 3
+
 
 @dataclass(frozen=True)
 class Finding:
@@ -205,7 +212,7 @@ def validate_rows(
                         f"kategoria {category!r} (folder {folder!r}) nie zgadza się ze ścieżką {rest!r}",
                         row,
                     ))
-                for segment in PurePosixPath(rest).parts:
+                for segment in PurePosixPath(rest).parts[:_TEMPLATE_LEVELS]:
                     match = _SLOT_NUMBER.match(segment)
                     if match and len(match.group(2)) < rules.number_padding:
                         findings.append(_warning(
