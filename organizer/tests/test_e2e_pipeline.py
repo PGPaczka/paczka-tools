@@ -334,3 +334,73 @@ def test_ai_resolve_consumes_manifest_and_writes_valid_plan(
         assert line["source_sha256"] in known, (
             "plan odnosi się do treści spoza manifestu — model nie może podmienić tożsamości"
         )
+
+
+def test_plan_from_b7_can_actually_be_applied_and_verified(
+    pipeline: config.Paths, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Styk B7 → B8 → B10 → B11: plan zbudowany przez potok da się WYKONAĆ.
+
+    Każdy z tych etapów ma własne testy na własnym, ręcznie napisanym planie.
+    Dopiero tutaj plan pochodzi z `build_plan`, a nie z fixture'u — czyli sprawdzamy,
+    że kształt, który produkuje potok, jest tym, który przyjmuje `apply`: ścieżki
+    docelowe wobec repo, `source_sha256` odnajdywalne w `files`, odcisk planu
+    zgodny między nagłówkiem a wykonaniem.
+
+    Materiały lądują w syntetycznym repo w `tmp_path`; `--no-git`, bo gałąź
+    przedmiotu sprawdzają testy B10, a tutaj chodzi o styk etapów.
+    """
+    import apply as apply_cli
+    import build_plan
+    import validate_plan
+    import verify as verify_cli
+    from orglib.hashes import sha256_file
+
+    for module in (build_plan, validate_plan, apply_cli, verify_cli):
+        monkeypatch.setattr(module.config, "load_paths", lambda: pipeline, raising=False)
+
+    out_dir = pipeline.work / "manifest"
+    _stage(prepare_subject.app, "--semester", "3", "--skrot", "AKO",
+           "--db", str(pipeline.work_db), "--out-dir", str(out_dir))
+    _stage(classify.app, "--semester", "3", "--skrot", "AKO",
+           "--db", str(pipeline.work_db), "--manifest", str(out_dir / "manifest_slice.jsonl"),
+           "--out-dir", str(out_dir))
+    _stage(build_plan.app, "--semester", "3", "--skrot", "AKO",
+           "--db", str(pipeline.work_db), "--manifest", str(out_dir / "manifest_slice.jsonl"),
+           "--out-dir", str(out_dir))
+
+    plan_path = out_dir / "plan.jsonl"
+    plan_rows = [json.loads(line) for line in plan_path.read_text(encoding="utf-8").splitlines()]
+    meta = next(row["_meta"] for row in plan_rows if "_meta" in row)
+    copies = [row for row in plan_rows if row.get("action") == "copy"]
+    assert copies, "plan nie ma czego skopiować — dalsze etapy nie miałyby sensu"
+
+    # Bramka B8 na planie z potoku: dopiero jej zielone światło uprawnia do apply.
+    _stage(validate_plan.app, "--semester", "3", "--skrot", "AKO",
+           "--db", str(pipeline.work_db), "--plan", str(plan_path))
+
+    # Dry-run niczego nie kopiuje, ale zostawia snapshot z odciskiem planu.
+    _stage(apply_cli.app, "--semester", "3", "--skrot", "AKO", "--db", str(pipeline.work_db),
+           "--plan", str(plan_path), "--no-git")
+    assert not list(pipeline.target_paczka.rglob("*")), "dry-run dotknął repo paczki"
+    snapshot = json.loads((plan_path.parent / "apply_snapshot.json").read_text(encoding="utf-8"))
+    assert snapshot["plan_hash"] == meta["plan_hash"]
+
+    # Wykonanie przypięte do odcisku, który zaakceptowałby człowiek.
+    _stage(apply_cli.app, "--semester", "3", "--skrot", "AKO", "--db", str(pipeline.work_db),
+           "--plan", str(plan_path), "--no-git", "--yes", "--expect-hash", meta["plan_hash"])
+
+    for row in copies:
+        target = pipeline.target_repo / row["target_rel"]
+        assert target.is_file(), f"plan obiecał {row['target_rel']}, a pliku nie ma"
+        assert sha256_file(target) == row["source_sha256"]
+
+    _stage(verify_cli.app, "--semester", "3", "--skrot", "AKO", "--db", str(pipeline.work_db),
+           "--plan", str(plan_path))
+
+    statuses = {
+        str(row["status"]) for row in _rows(pipeline, "SELECT status FROM files WHERE sha256 IN "
+                                            f"({','.join('?' * len(copies))})",
+                                            *[row["source_sha256"] for row in copies])
+    }
+    assert statuses == {"verified"}

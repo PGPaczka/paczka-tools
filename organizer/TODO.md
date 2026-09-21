@@ -111,8 +111,18 @@ Legenda: `[ ]` do zrobienia · `[x]` zrobione · `[~]` w toku · ~~przekreślone
   - Zmierzone na AKO: 2519 pozycji, 69 do obejrzenia, 51 nierozstrzygniętych, 80 klastrów (pokazane 25), 15 tabel diff, 20 miniatur, 397 kB strony.
   - `STATUS.md` wydzielony do osobnego skryptu — patrz E3 (jeden skrypt = jeden zakres: review dotyczy jednego przedmiotu, status całości).
   - Testy: `tests/test_review.py` (15), `tests/test_review_report_cli.py` (10, w tym kontrola poprawności HTML i ekranowania), 1 mutacja. (2026-09-19)
-- [ ] B10. `scripts/apply.py` — kopiowanie wg planu na branch `subject/{SKROT}` w `target_repo` (snapshot przed), status `applied`
-- [ ] B11. `scripts/verify.py` — hash po kopii == sha256, drzewo == plan, status `verified`
+- [x] B10. `scripts/apply.py` + `orglib/plan_apply.py` — kopiowanie wg planu na branch `subject/{SKROT}` w `target_repo` (snapshot przed), status `applied`. Recepta `just subject-apply SEM SKROT`. Kody wyjścia: `0` wykonane albo dry-run, `2` odmowa, `1` błąd przygotowania. Ustalenia (2026-09-22):
+  - **Domyślnie dry-run.** Kopiowanie wymaga `--yes`, a `--expect-hash` przypina wykonanie do ZAAKCEPTOWANEGO odcisku planu — przebudowany plan nie jest „tym samym planem”, tylko odmową.
+  - **Bramka B8 wykonywana ponownie w apply**, tym samym kodem: `orglib/plan_gate.py` wydzielone z `validate_plan.py`, oba wołają `evaluate()`. Gdyby `apply` miał własną kopię kontroli, bramka przestałaby być bramką — mutacja `apply-gate-blocks.yaml` pilnuje, że plan odrzucony nie kopiuje niczego.
+  - **Kolizja treści zatrzymuje CAŁY przebieg** (nie tylko swoją pozycję): żadnych częściowych zapisów pod cudzym materiałem. Ta sama treść pod ścieżką docelową to `present` — powtórzony apply nie kopiuje drugi raz i nie jest błędem. Brak pliku źródłowego też jest odmową, nie cichym pominięciem.
+  - **Zapis atomowy** (kopia obok + `os.replace`): przerwany apply nie zostawia w paczce pliku uciętego w połowie. Źródła wyłącznie do odczytu — test porównuje hashe I czasy modyfikacji całego drzewa źródeł przed i po.
+  - **Nie commituje.** Commit materiałów należy do człowieka po zielonym `verify`; apply zostawia zmiany w drzewie roboczym i mówi to wprost.
+  - Pierwszy dry-run na realnym planie AKO: 2519 pozycji → 1497 do skopiowania, 0 kolizji, 0 brakujących źródeł, 2,1 s. Bramka gałęzi zadziałała na żywo (repo stało na `fix/nazwy-katalogow-przedmiotow`).
+  - Testy: `tests/test_apply.py` (19), 2 mutacje (bramka, nadpisanie).
+- [x] B11. `scripts/verify.py` + `orglib/plan_verify.py` — hash po kopii == sha256, drzewo == plan, status `verified`. Recepta `just subject-verify SEM SKROT`; kod 2 = nie commituj materiałów. Ustalenia (2026-09-22):
+  - **Audyt `apply` to zapis intencji, nie dowód** — dopiero policzenie sha256 PO kopii mówi, że materiał dotarł w całości. Mutacja `verify-hash-after-copy.yaml` pilnuje, że to porównanie istnieje.
+  - Niezgodna treść i brak pliku są CZERWONE i nie przestawiają statusów. Plik pod katalogiem przedmiotu spoza planu i spoza ground truth to ostrzeżenie (`--strict` czyni z niego błąd) — w tym katalogu legalnie lądują rzeczy spoza planu, np. `paczka_meta` z B12.
+  - Testy: `tests/test_verify.py` (7) + nowy styk e2e `plan z B7 → B8 → B10 → B11` na syntetycznej paczce.
 - [ ] B12. `scripts/provenance.py` — `reports/provenance.jsonl` + README per przedmiot do `paczka_meta/` + `00_SOURCES/linki.txt` z `source_packages`
 - [ ] B13. `scripts/media.py` — pliki > progu → `90_MEDIA/{skrot}/…` + wpis w `inne/nagrania.txt`
 - [x] B14. `scripts/manual_decisions.py` — CLI do zapisu decyzji z review (conf=1.0) + eksport do `reports/manual_decisions.jsonl` (eksport/import już w `db_admin.py`) — 2026-09-19; logika w `orglib/decisions.py`, żeby studio (S1.2) zapisywało decyzje tą samą funkcją co CLI, a nie własnym SQL-em

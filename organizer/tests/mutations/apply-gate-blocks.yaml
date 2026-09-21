@@ -1,0 +1,11 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+# `apply` wykonuje bramkę B8 u siebie, nie ufa temu, że ktoś wcześniej uruchomił
+# `validate_plan`. Ta mutacja każe mu zignorować blokujące ustalenia — czyli
+# skopiować do repo paczki plan, który walidator odrzucił.
+name: apply nie wykonuje planu odrzuconego przez bramkę (B10)
+file: scripts/apply.py
+find: '        blocking = plan_gate.blocking_count(findings, strict=strict)'
+replace: '        blocking = 0'
+tests:
+- tests/test_apply.py

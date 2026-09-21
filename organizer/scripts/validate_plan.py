@@ -26,14 +26,11 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Optional
 
-import jsonschema
 import typer
 
-from orglib import config, db
+from orglib import config, db, plan_gate
 from orglib.classify import load_rules
-from orglib.jsonl import read_jsonl
-from orglib.plan_build import META_KEY, plan_hash
-from orglib.plan_lint import Finding, summarize, tree_diff, validate_rows
+from orglib.plan_lint import Finding, summarize, tree_diff
 
 app = typer.Typer(add_completion=False, help=__doc__)
 
@@ -43,8 +40,10 @@ REPORT_NAME = "validation.jsonl"
 #: do tego czasu sensownym domyślnym wejściem jest plan deterministyczny z B3.
 _PLAN_CANDIDATES = ("plan.jsonl", "plan.det.jsonl")
 
-_SCHEMA_PATH = config.ORGANIZER_ROOT / "prompts" / "plan_line.schema.json"
-_MEDIA_ROOT = "90_MEDIA"
+#: Schemat linii i katalog mediów żyją w `orglib.plan_gate` — `apply` (B10) musi
+#: oceniać plan dokładnie tak samo, więc kontrola ma jedną implementację.
+_SCHEMA_PATH = plan_gate.SCHEMA_PATH
+_MEDIA_ROOT = plan_gate.MEDIA_ROOT
 
 
 def load_ground_truth(database: Path) -> dict[str, str]:
@@ -123,14 +122,8 @@ def validate(
         if missing:
             raise ValueError(f"brak pliku planu: {', '.join(missing)}")
 
-        rows: list[dict[str, Any]] = []
-        metas: list[dict[str, Any]] = []
-        for path in plans:
-            for row in read_jsonl(path):
-                # Nagłówek planu (B7) nie jest decyzją i nie podlega schematowi linii.
-                (metas if META_KEY in row else rows).append(
-                    row[META_KEY] if META_KEY in row else row
-                )
+        # Nagłówek planu (B7) nie jest decyzją i nie podlega schematowi linii.
+        rows, metas = plan_gate.read_plan(plans)
         report_path = report if report is not None else plans[0].parent / REPORT_NAME
         config.check_output_target(report_path, paths)
 
@@ -145,41 +138,21 @@ def validate(
 
         rules = load_rules()
         thresholds = config.load_thresholds().get("confidence") or {}
-        schema = json.loads(_SCHEMA_PATH.read_text(encoding="utf-8"))
+        schema = plan_gate.load_schema()
     except (KeyError, ValueError, OSError, sqlite3.DatabaseError) as exc:
         typer.echo(f"Błąd przygotowania: {exc}", err=True)
         raise typer.Exit(code=1)
 
-    findings: list[Finding] = []
-    for number, row in enumerate(rows, start=1):
-        try:
-            jsonschema.validate(row, schema)
-        except jsonschema.ValidationError as exc:
-            findings.append(Finding(
-                "error", "schemat", f"linia {number}: {exc.message}",
-                source_sha256=str(row.get("source_sha256") or "") or None,
-                target_rel=str(row.get("target_rel") or "") or None,
-            ))
-    findings.extend(validate_rows(
-        rows,
+    findings: list[Finding] = plan_gate.evaluate(
+        rows, metas,
         subject=subject,
         rules=rules,
         auto_apply=float(thresholds.get("auto_apply", 0.90)),
         review_min=float(thresholds.get("review_min", 0.70)),
-        media_root=_MEDIA_ROOT,
         ground_truth=ground_truth,
-    ))
-
-    # Odcisk planu z nagłówka musi zgadzać się z zawartością: inaczej plik został
-    # zmieniony po zbudowaniu i `apply` wykonałby coś innego, niż zaakceptował człowiek.
-    for meta in metas:
-        declared = str(meta.get("plan_hash") or "")
-        actual = plan_hash(rows)
-        if declared and declared != actual:
-            findings.append(Finding(
-                "error", "plan_hash",
-                f"plan_hash z nagłówka ({declared[:12]}…) nie zgadza się z zawartością ({actual[:12]}…)",
-            ))
+        schema=schema,
+        media_root=_MEDIA_ROOT,
+    )
 
     counts = summarize(findings)
     diff = tree_diff(rows)

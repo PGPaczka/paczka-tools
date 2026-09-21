@@ -1,0 +1,11 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+# Reguła twarda nr 2 i nr 6: ręcznie ułożony materiał jest kanoniczny, a my nigdy
+# nie kasujemy i nie nadpisujemy w ciemno. Ta mutacja zamienia kolizję treści
+# w zwykłą kopię — czyli pozwala `apply` nadpisać cudzy plik.
+name: kolizja treści pod ścieżką docelową zatrzymuje apply (B10)
+file: scripts/orglib/plan_apply.py
+find: 'BLOCKING_STATES: frozenset[str] = frozenset({CONFLICT, MISSING_SOURCE, OUTSIDE})'
+replace: 'BLOCKING_STATES: frozenset[str] = frozenset({MISSING_SOURCE, OUTSIDE})'
+tests:
+- tests/test_apply.py

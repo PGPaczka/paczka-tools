@@ -1,0 +1,11 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+# `verify` istnieje po to, żeby policzyć hash PO kopii. Ta mutacja każe mu uznać
+# każdy istniejący plik za zgodny z planem — czyli zamienia dowód w deklarację
+# i przepuszcza do commitu materiał inny niż zaakceptowany.
+name: verify porównuje hash pliku w paczce z planem (B11)
+file: scripts/orglib/plan_verify.py
+find: '        if actual != sha:'
+replace: '        if False:'
+tests:
+- tests/test_verify.py

@@ -176,7 +176,7 @@ CLI nad `orglib/llm_client.py` (backend anthropic/openai/`claude -p`/`codex exec
 z `config/thresholds.yaml: llm`, cache po sha256 promptu w `20_WORK/ai_cache.sqlite`);
 smoke test backendów, nieużywany w automatycznym cyklu per-przedmiot.
 
-## Skrypty cyklu per-przedmiot — gotowe B1, B2, B3, B5, B6, B7, B8, B9
+## Skrypty cyklu per-przedmiot — gotowe B1, B2, B3, B5, B6, B7, B8, B9, B10, B11
 
 Po pierwszym przebiegu przygotuj wycinek z **istniejącego indeksu SQLite**:
 
@@ -360,8 +360,41 @@ uzupełnienia aliasów lub późniejszego review. Wpisy bez poprawnego hasha,
 bez `content`, w stanie `discovered`/`error` nie inicjują kandydatury.
 Semestry magisterskie pozostają poza zakresem (D3).
 
-Dalsze skrypty B3 i B6–B14 (poza istniejącymi B2/B4) są nadal do implementacji.
-Nie uruchamiaj jeszcze docelowego Quickstart e2e poniżej.
+### Wykonanie planu: `apply` (B10) i `verify` (B11)
+
+To jedyne etapy, które zapisują materiały, więc mają węższy kontrakt niż reszta:
+
+```bash
+just subject-apply 3 AKO                          # DRY-RUN: pokazuje, co by zrobił
+just subject-apply 3 AKO --yes --expect-hash <odcisk>   # wykonanie konkretnego planu
+just subject-verify 3 AKO                         # hash po kopii + kontrola drzewa
+```
+
+- **Domyślnie nic się nie kopiuje.** Bez `--yes` `apply` liczy operacje, zapisuje
+  `apply_snapshot.json` obok planu i kończy. `--expect-hash` przypina wykonanie do
+  odcisku, który został zaakceptowany — plan przebudowany po akceptacji jest odmową,
+  a nie „tym samym planem”.
+- **Bramka B8 jest wykonywana ponownie w `apply`**, tym samym kodem
+  (`orglib/plan_gate.py`). Plan z błędami to kod wyjścia 2 i zero kopii; uruchomienie
+  `validate_plan` wcześniej niczego nie „odblokowuje”.
+- **Repo docelowe musi stać na gałęzi `subject/{SKROT}`** z czystym katalogiem
+  `paczka/` (`--create-branch` przełącza, `--allow-dirty` powtarza przerwany przebieg,
+  `--no-git` pomija kontrole, gdy repo nie jest klonem).
+- **Nic nie jest nadpisywane ani kasowane.** Plik o innej treści pod ścieżką docelową
+  zatrzymuje CAŁY przebieg (żadnych częściowych zapisów), a plik o tej samej treści to
+  „już jest” — powtórzony `apply` nie kopiuje niczego drugi raz. Brak pliku źródłowego
+  też jest odmową: indeks rozjechał się ze źródłami i naprawia to `just sources-check`.
+- **`apply` nie commituje.** Commit materiałów należy do człowieka po zielonym
+  `verify`, na gałęzi przedmiotu.
+- `verify` liczy sha256 **po kopii** i porównuje z planem (kod 2 = nie commituj),
+  a potem sprawdza, czy pod katalogiem przedmiotu nie ma plików spoza planu i spoza
+  ground truth (ostrzeżenie; `--strict` robi z niego błąd). Zielony `verify` przestawia
+  pliki na status `verified`.
+
+Zmierzone na realnym planie AKO (2519 pozycji, dry-run, 2026-09-22): 1497 do
+skopiowania, 0 kolizji, 0 brakujących źródeł, 2,1 s.
+
+Dalsze skrypty B12–B13 są nadal do implementacji.
 
 ## Studio — lokalny warsztat nad indeksem
 

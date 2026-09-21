@@ -160,13 +160,15 @@ synapse-view *args:
 status *args:
     {{ python }} scripts/status_report.py {{ args }}
 
+# B10: wykonanie ZAAKCEPTOWANEGO planu. Domyślnie dry-run — kopiuje dopiero z --yes,
+# najlepiej z --expect-hash <odcisk planu>, bo zgoda dotyczy konkretnego planu.
+# Bramka B8 jest wykonywana ponownie tutaj: plan odrzucony = kod 2 i zero kopii.
 subject-apply semester skrot *args:
-    @test -f scripts/apply.py || { echo "Brak scripts/apply.py (TODO B10)" >&2; exit 2; }
-    {{ python }} scripts/apply.py reports/plan.{{ skrot }}.{{ semester }}.jsonl {{ args }}
+    {{ python }} scripts/apply.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
 
+# B11: hash po kopii wobec planu + kontrola drzewa. Kod 2 = NIE commituj materiałów.
 subject-verify semester skrot *args:
-    @test -f scripts/verify.py || { echo "Brak scripts/verify.py (TODO B11)" >&2; exit 2; }
-    {{ python }} scripts/verify.py reports/plan.{{ skrot }}.{{ semester }}.jsonl {{ args }}
+    {{ python }} scripts/verify.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
 
 # S0: studio — lokalny warsztat nad indeksem (studio/PLAN.md). Faza S0 jest TYLKO
 # do odczytu, a serwer nasłuchuje wyłącznie na 127.0.0.1 (adres spoza pętli
