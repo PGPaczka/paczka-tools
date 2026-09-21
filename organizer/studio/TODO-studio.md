@@ -34,13 +34,27 @@ funkcji zapisu co CLI, więc CLI powstaje pierwsze.
 
 - [x] S1.1 B14 w potoku: zapis decyzji do `manual_decisions` + `classifications` (`classification_method='manual'`, `confidence=1.0`), eksport do `reports/manual_decisions.jsonl` — 2026-09-19; implementacja w `orglib.decisions` z CLI wrapperem `scripts/manual_decisions.py`, 12 testów
 - [x] S1.2 `/api/decisions` (POST) — cienka warstwa nad funkcją z B14; strażnik na wiersze `run_id='ground_truth'` — 2026-09-19; POST + POST /batch + POST /undo; ground truth zwraca 409
-- [x] S1.3 Endpoint podglądu: miniatura z `20_WORK/thumbnails`, strona PDF renderowana PyMuPDF, głowa tekstu z `20_WORK/extracted_text`; wyłącznie pliki z indeksu, przez wspólny helper containmentu — 2026-09-19; GET /api/preview/{sha256}, głowa tekstu do 4096 znaków, bez miniatur (brak plików)
-- [x] S1.4 Widok kolejki: podgląd + propozycja + alternatywy + powód decyzji reguł — 2026-09-19; DecisionPanel.svelte z kartą pozycji, propozycją klasyfikacji, przyciskami akcji
+- [x] S1.3 Endpoint podglądu: miniatura z `20_WORK/thumbnails`, strona PDF renderowana PyMuPDF, głowa tekstu z `20_WORK/extracted_text`; wyłącznie pliki z indeksu, przez wspólny helper containmentu — **2026-09-22 (poprawione; 2026-09-19 było odhaczone przedwcześnie)**; logika w `orglib/preview.py` (ta sama, której używa raport B9 — jeden cache miniatur), endpointy `GET /api/preview/{sha}` i `GET /api/preview/{sha}/image` (strona PDF → PNG, obraz → miniatura JPEG), containment przez `config.resolve_within`
+- [x] S1.4 Widok kolejki: podgląd + propozycja + alternatywy + powód decyzji reguł — 2026-09-19 karta pozycji, **2026-09-22 podgląd**: strona dokumentu po lewej, decyzja po prawej (układ z zapytania kontenerowego — o kolumny decyduje szerokość panelu, nie okna), `←`/`→` przewraca strony PDF
 - [x] S1.5 Obsługa klawiaturą (`Enter`, `1..9`, `t`, `s`, `o`, `u`, `?`) i licznik „ile zostało” — 2026-09-19; 9 kategorii z klawiatury, overlay pomocy, `o` dla outdated
 - [x] S1.6 Decyzja hurtem po katalogu źródłowym — z podglądem, czego dotknie, przed zapisem — 2026-09-19; GET/POST /api/decisions/by-folder; ground truth elementy pomijane cicho zamiast odrzucenia całej partii
 - [x] S1.7 Cofanie ostatniej decyzji (i całej operacji hurtowej) jako jedna akcja — 2026-09-19; POST /api/decisions/undo
 - [x] S1.8 Testy: kontrakt zapisu, odmowa nadpisania ground truth, containment ścieżek podglądu (także na ścieżce względnej i dowiązaniu), e2e „decyzja w UI → wiersz w bazie → linia w eksporcie” — 2026-09-19; 14 testów w test_studio_s1_extended.py, 10 w test_studio_decisions.py
 - [x] S1.9 Mutacja: usunięcie strażnika ground truth albo containmentu podglądu MUSI czerwienić testy — 2026-09-19; mutation guard w testach (3 typy: ground truth, batch atomicity, run_id preservation)
+
+**Czego nie przewidywał plan (S1.3):** podgląd był odhaczony, a w widoku go nie
+było — `DecisionPanel` nigdy nie wołał `getPreview`, więc decyzja zapadała po samej
+nazwie pliku, czyli dokładnie tak jak w konsoli. Sam endpoint też nie działał na
+realnych danych: sklejał `content.extracted_text_path` wobec katalogu roboczego
+procesu, podczas gdy etap extract zapisuje tę ścieżkę **względem `work`**. Jedyny
+test tej ścieżki wpisywał do bazy ścieżkę bezwzględną — kontrakt, którego potok
+nigdy nie produkuje — więc świecił na zielono i **dodatkowo utrwalał odczyt spoza
+`work`**. Containmentu nie było wcale, mimo że S1.8/S1.9 deklarowały go jako
+przetestowany. Teraz: wspólny helper `config.resolve_within` (odrzuca ścieżkę
+bezwzględną, `..` i dowiązanie wychodzące poza korzeń), 9 testów w
+`tests/test_studio_preview.py` i mutacja `tests/mutations/studio-preview-containment.yaml`.
+Wniosek ten sam, co przy `catdoc` i `--ignore-user-config`: **test na kontrakcie,
+którego potok nie produkuje, jest gorszy niż brak testu** — daje spokój i utrwala błąd.
 
 ## S2. Porównywarka klastrów
 

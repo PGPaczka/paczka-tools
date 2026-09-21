@@ -115,7 +115,7 @@ Legenda: `[ ]` do zrobienia · `[x]` zrobione · `[~]` w toku · ~~przekreślone
 - [ ] B11. `scripts/verify.py` — hash po kopii == sha256, drzewo == plan, status `verified`
 - [ ] B12. `scripts/provenance.py` — `reports/provenance.jsonl` + README per przedmiot do `paczka_meta/` + `00_SOURCES/linki.txt` z `source_packages`
 - [ ] B13. `scripts/media.py` — pliki > progu → `90_MEDIA/{skrot}/…` + wpis w `inne/nagrania.txt`
-- [ ] B14. `scripts/manual_decisions.py` — CLI do zapisu decyzji z review (conf=1.0) + eksport do `reports/manual_decisions.jsonl` (eksport/import już w `db_admin.py`)
+- [x] B14. `scripts/manual_decisions.py` — CLI do zapisu decyzji z review (conf=1.0) + eksport do `reports/manual_decisions.jsonl` (eksport/import już w `db_admin.py`) — 2026-09-19; logika w `orglib/decisions.py`, żeby studio (S1.2) zapisywało decyzje tą samą funkcją co CLI, a nie własnym SQL-em
 
 ## C. Narzędzia i integracje
 

@@ -1,0 +1,12 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+# Podgląd studia jest JEDYNĄ drogą, którą aplikacja HTTP sięga po pliki. Ta mutacja
+# każe mu sklejać ścieżkę z bazy bez bramki containmentu — czyli czytać wpis
+# bezwzględny, wyjście przez `..` i dowiązanie prowadzące do materiałów.
+name: podgląd czyta wyłącznie pliki z drzewa `work` (S1.3)
+file: scripts/orglib/preview.py
+find: '    resolved = config.resolve_within(paths.work, relative_path)'
+replace: '    resolved = Path(paths.work) / relative_path'
+tests:
+- tests/test_studio_preview.py
+- tests/test_studio_s1_extended.py

@@ -245,7 +245,20 @@ export interface Preview {
   content_kind: string | null;
   text_head: string | null;
   has_text: boolean;
+  has_image: boolean;
+  /** Co widok ma narysować: 'page' (strona PDF), 'image', 'text', 'none'.
+   *  Rodzaj ustala backend — front nie zgaduje po rozszerzeniu. */
+  preview_kind: 'page' | 'image' | 'text' | 'none';
   has_thumbnail: boolean;
+  pages: number | null;
+  copies: number;
+  source_path: string | null;
+  ocr_done: boolean;
+}
+
+/** Adres obrazka podglądu (strona PDF albo miniatura). Przeglądarka pobiera go sama. */
+export function previewImageUrl(sha256: string, page = 1): string {
+  return `/api/preview/${sha256}/image?page=${page}`;
 }
 
 export interface FolderItems {

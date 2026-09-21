@@ -101,6 +101,47 @@ def load_paths(config_dir: Path | None = None) -> Paths:
     )
 
 
+def resolve_within(
+    root: Path, relative: str, *, follow_symlinks: bool = True
+) -> Path | None:
+    """Skleja ``root`` ze ścieżką WZGLĘDNĄ, pilnując, że wynik nie wychodzi poza ``root``.
+
+    Wspólna bramka odczytu dla wszystkiego, co bierze ścieżkę z bazy: indeks
+    trzyma ścieżki względne (``files.source_relative_path`` wobec paczki,
+    ``content.extracted_text_path`` wobec ``work``), a kod, który je skleja, nie
+    może dać się wyprowadzić poza swoje drzewo przez ``..``, ścieżkę bezwzględną
+    ani dowiązanie.
+
+    Zwraca ``None`` (a nie ścieżkę „na wszelki wypadek”), gdy:
+
+    * ``relative`` jest bezwzględna albo pusta,
+    * po normalizacji segmentów ``..`` wynik ląduje poza ``root``,
+    * ``follow_symlinks`` i realna ścieżka (po rozwinięciu dowiązań) wychodzi
+      poza ``root`` — to jest przypadek „katalog w ``work`` jest dowiązaniem do
+      materiałów”, czyli dokładnie ta boczna ścieżka, której pilnuje guard.
+
+    ``follow_symlinks=False`` zostawia zachowanie sprzed tego helpera dla drzewa
+    źródeł: tam dowiązania wewnątrz paczek są normalne i ich rozwijanie zmieniłoby
+    znaczenie ścieżek już zapisanych w indeksie.
+    """
+    text = str(relative).strip()
+    if not text or Path(text).is_absolute():
+        return None
+    root_normalized = Path(os.path.normpath(root))
+    normalized = Path(os.path.normpath(root_normalized / text))
+    if not normalized.is_relative_to(root_normalized):
+        return None
+    if follow_symlinks:
+        try:
+            real = normalized.resolve()
+            real_root = root_normalized.resolve()
+        except OSError:  # pragma: no cover - ścieżka nie do rozwiązania na tym systemie
+            return None
+        if not real.is_relative_to(real_root):
+            return None
+    return normalized
+
+
 def resolve_within_sources(
     sources_root: Path, source_package: str, source_relative_path: str
 ) -> Path | None:
@@ -112,14 +153,11 @@ def resolve_within_sources(
     danych, nie próba odczytu — wołający ma przestawić plik na status 'error',
     nie czytać go.
     """
-    if Path(source_relative_path).is_absolute():
+    if Path(source_relative_path).is_absolute() or Path(source_package).is_absolute():
         return None
-    candidate = Path(sources_root) / source_package / source_relative_path
-    normalized = Path(os.path.normpath(candidate))
-    root_normalized = Path(os.path.normpath(sources_root))
-    if not normalized.is_relative_to(root_normalized):
-        return None
-    return normalized
+    return resolve_within(
+        sources_root, str(Path(source_package) / source_relative_path), follow_symlinks=False
+    )
 
 
 def check_output_target(

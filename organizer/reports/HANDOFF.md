@@ -2,6 +2,9 @@
 
 ## Kontekst ręczny
 
+- **Studio: S0, S1, S2 i S4.2–S4.4 zrobione; zostają S3 (czeka na B10/B11) i S4.1 (graf jako soczewka).** Stan i uzasadnienia: `studio/TODO-studio.md`. Uruchamianie: `just studio` (zbudowany front), `just studio-dev` (backend `--reload` + Vite), `just studio --check` (preflight bez zajmowania portu). Serwer stoi wyłącznie na pętli zwrotnej — adres spoza niej to odmowa startu z kodem 2, z własną mutacją.
+- **S1.3 (podgląd) był odhaczony przedwcześnie — poprawione 2026-09-22.** Widok nigdy nie wołał `getPreview`, więc decyzja zapadała po samej nazwie pliku; endpoint sklejał `content.extracted_text_path` wobec katalogu roboczego procesu, choć etap extract zapisuje ją **względem `work`**, a jedyny test wpisywał do bazy ścieżkę bezwzględną (kontrakt, którego potok nie produkuje) — więc był zielony i utrwalał odczyt spoza `work`. Teraz: `orglib/preview.py` (wspólne z raportem B9 — jeden cache miniatur), `GET /api/preview/{sha}` + `/image` (strona PDF → PNG, obraz → miniatura), containment przez nowy wspólny helper `config.resolve_within`, 9 testów i mutacja `studio-preview-containment.yaml`. Sprawdzone oczami na realnych danych: strona wykładu AKO renderuje się w kolejce decyzji, `←`/`→` przewraca strony.
+- Zasada potwierdzona po raz kolejny: **test na kontrakcie, którego potok nie produkuje, jest gorszy niż brak testu.** Pisząc test na ścieżkę z bazy, weź jej kształt z tego, co zapisuje etap, a nie z tego, co wygodnie zbudować w `tmp_path`.
 - Cel bieżącej pracy: sekcja B TODO — skrypty cyklu per-przedmiot. Domknięte B3/B3a, **B6**, **B7 (plan + migracja schematu 1→2)**, **B8**, **B9 (review.html)** i **E3 (STATUS.md)**. Łańcuch B1→B3→B6→B7→B8→B9 przechodzi na realnych danych: `just subject-validate 3 AKO` kończy się kodem 0, a `reports/AKO/review.html` jest gotowe do obejrzenia. Materiałów nie ruszano.
 - **C3 domknięte i sprawdzone oczami (2026-09-19).** `just synapse-view` = eksport vaulta + generator + kopia notatek do viewera; potem `npm run dev` w `vendor/synapse/synapse-viewer`. Graf w stanie „jak sklonowany" NIE był czytalny przy 4 189 węzłach — poprawki są w klonie na gałęzi `feat/paczka-integration` (`dc4e4dc`, `54dbd15`): dopasowanie widoku i symulacja liczą tylko widoczny podgraf, ghosty nie przechodzą filtru typu węzła, tagi mają tryb **all**, doszedł filtr **only connected**. Push do `Billypl/synapse` należy do użytkownika; `synapse-viewer/public/{graph.json,search-index.json}` zostają brudne w klonie — to artefakty buildu, NIE commituj ich tam.
 - Co da się z grafu wyczytać, a czego nie, i co przegląd wykrył w danych (szum `*.vcxproj.xml` w duplikatach, rozdwojony słownik kategorii) — `docs/SYNAPSE.md`, sekcja „Co się z tego realnie wyczytuje".
@@ -65,13 +68,24 @@
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-09-19T14:19:37+02:00
+- Odświeżono: 2026-09-22T01:37:08+02:00
 - Branch: `master`
-- Commit: `514b87a`
+- Commit: `db44231`
 - Git status:
   ```text
-  M reports/HANDOFF.md
-  ?? reports/AKO/
+  M TODO.md
+   M scripts/orglib/config.py
+   M scripts/review_report.py
+   M studio/TODO-studio.md
+   M studio/api/app.py
+   M studio/api/queries.py
+   M studio/web/src/components/DecisionPanel.svelte
+   M studio/web/src/lib/api.test.ts
+   M studio/web/src/lib/api.ts
+   M tests/test_studio_s1_extended.py
+  ?? scripts/orglib/preview.py
+  ?? tests/mutations/studio-preview-containment.yaml
+  ?? tests/test_studio_preview.py
   ```
 - Pierwsze otwarte TODO: - [ ] B10. `scripts/apply.py` — kopiowanie wg planu na branch `subject/{SKROT}` w `target_repo` (snapshot przed), status `applied`
 <!-- END AUTO -->

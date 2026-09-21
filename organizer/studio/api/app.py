@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, AsyncIterator, Iterator, Optional
 
 from fastapi import Body, Depends, FastAPI, HTTPException, Path as PathParam, Query
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from orglib import config
@@ -168,35 +168,35 @@ def create_app(
         sha256: str = PathParam(pattern=SHA256_PATTERN),
         conn: sqlite3.Connection = Depends(get_conn),
     ) -> dict[str, Any]:
-        """Podgląd treści (S1.3): głowa tekstu, metadane. Bez miniatur jeśli brak plików."""
-        row = conn.execute(
-            "SELECT sha256, content_kind, extracted_text_path, cas_path "
-            "FROM content WHERE sha256 = ?", (sha256,)
-        ).fetchone()
-        if row is None:
+        """Podgląd treści (S1.3): głowa tekstu z `work` + co da się narysować.
+
+        Ścieżki idą przez `config.resolve_within` — wpis prowadzący poza `work`
+        (bezwzględny, `..`, dowiązanie) nie jest czytany.
+        """
+        detail = queries.preview(conn, sha256, resolved_paths)
+        if detail is None:
             raise HTTPException(status_code=404, detail=f"brak treści {sha256}")
+        return detail
 
-        text_head = None
-        text_path = row["extracted_text_path"]
-        if text_path:
-            resolved = Path(text_path)
-            try:
-                real = resolved.resolve(strict=True)
-            except (OSError, ValueError):
-                real = None
-            if real and real.is_file():
-                try:
-                    text_head = real.read_text(encoding="utf-8", errors="replace")[:4096]
-                except OSError:
-                    pass
-
-        return {
-            "sha256": sha256,
-            "content_kind": row["content_kind"],
-            "text_head": text_head,
-            "has_text": text_head is not None,
-            "has_thumbnail": False,
-        }
+    @app.get("/api/preview/{sha256}/image", tags=["preview"])
+    def get_preview_image(
+        sha256: str = PathParam(pattern=SHA256_PATTERN),
+        page: int = Query(1, ge=1, le=9999, description="Strona PDF (1 = pierwsza)."),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ) -> Response:
+        """Strona PDF jako PNG albo miniatura obrazu — wyłącznie z plików z indeksu."""
+        rendered = queries.preview_image(conn, sha256, resolved_paths, page=page)
+        if rendered is None:
+            raise HTTPException(
+                status_code=404, detail=f"brak podglądu dla {sha256} (nie ma kopii na dysku?)"
+            )
+        payload, media_type = rendered
+        # Treść jest adresowana sha256, więc nigdy się nie zmienia pod tym adresem.
+        return Response(
+            content=payload,
+            media_type=media_type,
+            headers={"cache-control": "private, max-age=86400"},
+        )
 
     # --- S1: decisions (write endpoints) ---
 

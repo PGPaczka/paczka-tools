@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { itemsUrl, subjectUrl } from './api';
+import { itemsUrl, previewImageUrl, subjectUrl } from './api';
 
 describe('itemsUrl', () => {
   it('przenosi filtry do zapytania', () => {
@@ -26,5 +26,12 @@ describe('subjectUrl', () => {
   it('koduje skrót i dokłada grupę, gdy rozstrzyga kolizję', () => {
     expect(subjectUrl(3, 'AKO')).toBe('/api/subjects/3/AKO');
     expect(subjectUrl(5, 'SI', 'Sieci')).toBe('/api/subjects/5/SI?grupa=Sieci');
+  });
+});
+
+describe('previewImageUrl', () => {
+  it('adresuje stronę podglądu po treści, nie po ścieżce pliku', () => {
+    expect(previewImageUrl('a'.repeat(64))).toBe(`/api/preview/${'a'.repeat(64)}/image?page=1`);
+    expect(previewImageUrl('b'.repeat(64), 3)).toBe(`/api/preview/${'b'.repeat(64)}/image?page=3`);
   });
 });

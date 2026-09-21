@@ -79,17 +79,32 @@ def test_preview_returns_metadata(client) -> None:
 
 
 def test_preview_with_extracted_text(index, tmp_path) -> None:
-    text_file = tmp_path / "text" / "a.txt"
-    text_file.parent.mkdir()
-    text_file.write_text("Architektura Komputerów — wykład 1\nWstęp.", encoding="utf-8")
+    """Ścieżka głowy tekstu jest WZGLĘDNA wobec `work` — tak zapisuje ją etap extract.
+
+    Pierwsza wersja tego testu wpisywała do bazy ścieżkę bezwzględną, więc
+    przechodziła przy endpointcie, który na realnych danych nie pokazywał nic
+    (i dodatkowo przeczytałby plik spoza `work`). Pełny zestaw przypadków —
+    `..`, dowiązanie, render strony — jest w `tests/test_studio_preview.py`.
+    """
+    work = index.parent
+    (work / "extracted_text").mkdir(exist_ok=True)
+    (work / "extracted_text" / f"{SHA['a']}.txt").write_text(
+        "Architektura Komputerów — wykład 1\nWstęp.", encoding="utf-8"
+    )
 
     conn = db.connect(index)
     conn.execute("UPDATE content SET extracted_text_path = ? WHERE sha256 = ?",
-                 (str(text_file), SHA["a"]))
+                 (f"extracted_text/{SHA['a']}.txt", SHA["a"]))
     conn.commit()
     conn.close()
 
-    app = create_app(index, subjects=SUBJECTS, thresholds=THRESHOLDS)
+    paths = config.Paths(
+        sources=tmp_path / "sources", work=work, media=tmp_path / "media",
+        target_repo=tmp_path / "target", target_paczka=tmp_path / "target" / "paczka",
+        work_db=index, work_extracted_text=work / "extracted_text",
+        work_thumbnails=work / "thumbnails",
+    )
+    app = create_app(index, paths=paths, subjects=SUBJECTS, thresholds=THRESHOLDS)
     with TestClient(app) as c:
         body = c.get(f"/api/preview/{SHA['a']}").json()
         assert body["has_text"] is True

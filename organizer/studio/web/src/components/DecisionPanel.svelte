@@ -4,9 +4,12 @@
     postUndo,
     postDecisionBatch,
     getItems,
+    getPreview,
+    previewImageUrl,
     type Item,
     type ItemsPage,
     type DecisionRequest,
+    type Preview,
   } from '../lib/api';
   import { basename, bytes, percent, dirname } from '../lib/format';
 
@@ -30,6 +33,17 @@
   let success = $state<string | null>(null);
   let history = $state<string[]>([]);
   let showHelp = $state(false);
+
+  // Podgląd: bez niego decyzja zapada po samej nazwie pliku, czyli dokładnie tak,
+  // jak w konsoli — a po to studio nie powstało (PLAN.md: „podgląd po lewej,
+  // propozycja po prawej").
+  let preview = $state<Preview | null>(null);
+  let previewError = $state<string | null>(null);
+  let page = $state(1);
+
+  const imageUrl = $derived(
+    current && preview?.has_image ? previewImageUrl(current.sha256, page) : null,
+  );
 
   async function loadNext(): Promise<void> {
     loading = true;
@@ -136,12 +150,42 @@
         event.preventDefault();
         decide('outdated');
         break;
+      case 'ArrowRight':
+        if (preview?.pages && page < preview.pages) {
+          event.preventDefault();
+          page += 1;
+        }
+        break;
+      case 'ArrowLeft':
+        if (page > 1) {
+          event.preventDefault();
+          page -= 1;
+        }
+        break;
     }
   }
 
   $effect(() => {
     const _deps = [semester, skrot];
     loadNext();
+  });
+
+  $effect(() => {
+    const sha = current?.sha256;
+    preview = null;
+    previewError = null;
+    page = 1;
+    if (!sha) return;
+    const controller = new AbortController();
+    getPreview(sha, controller.signal)
+      .then((value) => {
+        preview = value;
+      })
+      .catch((exc: unknown) => {
+        if (controller.signal.aborted) return;
+        previewError = exc instanceof Error ? exc.message : String(exc);
+      });
+    return () => controller.abort();
   });
 </script>
 
@@ -166,6 +210,44 @@
     <div class="empty">Brak pozycji do przeglądu</div>
   {:else}
     <div class="item-card">
+      <figure class="preview">
+        {#if imageUrl}
+          <img src={imageUrl} alt="Podgląd: {current.filename ?? current.sha256}" />
+          {#if preview?.pages && preview.pages > 1}
+            <figcaption class="pager">
+              <button onclick={() => (page = Math.max(1, page - 1))} disabled={page <= 1}>‹</button>
+              <span class="num">strona {page} / {preview.pages}</span>
+              <button
+                onclick={() => (page = Math.min(preview!.pages!, page + 1))}
+                disabled={page >= preview.pages}>›</button
+              >
+            </figcaption>
+          {/if}
+        {:else if preview?.text_head}
+          <pre class="text-head">{preview.text_head}</pre>
+        {:else if preview && preview.preview_kind === 'none'}
+          <div class="no-preview">
+            <p>Bez podglądu</p>
+            <p class="dim">
+              {preview.content_kind ?? 'nieznany rodzaj'} · żadna kopia tej treści nie leży
+              dziś na dysku albo format nie ma podglądu
+            </p>
+          </div>
+        {:else if previewError}
+          <div class="no-preview"><p>Podgląd niedostępny</p><p class="dim">{previewError}</p></div>
+        {:else}
+          <div class="no-preview dim"><p>Wczytuję podgląd…</p></div>
+        {/if}
+
+        {#if preview?.text_head && imageUrl}
+          <details class="text-toggle">
+            <summary>głowa tekstu</summary>
+            <pre class="text-head">{preview.text_head}</pre>
+          </details>
+        {/if}
+      </figure>
+
+      <div class="decision">
       <div class="item-header">
         <span class="sha mono">{current.sha256.slice(0, 16)}…</span>
         <span class="kind tag">{current.content_kind ?? '?'}</span>
@@ -212,7 +294,7 @@
               class="cat-btn"
               class:current={current.category === cat}
               onclick={() => decide('copy', cat)}
-              title="{i + 1}"
+              title={String(i + 1)}
             >
               <kbd>{i + 1}</kbd> {cat}
             </button>
@@ -242,6 +324,7 @@
       </div>
 
       <div class="shortcuts dim">
+        <kbd>←</kbd><kbd>→</kbd> strona &nbsp;
         <kbd>Enter</kbd> akceptuj &nbsp;
         <kbd>1-9</kbd> kategoria &nbsp;
         <kbd>s</kbd> pomiń &nbsp;
@@ -250,6 +333,7 @@
         <kbd>o</kbd> outdated &nbsp;
         <kbd>u</kbd> cofnij &nbsp;
         <kbd>?</kbd> pomoc
+      </div>
       </div>
     </div>
   {/if}
@@ -282,9 +366,81 @@
 </div>
 
 <style>
+  .preview {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 10px;
+    min-height: 240px;
+    border: 1px solid var(--border-2);
+    border-radius: 8px;
+    background: var(--bg-deep);
+  }
+  .preview img {
+    width: 100%;
+    /* Sufit dobrany tak, żeby przy układzie jednokolumnowym propozycja
+       i przyciski decyzji zostały widoczne bez przewijania. */
+    max-height: 44vh;
+    object-fit: contain;
+    border-radius: 4px;
+    background: #fff;
+  }
+  .pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .pager button {
+    padding: 0 8px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--muted);
+  }
+  .pager button:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+  .text-head {
+    margin: 0;
+    max-height: 44vh;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.55;
+    color: var(--text);
+  }
+  .text-toggle summary {
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .no-preview {
+    margin: auto;
+    text-align: center;
+    color: var(--muted);
+  }
+  .no-preview p {
+    margin: 2px 0;
+  }
+
+  .decision {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+  }
+
   .decision-panel {
     padding: 12px;
     overflow-y: auto;
+    container-type: inline-size;
+    container-name: decision;
   }
   .header {
     display: flex;
@@ -301,13 +457,23 @@
     font-size: 12px;
   }
   .item-card {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
     border: 1px solid var(--border);
     border-radius: 6px;
     padding: 14px;
     background: var(--bg-deep);
+  }
+
+  /* Podgląd po lewej, decyzja po prawej — ale dopiero gdy panel ma na to miejsce.
+     Zapytanie kontenerowe, nie medialne: o układ karty decyduje szerokość PANELU
+     (trzeciej kolumny aplikacji), a nie szerokość okna. */
+  @container decision (min-width: 900px) {
+    .item-card {
+      grid-template-columns: minmax(0, 1.1fr) minmax(330px, 0.9fr);
+    }
   }
   .item-header {
     display: flex;

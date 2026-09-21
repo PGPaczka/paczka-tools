@@ -30,7 +30,7 @@ from typing import Any, Optional
 
 import typer
 
-from orglib import config
+from orglib import config, preview
 from orglib.jsonl import read_jsonl
 from orglib.plan_build import META_KEY
 from orglib.review import Item, Review, build_review, is_image, is_text, pair_for_diff
@@ -40,8 +40,10 @@ app = typer.Typer(add_completion=False, help=__doc__)
 REPORT_NAME = "review.html"
 
 #: Rozmiar miniatury (dłuższy bok) i jakość JPEG — ma się mieścić w mailu, nie w galerii.
-THUMBNAIL_SIZE = (320, 320)
-THUMBNAIL_QUALITY = 72
+#: Same wartości i liczenie żyją w ``orglib.preview`` — raport i studio mają
+#: dzielić jeden cache w ``work/thumbnails``, a nie liczyć go dwa razy po swojemu.
+THUMBNAIL_SIZE = preview.THUMBNAIL_SIZE
+THUMBNAIL_QUALITY = preview.THUMBNAIL_QUALITY
 
 _CSS = """
 :root { color-scheme: light dark; }
@@ -104,22 +106,11 @@ def _thumbnail(item: Item, paths: config.Paths) -> str | None:
     Plik miniatury zostaje w ``work/thumbnails``, więc kolejny przebieg jej nie liczy
     od nowa — ta sama zasada „praca raz na treść”, co w etapie extract.
     """
-    cache = paths.work_thumbnails / f"{item.sha256}.jpg"
-    if not cache.is_file():
-        package, _, relative = item.source_path.partition("/")
-        source = config.resolve_within_sources(paths.sources, package, relative)
-        if source is None or not source.is_file():
-            return None
-        try:
-            from PIL import Image  # zależność opcjonalna z perspektywy tego etapu
-
-            cache.parent.mkdir(parents=True, exist_ok=True)
-            with Image.open(source) as image:
-                image = image.convert("RGB")
-                image.thumbnail(THUMBNAIL_SIZE)
-                image.save(cache, "JPEG", quality=THUMBNAIL_QUALITY)
-        except Exception:
-            return None
+    package, _, relative = item.source_path.partition("/")
+    source = config.resolve_within_sources(paths.sources, package, relative)
+    cache = preview.thumbnail(paths, item.sha256, source)
+    if cache is None:
+        return None
     try:
         payload = base64.b64encode(cache.read_bytes()).decode("ascii")
     except OSError:
