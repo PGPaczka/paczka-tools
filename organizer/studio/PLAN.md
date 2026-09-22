@@ -20,13 +20,22 @@ synapse. Powody, każdy wynika z tego, czym te dwie rzeczy są:
 3. **Podgląd materiałów.** Studio musi serwować PDF-y i obrazy ze źródeł (do
    odczytu). Synapse nie ma żadnej ścieżki do plików spoza vaulta i **nie powinien
    jej dostać** — to dokładnie ten wektor, którego pilnuje guard.
-4. **Upstream.** W `vendor/synapse` mamy dziś czysty, przetestowany kontrakt
+4. **Upstream.** W klonie synapse mamy dziś czysty, przetestowany kontrakt
    (schema v2 + test wiążący `tests/test_synapse_vendor_contract.py`). Im więcej tam
    dołożymy, tym trudniej wciągnąć zmiany z `Billypl/synapse`.
 5. **Bez dublowania.** Studio wystawia `/graf` ze zbudowanym viewerem i mówi mu,
    który węzeł zaznaczyć; klik w węźle wraca deep-linkiem do studia. Wspólny
    identyfikator już istnieje — `id` notatki w vaulcie to nasz stabilny identyfikator
    treści.
+
+**Korekta z 2026-09-22 (decyzja użytkownika):** punkt 4 zdezaktualizował się —
+skoro graf jest już przerobiony pod nas (schemat v2, typy węzłów, rodzaje krawędzi,
+czytelność przy 4 tysiącach węzłów, naprawiony deep link), jego źródła wjechały do
+tego repo jako `studio/graf/` (`git subtree`, 1,5 MB, 153 pliki). Powód jest
+praktyczny: zmiany żyły wyłącznie w lokalnym klonie i przepadłyby razem z nim, a
+`just studio-graf` wymagał cudzego repo obok. Studio dalej **osadza zbudowany
+viewer** i nie dubluje jego kodu; upstream synchronizuje się przez
+`git subtree pull/push`.
 
 Odrzucona alternatywa: **rozbudowa `review.html` bez backendu**. Najtańsza (jedna
 sesja), działa offline, ale decyzje trzeba zbierać w przeglądarce i importować

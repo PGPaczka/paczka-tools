@@ -5,8 +5,8 @@ rozumie nasz front matter i czy jego `graph.json` spełnia ICH schemat. Reszta t
 opisuje nasz kontrakt; ten opisuje cudzy — i zrobi się czerwony, gdy któraś strona
 odejdzie od ustaleń (np. zmieni nazwę klucza albo enum statusów).
 
-Pomijany, gdy nie ma klona (`vendor/synapse`) albo `dotnet` — wtedy po prostu nie da się
-go wykonać. Obecny klon + brak zgodności = czerwono, nigdy „pominięte”.
+Od 2026-09-22 generator jest w repo (`studio/graf/`), więc test pomija się już tylko
+przy braku `dotnet`. Obecny toolchain + brak zgodności = czerwono, nigdy „pominięte”.
 """
 
 from __future__ import annotations
@@ -32,13 +32,15 @@ from orglib.synapse_vault import (
     render_note,
 )
 
-VENDOR = config.ORGANIZER_ROOT / "vendor" / "synapse"
-PROJECT = VENDOR / "Synapse.Generator" / "Synapse.Generator"
-SCHEMA = VENDOR / "schema" / "graph.schema.v2.json"
+#: Źródła grafu żyją w repo — liczone ze ścieżki tego pliku, nie ze stałej
+#: konfiguracyjnej, którą inne testy przestawiają na katalog tymczasowy.
+GRAF = Path(__file__).resolve().parents[1] / "studio" / "graf"
+PROJECT = GRAF / "Synapse.Generator" / "Synapse.Generator"
+SCHEMA = GRAF / "schema" / "graph.schema.v2.json"
 
 pytestmark = [
     pytest.mark.vendor,
-    pytest.mark.skipif(not PROJECT.is_dir(), reason="brak klona vendor/synapse"),
+    pytest.mark.skipif(not PROJECT.is_dir(), reason="brak źródeł generatora w studio/graf"),
     pytest.mark.skipif(shutil.which("dotnet") is None, reason="brak dotnet"),
 ]
 

@@ -2,7 +2,8 @@
 
 Jak indeks organizera zamienia się w graf, który pokazuje **rodzaj** powiązania między
 materiałami. Generator: `scripts/synapse_export.py` (`just synapse`), model:
-`scripts/orglib/synapse_vault.py`, klon narzędzia: `vendor/synapse` (ignorowany w gicie).
+`scripts/orglib/synapse_vault.py`, źródła narzędzia: **`studio/graf/`** (w repo, wciągnięte
+`git subtree` z gałęzi `feat/paczka-integration` repo `Billypl/synapse`).
 
 ## Czym jest synapse (i czym NIE jest lokalna kopia)
 
@@ -14,7 +15,7 @@ stawia to na RPi z regeneracją po `git push` na vault.
 **Uwaga na pułapkę:** `~/dev/synapse` na tej maszynie to jeden commit z 2026-08-04 —
 bundle z Claude Design sprzed implementacji, z danymi zaszytymi w `seedNotes()`.
 Pierwsze podejście do C3 mapowało dane właśnie na niego i trafiło w próżnię (cofnięte
-w `8fc5fb1`). **Kontrakt bierz z `vendor/synapse`, czyli z klona repo zdalnego.**
+w `8fc5fb1`). **Kontrakt bierz z kodu w `studio/graf/`, który pochodzi z repo zdalnego.**
 
 ## Zmiany wprowadzone w synapse (gałąź `feat/paczka-integration`)
 
@@ -41,7 +42,25 @@ emisja store'a to stan, nie nawigacja — jest teraz pomijana. Bez tej poprawki 
 soczewka grafu w studiu (S4.1), bo to właśnie fragmentem URL-a studio mówi, który węzeł
 zaznaczyć.
 
-**Osadzenie w studiu (S4.1).** `just studio-graf` buduje viewer z `--base=/graf/`
+## Gdzie mieszka kod grafu (2026-09-22)
+
+Źródła generatora i viewera są **w tym repo**, w `studio/graf/` — wciągnięte przez
+`git subtree` (1,5 MB, 153 pliki) z gałęzi `feat/paczka-integration`. Powód: graf jest
+przerobiony pod nas (schemat v2, typy węzłów, rodzaje krawędzi, czytelność przy 4 tysiącach
+węzłów, naprawiony deep link), a te zmiany żyły wyłącznie w lokalnym klonie i przepadłyby
+razem z nim.
+
+`organizer/vendor/synapse` zostaje jako **klon upstreamu** (dalej poza gitem) — służy
+tylko do synchronizacji:
+
+```bash
+# z korzenia paczka-tools
+git subtree pull --prefix=organizer/studio/graf --squash organizer/vendor/synapse feat/paczka-integration
+git subtree push --prefix=organizer/studio/graf organizer/vendor/synapse feat/paczka-integration
+# potem z klona: git -C organizer/vendor/synapse push origin feat/paczka-integration
+```
+
+**Osadzenie w studiu (S4.1).** `just studio-graf` buduje ze źródeł w `studio/graf/` viewer z `--base=/graf/`
 (assety pod prefiksem, `/graph.json` i `/vault/...` zostają bezwzględne — serwuje je
 backend studia prosto z `20_WORK`). Studio nie kopiuje vaulta do `public/`: notatki idą
 z `work` przez helper containmentu. Tłumaczenie `sha256` ↔ `id` notatki: `orglib/graph_link.py`,
@@ -101,15 +120,16 @@ just synapse --include-unassigned # razem z materiałem bez decyzji
 just vendor-check                 # nasz vault przez PRAWDZIWY generator + walidacja schematem
 
 just synapse-view                 # eksport + generator + notatki dla viewera, jedną komendą
-cd vendor/synapse/synapse-viewer && npm install && npm run dev
+cd studio/graf/synapse-viewer && npm install && npm run dev
 ```
 
 `just synapse-view` robi trzy rzeczy: eksportuje vault, przepuszcza go przez generator do
-`vendor/synapse/synapse-viewer/public/graph.json` i kopiuje same `.md` do `public/vault/`
+`studio/graf/synapse-viewer/public/graph.json` i kopiuje same `.md` do `public/vault/`
 — bez tej kopii panel szczegółów pokazuje sam wyciąg zamiast treści notatki.
 
 Uwaga: generowanie do `public/graph.json` nadpisuje ich przykładowy graf w klonie.
-To plik śledzony w tamtym repo — po zabawie `git -C vendor/synapse checkout -- synapse-viewer/public`.
+Te pliki są u nas **ignorowane** (`.gitignore`), więc tryb samodzielny niczego nie brudzi;
+studio czyta swój graf wyłącznie z `20_WORK/synapse/`.
 
 ## Zmierzone na realnych danych (2026-09-19)
 

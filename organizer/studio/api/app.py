@@ -37,12 +37,15 @@ from . import ORGANIZER_ROOT, database, planning, queries, runner
 #: `/` tłumaczy, co uruchomić — zamiast odpowiadać 404 bez wyjaśnienia.
 WEB_DIST: Path = ORGANIZER_ROOT / "studio" / "web" / "dist"
 
-#: Zbudowany viewer synapse (S4.1). Katalog `vendor/` jest poza gitem, więc jego
-#: brak to normalny stan świeżego klona — `/graf` tłumaczy wtedy, co uruchomić.
-VIEWER_DIST: Path = ORGANIZER_ROOT / "vendor" / "synapse" / "synapse-viewer" / "dist"
+#: Zbudowany viewer synapse (S4.1). Źródła są w repo (`studio/graf/`), ale `dist/`
+#: powstaje z builda, więc jego brak to normalny stan świeżego klona — `/graf`
+#: tłumaczy wtedy, co uruchomić.
+VIEWER_DIST: Path = ORGANIZER_ROOT / "studio" / "graf" / "synapse-viewer" / "dist"
 
-#: Artefakty generatora grafu: najpierw `work` (tam pisze `just studio-graf`),
-#: potem katalog viewera (tam pisze `just synapse-view` dla trybu samodzielnego).
+#: Artefakty generatora grafu. Szukamy ich WYŁĄCZNIE w `work`, gdzie pisze je
+#: `just studio-graf`. Vendorowany viewer ma w `public/` własny, przykładowy graf
+#: (17 kB, dane demo upstreamu) — gdyby był w łańcuchu awaryjnym, studio po cichu
+#: pokazywałoby cudzy graf zamiast powiedzieć, że naszego jeszcze nie ma.
 _GRAPH_ARTIFACTS = ("graph.json", "search-index.json")
 
 #: sha256 w ścieżce: 64 znaki hex. Wzorzec pilnuje, żeby do SQL nie trafiało
@@ -66,12 +69,11 @@ _GRAF_PLACEHOLDER = """<!doctype html>
 <html lang="pl"><meta charset="utf-8"><title>Graf — Paczka Studio</title>
 <body style="font:16px/1.6 system-ui;max-width:42rem;margin:4rem auto;padding:0 1rem">
 <h1>Graf nie jest zbudowany</h1>
-<p>Studio osadza <strong>zbudowany viewer synapse</strong> z <code>vendor/synapse</code>
-(katalog jest poza gitem, więc w świeżym klonie go nie ma).</p>
+<p>Studio osadza <strong>zbudowany viewer synapse</strong>. Źródła są w repo
+(<code>studio/graf/</code>), ale <code>dist/</code> powstaje z builda.</p>
 <pre><code>just studio-graf</code></pre>
 <p>Recepta eksportuje vault z indeksu, uruchamia generator i buduje viewer pod
-adres <code>/graf</code>. Wymaga klona <code>Billypl/synapse</code> w
-<code>vendor/synapse</code> i toolchainu .NET.</p>
+adres <code>/graf</code>. Wymaga toolchainu .NET (generator) i node (viewer).</p>
 </body></html>"""
 
 
@@ -553,19 +555,14 @@ def create_app(
 
     # --- S4.1: graf jako soczewka ----------------------------------------
     #
-    # Studio nie rysuje grafu drugi raz: serwuje ZBUDOWANY viewer z `vendor/synapse`
-    # i mówi mu, który węzeł zaznaczyć (`/graf#<id>`). Powrót działa w drugą stronę,
-    # bo viewer trzyma zaznaczenie w fragmencie URL-a, a iframe jest tego samego
-    # pochodzenia co studio — nie trzeba niczego zmieniać w cudzym repo.
+    # Studio nie rysuje grafu drugi raz: serwuje ZBUDOWANY viewer ze źródeł w
+    # `studio/graf/` i mówi mu, który węzeł zaznaczyć (`/graf#<id>`). Powrót działa
+    # w drugą stronę, bo viewer trzyma zaznaczenie w fragmencie URL-a, a iframe jest
+    # tego samego pochodzenia co studio — nie trzeba żadnego dodatkowego kanału.
 
     def graph_artifact(name: str) -> Path | None:
-        for candidate in (
-            resolved_paths.work / "synapse" / name,
-            VIEWER_DIST.parent / "public" / name,
-        ):
-            if candidate.is_file():
-                return candidate
-        return None
+        candidate = resolved_paths.work / "synapse" / name
+        return candidate if candidate.is_file() else None
 
     def vault_index() -> dict[str, list[str]]:
         """Mapa skrót sha → id notatek, przeliczana po zmianie vaulta."""

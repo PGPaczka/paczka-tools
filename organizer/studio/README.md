@@ -62,8 +62,9 @@ just studio --check
 nie zatrzymuje podprocesu przeładowywania uvicorna i po zamknięciu Vite zostawał
 osierocony serwer.
 
-`studio-graf` wymaga klona `Billypl/synapse` w `vendor/synapse` i toolchainu .NET.
-Buduje viewer z `--base=/graf/`, bo studio serwuje go pod tym prefiksem.
+`studio-graf` buduje z **kodu w tym repo** (`studio/graf/`): generator .NET robi
+`graph.json` w `20_WORK/synapse/`, a viewer powstaje z `--base=/graf/`, bo studio
+serwuje go pod tym prefiksem. Potrzebny toolchain .NET i node.
 
 ### Flagi launchera
 
@@ -217,8 +218,10 @@ planu** — widok mówi to wprost po zapisaniu.
 just studio-graf        # vault z indeksu → generator → viewer zbudowany pod /graf
 ```
 
-Zakładka **graf** osadza **zbudowany viewer synapse** z `vendor/synapse` (studio niczego
-nie rysuje po swojemu) i łączy się z nim w obie strony po tym samym identyfikatorze treści.
+Zakładka **graf** osadza **zbudowany viewer synapse** (studio niczego nie rysuje po
+swojemu) i łączy się z nim w obie strony po tym samym identyfikatorze treści. Źródła
+viewera i generatora są w repo: `studio/graf/` — wciągnięte jako `git subtree` z gałęzi
+`feat/paczka-integration` repo `Billypl/synapse`, bo są przerobione pod nas.
 
 ![Graf jako soczewka](docs/screens/10-graf.png)
 
@@ -231,8 +234,10 @@ Tłumaczenie `sha256` ↔ `id` notatki stoi na kontrakcie vaulta: id notatki pli
 studio **pokazuje kandydatów zamiast wybierać**. Notatki serwuje samo studio
 (`/vault/...`) prosto z `20_WORK/synapse/vault`, przez ten sam helper containmentu co podgląd.
 
-Katalog `vendor/` jest poza gitem, więc w świeżym klonie grafu nie ma — zakładka mówi
-wtedy, co uruchomić, zamiast pokazywać pustą ramkę.
+`dist/` powstaje z builda i jest poza gitem, więc w świeżym klonie grafu jeszcze nie ma —
+zakładka mówi wtedy, co uruchomić, zamiast pokazywać pustą ramkę. Dane grafu studio czyta
+**wyłącznie** z `20_WORK/synapse/`: przykładowy `graph.json` upstreamu nie jest ścieżką
+awaryjną, bo cichy cudzy graf byłby gorszy niż komunikat „zbuduj”.
 
 ### Historia
 

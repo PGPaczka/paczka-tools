@@ -2,3 +2,8 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Artefakty buildu vendorowanego grafu (studio/graf): dane grafu dla studia
+# powstają w 20_WORK/synapse, a te pliki nadpisuje tryb samodzielny `just synapse-view`.
+studio/graf/synapse-viewer/public/graph.json
+studio/graf/synapse-viewer/public/search-index.json

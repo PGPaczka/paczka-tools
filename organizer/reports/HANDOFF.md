@@ -3,13 +3,15 @@
 ## Kontekst ręczny
 
 - **B10 (`apply`) i B11 (`verify`) zrobione 2026-09-22 — materiałów nadal nikt nie ruszał.** `just subject-apply SEM SKROT` jest domyślnie DRY-RUN; kopiuje dopiero z `--yes`, a `--expect-hash` przypina wykonanie do zaakceptowanego odcisku planu. Bramka B8 jest wykonywana ponownie w `apply` tym samym kodem (`orglib/plan_gate.py` wydzielone z `validate_plan.py`), więc uruchomienie walidatora wcześniej niczego nie „odblokowuje”. Kolizja treści pod ścieżką docelową zatrzymuje CAŁY przebieg, brak pliku źródłowego też; ta sama treść na miejscu to „już jest”. `apply` **nie commituje** — commit należy do człowieka po zielonym `verify`. Dry-run na realnym planie AKO: 2519 pozycji → 1497 do skopiowania, 0 kolizji, 0 brakujących źródeł, 2,1 s; bramka gałęzi odmówiła na żywo, bo repo docelowe stoi na `fix/nazwy-katalogow-przedmiotow`, a nie na `subject/AKO`.
+- **Kod grafu wjechał do repo: `organizer/studio/graf/`** (2026-09-22, decyzja użytkownika). Generator .NET + viewer Svelte wciągnięte przez `git subtree --squash` z gałęzi `feat/paczka-integration` klona synapse: 1,5 MB, 153 pliki. Powód: te zmiany żyły wyłącznie w lokalnym klonie i przepadłyby razem z nim, a `just studio-graf` wymagał cudzego repo obok. Przestawione: `just studio-graf`, `just synapse-view`, `vendor-check`, `VIEWER_DIST` w studiu i `tests/test_synapse_vendor_contract.py`. **`vendor/synapse` zostaje jako klon upstreamu** (dalej poza gitem) wyłącznie do synchronizacji: `git subtree pull/push --prefix=organizer/studio/graf organizer/vendor/synapse feat/paczka-integration`, a potem push z klona do `Billypl/synapse`.
+- Przy przeprowadzce domknięta cicha ścieżka: studio czyta dane grafu **wyłącznie** z `20_WORK/synapse/`. Wcześniej miało fallback na `public/graph.json` viewera — a vendorowany viewer ma tam własny, 17-kilobajtowy graf demo, więc brak naszego grafu skończyłby się pokazaniem cudzych danych zamiast komunikatu „zbuduj graf”. Artefakty `public/{graph,search-index}.json` są u nas ignorowane.
 - **Przewodnik studia z obrazkami: `studio/README.md`** (2026-09-22) — zrzut każdego widoku w `studio/docs/screens/`, flagi launchera, recepty, zmienne środowiskowe i pełne API z parametrami. Zrzuty robione na KOPII prawdziwego indeksu (`--db`), żeby decyzja pokazowa nie dotknęła roboczej bazy; stąd `scratchpad/demo.sqlite` w nagłówku na obrazkach.
 - **Robienie zrzutów wykryło błąd, którego nie widziały testy:** diff klastra (S2.3) **nigdy nie pokazywał tekstu na realnych danych** — `_read_text_head` w `studio/api/queries.py` sklejał `content.extracted_text_path` wprost, zamiast rozwiązywać go względem `work`, a jedyny test wpisywał ścieżkę bezwzględną. To ta sama wpadka co w podglądzie (S1.3), w drugim miejscu. Obie drogi idą teraz przez `orglib.preview.text_head`. **Wniosek: zrzut ekranu na realnych danych jest tanim testem** — pokazuje to, czego kontrakt nie sprawdza, bo „pole jest, tylko puste”.
 - **S3 zrobione 2026-09-22 — studio domyka cały plan z `studio/PLAN.md`.** Zakładka **plan** (klawisz `p`): nagłówek planu z odciskiem, wynik bramki (`plan_gate.evaluate` — ten sam kod co `validate_plan`), diff wykonania (`plan_apply.plan_operations` — ten sam silnik co `apply`), drzewo docelowe ze stanem per plik, lista „bez miejsca”, „przenieś tu” z blokadą przy kolizji nazwy oraz uruchamianie etapów jako **podproces CLI** z logiem na żywo (SSE) i kodem wyjścia. **Bramka jest po stronie serwera**: `apply` przy planie odrzuconym to 409 i żaden podproces nie startuje; zgoda niesie `plan_hash`, więc dotyczy konkretnego planu. Mutacja `studio-apply-gate.yaml`.
 - Dwie pułapki z S3, obie tej samej klasy co wcześniejsze: (a) `runner` budował ścieżkę `scripts/` z `config.ORGANIZER_ROOT`, czyli ze stałej, którą testy przestawiają — **zasoby repo liczy się ze ścieżki modułu**; (b) nie każdy etap przyjmuje te same flagi (`review_report.py` nie zna `--db` ani `--plan`), więc argv trzeba konfrontować z PRAWDZIWYMI parserami, co robi teraz `test_every_stage_flag_is_accepted_by_the_real_script`.
 - **Nowe: `PACZKA_CONFIG_DIR`** wskazuje inny katalog konfiguracji niż repo. Powstało, bo etapu uruchamianego jako podproces nie da się monkeypatchować, a test chodzący po prawdziwym `paths.yaml` chodziłby po prawdziwych materiałach. Przydaje się też do wskazania innego workspace'u.
 - **S4.1 zrobione 2026-09-22: graf jest soczewką studia.** `just studio-graf` (vault → generator → `vite build --base=/graf/`), zakładka **graf** (klawisz `g`) osadza zbudowany viewer, backend serwuje `/graf`, `/graph.json` i `/vault/...` prosto z `work`. Działa w obie strony: wybrany przedmiot otwiera graf na swoim węźle, a kliknięty węzeł pliku wraca do studia jako konkretna treść z przyciskiem „otwórz przedmiot”. Tłumaczenie `sha256` ↔ `id` notatki: `orglib/graph_link.py` po kontrakcie `synapse_vault.ID_SHA_PREFIX`; wieloznaczny skrót pokazuje kandydatów, nie zgaduje.
-- **Przy S4.1 naprawiony CUDZY błąd w viewerze** (`vendor/synapse`, gałąź `feat/paczka-integration`, commit `f84d116`, **lokalnie, niepushowane**): deep link `/#<id>` nie działał w ogóle — pierwsza, pusta emisja `selectedId.subscribe` czyściła hash, zanim `onMount` zdążył go przeczytać. Bez tego soczewka nie mogła działać. Jeśli klon zniknie, ta poprawka przepada razem z resztą gałęzi.
+- **Przy S4.1 naprawiony błąd w viewerze** (commit `f84d116` na gałęzi `feat/paczka-integration`; od 2026-09-22 ten kod jest też w repo, w `studio/graf/`, więc już nie zginie z klonem — do `Billypl/synapse` nadal niepushowany): deep link `/#<id>` nie działał w ogóle — pierwsza, pusta emisja `selectedId.subscribe` czyściła hash, zanim `onMount` zdążył go przeczytać. Bez tego soczewka nie mogła działać.
 - Pułapka warta zapamiętania z S4.1: **klient HTTP normalizuje `..` w adresie, zanim żądanie wyjdzie** — test containmentu `/vault/../..` przechodził przy WYŁĄCZONEJ bramce. Ścieżki wyjścia trzeba w teście kodować (`%2e%2e`), inaczej dowodzi się zachowania httpx, a nie serwera. Mutacja `studio-vault-containment.yaml` tego pilnuje.
 - **Znane ograniczenie grafu (nie nasze):** przy 4 317 węzłach viewer otwiera widok tak oddalony, że węzły są pyłkami — identycznie w studiu i poza nim, więc to renderer, nie osadzenie. Do rozstrzygnięcia przy kolejnej pracy nad C3.
 - **Studio: cały plan z `studio/PLAN.md` domknięty — S0, S1, S2, S3 i S4.** Następny krok podprojektu to nie kolejna faza, tylko **pilotaż AKO (D1) przeprowadzony z tego widoku**: to on pokaże, czego brakuje naprawdę. Stan i uzasadnienia: `studio/TODO-studio.md`. Uruchamianie: `just studio` (zbudowany front), `just studio-dev` (backend `--reload` + Vite), `just studio --check` (preflight bez zajmowania portu). Serwer stoi wyłącznie na pętli zwrotnej — adres spoza niej to odmowa startu z kodem 2, z własną mutacją.
@@ -78,19 +80,25 @@
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-09-22T10:30:14+02:00
+- Odświeżono: 2026-09-22T10:55:22+02:00
 - Branch: `master`
-- Commit: `02342f2`
+- Commit: `bf1a651`
 - Git status:
   ```text
-  M studio/README.md
+  M .gitignore
+   M README.md
+   M docs/SYNAPSE.md
+   M justfile
+   M reports/HANDOFF.md
+   M studio/AGENTS.md
+   M studio/PLAN.md
+   M studio/README.md
    M studio/TODO-studio.md
    M studio/api/app.py
-   M studio/api/queries.py
-   M studio/web/src/components/ClusterPanel.svelte
-   M tests/mutations/studio-preview-containment.yaml
-   M tests/test_studio_clusters.py
-  ?? studio/docs/
+  D  studio/graf/synapse-viewer/public/graph.json
+  D  studio/graf/synapse-viewer/public/search-index.json
+   M tests/test_synapse_vault.py
+   M tests/test_synapse_vendor_contract.py
   ```
 - Pierwsze otwarte TODO: - [ ] B12. `scripts/provenance.py` — `reports/provenance.jsonl` + README per przedmiot do `paczka_meta/` + `00_SOURCES/linki.txt` z `source_packages`
 <!-- END AUTO -->

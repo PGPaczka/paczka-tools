@@ -131,6 +131,11 @@ sąsiednią kolumnę (przycięte).
 Wniosek na przyszłość: **zrzut ekranu na realnych danych jest tanim testem** — pokazuje
 to, czego kontrakt nie sprawdza, bo „pole jest, tylko puste”.
 
+## Kod grafu w repo (2026-09-22)
+
+- [x] Źródła synapse (generator .NET + viewer) wciągnięte jako `git subtree` do `studio/graf/` — decyzja użytkownika: skoro graf jest przerobiony pod nas, ma być wersjonowany z nami, a nie tylko w lokalnym klonie. 1,5 MB, 153 pliki; `just studio-graf`, `just synapse-view`, `VIEWER_DIST` i test kontraktu generatora przestawione na nową ścieżkę; `vendor/synapse` zostaje wyłącznie jako klon upstreamu do `git subtree pull/push`.
+- [x] Przy okazji domknięta cicha ścieżka: studio czyta dane grafu **wyłącznie** z `20_WORK/synapse/`. Wcześniej miało fallback na `public/graph.json` viewera — a vendorowany viewer ma tam własny, 17-kilobajtowy graf demo, więc brak naszego grafu skończyłby się pokazaniem cudzych danych zamiast komunikatu „zbuduj graf”.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

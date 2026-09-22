@@ -26,8 +26,12 @@ decyzji: `PLAN.md`. Stan prac: `TODO-studio.md` (odhaczaj tam, nie w `organizer/
 6. **Bramka przed `apply` zostaje bramką.** Kod wyjścia 2 z `validate_plan`
    unieruchamia zapis **po stronie serwera**; ukrycie przycisku w interfejsie nie
    jest zabezpieczeniem. Potwierdzenie człowieka dotyczy konkretnego planu.
-7. **Nie dublujemy synapse.** Graf zostaje w `vendor/synapse`; studio go osadza
-   i linkuje po identyfikatorze treści.
+7. **Nie dublujemy synapse.** Źródła grafu (generator .NET + viewer) leżą od
+   2026-09-22 w repo, w `studio/graf/` (wciągnięte jako `git subtree` z gałęzi
+   `feat/paczka-integration`). Studio osadza **zbudowany** viewer i linkuje po
+   identyfikatorze treści — nie rysuje grafu po swojemu i nie kopiuje jego kodu
+   do `studio/web`. Zmiany w grafie rób w `studio/graf/`; upstream (`Billypl/synapse`)
+   synchronizuje się przez `git subtree pull/push`.
 8. **Baza jest współdzielona z CLI.** Sprawdzaj `schema_version` przy starcie, używaj
    WAL i pokaż czytelny komunikat, gdy zapis trzyma inny proces.
 9. **Błąd, którego nie złapały testy, najpierw dostaje czerwony test** — reguła

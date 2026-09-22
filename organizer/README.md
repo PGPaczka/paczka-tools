@@ -314,8 +314,9 @@ just vendor-check    # nasz vault przez PRAWDZIWY generator + walidacja ich sche
 `scripts/synapse_export.py` pisze notatki `.md`, w których **relacje mają rodzaj**
 (`belongs_to`, `near_duplicate`, `older_version`) i pewność z etapu B6 — dzięki czemu graf
 pokazuje nie tylko, ŻE materiały są powiązane, ale CZYM. Kontrakt (w tym zmiany wprowadzone
-w samym synapse) opisuje `docs/SYNAPSE.md`; klon narzędzia leży w `vendor/synapse` i nie
-wchodzi do tego repo.
+w samym synapse) opisuje `docs/SYNAPSE.md`. Źródła generatora i viewera są **w tym repo**,
+w `studio/graf/` (wciągnięte `git subtree` z `Billypl/synapse`), bo są przerobione pod nas;
+`vendor/synapse` zostaje wyłącznie jako klon upstreamu do synchronizacji i nie wchodzi do repo.
 
 `scripts/status_report.py` liczy stan całości z indeksu: ile treści jest już
 w paczce (ground truth), ile ma plan, ile czeka na obejrzenie i czego nikt jeszcze
@@ -443,6 +444,7 @@ paczka-tools/organizer/          # ← tu odpalasz `just claude` lub `just codex
 ├── prompts/                     # prompty AI (classify_ambiguous, relate_cluster)
 ├── scripts/                     # etapy pipeline (Python)
 ├── studio/                      # lokalny warsztat nad indeksem: api/ (FastAPI) + web/ (Svelte)
+│   └── graf/                    #   źródła synapse (generator .NET + viewer) — git subtree
 ├── reports/                     # SOURCES_TREE.md, inventory, plany, handoff (w gicie)
 │   └── bootstrap/               # historyczne raporty wstępne
 └── setup/                       # install.sh, PLUGINS.md, requirements.txt, statusline.sh

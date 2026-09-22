@@ -138,23 +138,24 @@ subject-review semester skrot *args:
 synapse *args:
     {{ python }} scripts/synapse_export.py {{ args }}
 
-# C3: nasz vault przepuszczony przez PRAWDZIWY generator z vendor/synapse.
+# C3: nasz vault przepuszczony przez PRAWDZIWY generator (studio/graf).
 vendor-check *args:
     {{ python }} -m pytest -m vendor {{ args }}
 
-# C3: eksport + generator + notatki dla viewera. graph.json i search-index.json
-# w vendor/synapse to ARTEFAKTY BUILDU - nie commituj ich w tamtym repo.
+# C3: eksport + generator + notatki dla viewera (tryb samodzielny, bez studia).
+# graph.json, search-index.json i public/vault/ w studio/graf to ARTEFAKTY BUILDU —
+# ignorowane w gicie; nasze dane grafu dla studia idą do 20_WORK/synapse/.
 synapse-view *args:
     {{ python }} scripts/synapse_export.py {{ args }}
-    dotnet run --project vendor/synapse/Synapse.Generator/Synapse.Generator \
+    dotnet run --project studio/graf/Synapse.Generator/Synapse.Generator \
       -c Release --nologo -- \
       --vault ../../20_WORK/synapse/vault \
-      --out vendor/synapse/synapse-viewer/public/graph.json \
+      --out studio/graf/synapse-viewer/public/graph.json \
       --no-git
     rsync -a --delete --prune-empty-dirs \
       --include='*/' --include='*.md' --exclude='*' \
-      ../../20_WORK/synapse/vault/ vendor/synapse/synapse-viewer/public/vault/
-    @echo "podglad: cd vendor/synapse/synapse-viewer && npm run dev"
+      ../../20_WORK/synapse/vault/ studio/graf/synapse-viewer/public/vault/
+    @echo "podglad: cd studio/graf/synapse-viewer && npm run dev"
 
 # E3: przedmioty x etapy liczone z indeksu -> reports/STATUS.md.
 status *args:
@@ -189,18 +190,19 @@ studio-seed *args:
     {{ python }} -m studio.seed_demo {{ args }}
 
 # S4.1: graf jako soczewka studia — vault z indeksu, generator, viewer pod /graf.
+# Źródła grafu (generator .NET + viewer Svelte) są w repo: `studio/graf/`.
 # Viewer budujemy z `--base=/graf/`, bo studio serwuje go pod tym prefiksem;
 # `/graph.json` i `/vault/...` zostają bezwzględne i wystawia je backend studia.
-# Wymaga klona Billypl/synapse w vendor/synapse i toolchainu .NET.
+# Wymaga toolchainu .NET (generator) i node (viewer).
 studio-graf *args:
     {{ python }} scripts/synapse_export.py {{ args }}
-    dotnet run --project vendor/synapse/Synapse.Generator/Synapse.Generator \
+    dotnet run --project studio/graf/Synapse.Generator/Synapse.Generator \
       -c Release --nologo -- \
       --vault ../../20_WORK/synapse/vault \
       --out ../../20_WORK/synapse/graph.json \
       --no-git
-    [ -d vendor/synapse/synapse-viewer/node_modules ] || npm --prefix vendor/synapse/synapse-viewer install
-    npm --prefix vendor/synapse/synapse-viewer run build -- --base=/graf/
+    [ -d studio/graf/synapse-viewer/node_modules ] || npm --prefix studio/graf/synapse-viewer install
+    npm --prefix studio/graf/synapse-viewer run build -- --base=/graf/
     @echo "graf gotowy: http://127.0.0.1:8765/graf/ (albo zakładka „graf” w studiu)"
 
 # Front do postaci, którą serwuje `just studio`.

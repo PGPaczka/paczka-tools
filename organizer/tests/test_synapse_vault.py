@@ -1,6 +1,6 @@
 """C3: model vaulta dla synapse. Czysta logika — bez bazy, plików i generatora.
 
-Testy pilnują kontraktu CUDZEGO narzędzia (`vendor/synapse`), więc wartości, od których
+Testy pilnują kontraktu narzędzia grafu (`studio/graf`), więc wartości, od których
 on zależy, są tu wypisane wprost: dozwolone statusy, `id` będące nazwą pliku, kształt
 `relations:` we front matterze. Złamanie ich nie wywala niczego u nas — psuje graf.
 """
