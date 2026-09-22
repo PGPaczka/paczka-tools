@@ -212,10 +212,14 @@ def create_app(
     def get_preview_image(
         sha256: str = PathParam(pattern=SHA256_PATTERN),
         page: int = Query(1, ge=1, le=9999, description="Strona PDF (1 = pierwsza)."),
+        width: Optional[int] = Query(
+            None, ge=80, le=2000,
+            description="Szerokość w pikselach: siatka prosi o małe, porównanie o duże.",
+        ),
         conn: sqlite3.Connection = Depends(get_conn),
     ) -> Response:
-        """Strona PDF jako PNG albo miniatura obrazu — wyłącznie z plików z indeksu."""
-        rendered = queries.preview_image(conn, sha256, resolved_paths, page=page)
+        """Strona PDF jako PNG albo obraz — wyłącznie z plików z indeksu."""
+        rendered = queries.preview_image(conn, sha256, resolved_paths, page=page, width=width)
         if rendered is None:
             raise HTTPException(
                 status_code=404, detail=f"brak podglądu dla {sha256} (nie ma kopii na dysku?)"

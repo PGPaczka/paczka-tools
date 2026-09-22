@@ -166,6 +166,29 @@ def test_preview_serves_an_image_content_as_a_picture(client) -> None:
     assert response.headers["content-type"].startswith("image/")
 
 
+def test_the_view_can_ask_for_a_smaller_picture(client) -> None:
+    """Siatka klastra pokazuje kilkanaście kart naraz — pełnowymiarowe rendery byłyby
+    marnotrawstwem, a na telefonie karą. Stąd `width` przy podglądzie."""
+    import io
+
+    from PIL import Image
+
+    small = client.get(f"/api/preview/{SHA['b']}/image", params={"width": 120})
+    big = client.get(f"/api/preview/{SHA['b']}/image", params={"width": 600})
+
+    assert small.status_code == 200 and big.status_code == 200
+    with Image.open(io.BytesIO(small.content)) as image:
+        assert image.width == 40, "obraz 40 px nie jest rozciągany w górę"
+    page = client.get(f"/api/preview/{SHA['a']}/image", params={"width": 200})
+    with Image.open(io.BytesIO(page.content)) as image:
+        assert image.width == 200, "strona PDF ma być renderowana w żądanej szerokości"
+
+
+def test_an_absurd_width_is_refused_not_rendered(client) -> None:
+    assert client.get(f"/api/preview/{SHA['a']}/image", params={"width": 99999}).status_code == 422
+    assert client.get(f"/api/preview/{SHA['a']}/image", params={"width": 1}).status_code == 422
+
+
 def test_preview_image_is_404_when_no_copy_is_on_disk(client) -> None:
     assert client.get(f"/api/preview/{SHA['c']}/image").status_code == 404
 

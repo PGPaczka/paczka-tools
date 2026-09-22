@@ -152,15 +152,16 @@ implementacji). Nagłówek mówi, ile treści liczy klaster, jakiego jest rodzaj
 
 ![Lista klastrów](docs/screens/05-klastry.png)
 
-Rozwinięty klaster to siatka kart (sha, nazwa, rodzaj, rozmiar, pewność, akcja) i lista
-relacji z **metodą wykrycia** — `simhash, odległość 0`, `phash, odległość 8; rok 2020 vs 2021`,
+Rozwinięty klaster to siatka kart z **miniaturą** (zdjęcie, skan, pierwsza strona PDF),
+nazwą, rodzajem, rozmiarem i pewnością oraz lista relacji z **metodą wykrycia** — `simhash, odległość 0`, `phash, odległość 8; rok 2020 vs 2021`,
 `ten sam tekst po normalizacji`. Kliknięcie karty wskazuje wersję kanoniczną; reszta
 dostaje `skip` albo relację `older_version`.
 
 ![Rozwinięty klaster](docs/screens/06-klastry-karta.png)
 
-`diff tekstu` pokazuje dwie głowy tekstu obok siebie — po to, żeby „która wersja jest
-nowsza” dało się rozstrzygnąć bez otwierania plików.
+Porównanie pary pokazuje obie treści obok siebie: **dwa obrazy** dla zdjęć i skanów,
+dwie głowy tekstu dla dokumentów — po to, żeby „która wersja jest nowsza” (albo „czy to
+w ogóle ten sam materiał”) dało się rozstrzygnąć bez otwierania plików.
 
 ![Diff tekstu side-by-side](docs/screens/06b-klastry-diff.png)
 
@@ -314,7 +315,7 @@ Wszystko pod `http://127.0.0.1:8765`. Parametry opcjonalne oznaczone `?`.
 | `GET /api/items` | `semester? skrot? category? action? status? kind? needs_review? classified? confidence_min? confidence_max? include_ground_truth?=false limit?=50 offset?=0` | treści po filtrach |
 | `GET /api/items/{sha256}` | — | decyzja, wszystkie kopie, relacje, plan, ślad `apply` |
 | `GET /api/preview/{sha256}` | — | głowa tekstu, rodzaj podglądu, liczba stron |
-| `GET /api/preview/{sha256}/image` | `page?=1` | strona PDF jako PNG albo miniatura obrazu |
+| `GET /api/preview/{sha256}/image` | `page?=1 width?` | strona PDF jako PNG albo obraz; `width` (80–2000) dla siatek i porównań |
 | `GET /api/queue` | `semester? skrot? limit?=1` | kolejka decyzji |
 | `GET /api/clusters` | `semester? skrot? noise?` | klastry near-dupe |
 | `GET /api/clusters/diff` | `left right` | dwie treści obok siebie + relacja |

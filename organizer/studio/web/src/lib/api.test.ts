@@ -30,6 +30,12 @@ describe('subjectUrl', () => {
 });
 
 describe('previewImageUrl', () => {
+  it('prosi o konkretną szerokość, gdy widok jej potrzebuje', () => {
+    expect(previewImageUrl('c'.repeat(64), 1, 240)).toBe(
+      `/api/preview/${'c'.repeat(64)}/image?page=1&width=240`,
+    );
+  });
+
   it('adresuje stronę podglądu po treści, nie po ścieżce pliku', () => {
     expect(previewImageUrl('a'.repeat(64))).toBe(`/api/preview/${'a'.repeat(64)}/image?page=1`);
     expect(previewImageUrl('b'.repeat(64), 3)).toBe(`/api/preview/${'b'.repeat(64)}/image?page=3`);

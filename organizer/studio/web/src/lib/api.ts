@@ -256,9 +256,15 @@ export interface Preview {
   ocr_done: boolean;
 }
 
-/** Adres obrazka podglądu (strona PDF albo miniatura). Przeglądarka pobiera go sama. */
-export function previewImageUrl(sha256: string, page = 1): string {
-  return `/api/preview/${sha256}/image?page=${page}`;
+/**
+ * Adres obrazka podglądu (strona PDF albo obraz). Przeglądarka pobiera go sama.
+ *
+ * `width` podaje się tam, gdzie rozmiar ma znaczenie: siatka klastra prosi o małe
+ * miniatury (kilkanaście naraz), a porównanie dwóch zdjęć o coś, na czym widać różnicę.
+ */
+export function previewImageUrl(sha256: string, page = 1, width?: number): string {
+  const size = width ? `&width=${width}` : '';
+  return `/api/preview/${sha256}/image?page=${page}${size}`;
 }
 
 export interface FolderItems {

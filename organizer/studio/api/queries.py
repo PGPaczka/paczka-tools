@@ -744,7 +744,12 @@ def preview(
 
 
 def preview_image(
-    conn: sqlite3.Connection, sha256: str, paths: config.Paths, *, page: int = 1
+    conn: sqlite3.Connection,
+    sha256: str,
+    paths: config.Paths,
+    *,
+    page: int = 1,
+    width: int | None = None,
 ) -> tuple[bytes, str] | None:
     """Bajty obrazu podglądu i jego typ MIME; ``None``, gdy nie ma czego pokazać.
 
@@ -762,14 +767,21 @@ def preview_image(
     if source is None:
         return None
     if kind in preview_lib.PAGE_KINDS:
-        payload = preview_lib.render_pdf_page(source, page=page)
+        payload = preview_lib.render_pdf_page(
+            source, page=page, width=width or preview_lib.PAGE_WIDTH
+        )
         return (payload, "image/png") if payload else None
     if kind in preview_lib.IMAGE_KINDS:
-        cached = preview_lib.thumbnail(paths, sha256, source)
-        if cached is None:
-            return None
-        try:
-            return cached.read_bytes(), "image/jpeg"
-        except OSError:
-            return None
+        # Domyślna szerokość idzie z cache (jedna miniatura na treść, liczona raz);
+        # każda inna jest renderowana na bieżąco, bo cache ma ustalony rozmiar.
+        if width is None or width == preview_lib.THUMBNAIL_SIZE[0]:
+            cached = preview_lib.thumbnail(paths, sha256, source)
+            if cached is None:
+                return None
+            try:
+                return cached.read_bytes(), "image/jpeg"
+            except OSError:
+                return None
+        payload = preview_lib.render_image(source, width)
+        return (payload, "image/jpeg") if payload else None
     return None

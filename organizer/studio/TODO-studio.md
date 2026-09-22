@@ -59,8 +59,8 @@ którego potok nie produkuje, jest gorszy niż brak testu** — daje spokój i u
 ## S2. Porównywarka klastrów
 
 - [x] S2.1 `/api/clusters` — klastry near-dupe (union-find z `orglib/review.py`, bez drugiej implementacji) — 2026-09-19; GET /api/clusters z filtrami semester/skrot/noise
-- [x] S2.2 Widok klastra: siatka kart z miniaturą i metadanymi, wskazanie wersji kanonicznej — 2026-09-19; ClusterPanel.svelte z rozwijalnymi kartami i wyborem kanonicznej
-- [x] S2.3 Diff tekstu side-by-side i dwie miniatury obok siebie (przeniesione z `review.py`, nie napisane od nowa) — 2026-09-19; inline diff per relacja, side-by-side text w `<pre>` blokach
+- [x] S2.2 Widok klastra: siatka kart z miniaturą i metadanymi, wskazanie wersji kanonicznej — 2026-09-19 karty i wybór kanonicznej, **2026-09-22 miniatury** (wcześniej karty pokazywały same metadane, mimo odhaczenia)
+- [x] S2.3 Diff tekstu side-by-side i dwie miniatury obok siebie — 2026-09-19 tekst, **2026-09-22 obrazy** (obie strony jako podgląd, gdy treść jest zdjęciem/PDF-em); podgląd prosi o konkretną szerokość, więc siatka bierze małe miniatury, a porównanie duże
 - [x] S2.4 Zapis rozstrzygnięcia klastra: kanoniczna zostaje, reszta `skip` / `older_version` — 2026-09-19; POST /api/clusters/resolve; decision_type='skip' (nie 'classify' z 'skip' action — to dawało 422)
 - [x] S2.5 Filtr szumu (wzorce nazw, np. `*.vcxproj.xml`) — konfigurowalny, nie zaszyty w kodzie — 2026-09-19; fnmatch patterns z config/thresholds.yaml + query param; merge obu źródeł
 - [x] S2.6 Testy: rozstrzygnięcie klastra nie kasuje niczego w bazie, tylko dopisuje decyzje i relacje — 2026-09-19; 19 testów w test_studio_clusters.py
@@ -130,6 +130,15 @@ sąsiednią kolumnę (przycięte).
 
 Wniosek na przyszłość: **zrzut ekranu na realnych danych jest tanim testem** — pokazuje
 to, czego kontrakt nie sprawdza, bo „pole jest, tylko puste”.
+
+**Czego nie przewidywał plan (S2.2/S2.3):** obie pozycje były odhaczone, a w klastrach
+**nie było widać ani jednego obrazka** — `ClusterPanel` nigdy nie wołał podglądu, mimo że
+endpoint istniał od S1.3. Zgłosił to użytkownik, testując na telefonie: „średnio mogę
+stwierdzić, czy zdjęcie jest duplikatem, jeśli go nie widzę”. Trzecia w tym projekcie
+pozycja odhaczona przed czasem (po S1.3 i diffie tekstowym) — wszystkie trzy dotyczyły
+**podglądu**, czyli tego, po co to narzędzie w ogóle powstało. Przy okazji podgląd przyjmuje
+teraz `width`: siatka bierze miniatury 240 px, porównanie 700 px, a pełny render został dla
+kolejki decyzji.
 
 ## Kod grafu w repo (2026-09-22)
 

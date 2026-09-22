@@ -3,6 +3,8 @@
 ## Kontekst ręczny
 
 - **B10 (`apply`) i B11 (`verify`) zrobione 2026-09-22 — materiałów nadal nikt nie ruszał.** `just subject-apply SEM SKROT` jest domyślnie DRY-RUN; kopiuje dopiero z `--yes`, a `--expect-hash` przypina wykonanie do zaakceptowanego odcisku planu. Bramka B8 jest wykonywana ponownie w `apply` tym samym kodem (`orglib/plan_gate.py` wydzielone z `validate_plan.py`), więc uruchomienie walidatora wcześniej niczego nie „odblokowuje”. Kolizja treści pod ścieżką docelową zatrzymuje CAŁY przebieg, brak pliku źródłowego też; ta sama treść na miejscu to „już jest”. `apply` **nie commituje** — commit należy do człowieka po zielonym `verify`. Dry-run na realnym planie AKO: 2519 pozycji → 1497 do skopiowania, 0 kolizji, 0 brakujących źródeł, 2,1 s; bramka gałęzi odmówiła na żywo, bo repo docelowe stoi na `fix/nazwy-katalogow-przedmiotow`, a nie na `subject/AKO`.
+- **Miniatury w klastrach (S2.2/S2.3) dorobione 2026-09-22 — zgłoszone przez użytkownika z telefonu.** Obie pozycje były odhaczone, a `ClusterPanel` nigdy nie wołał podglądu: karty pokazywały same metadane, więc „czy to zdjęcie jest duplikatem” nie dało się rozstrzygnąć okiem. Teraz siatka ma miniatury (240 px), a porównanie pary pokazuje **dwa obrazy obok siebie** (700 px) albo dwie głowy tekstu. Podgląd przyjmuje `width` (80–2000): jeden endpoint obsługuje siatkę, porównanie i kolejkę decyzji, bez trzeciego renderera.
+- **To była TRZECIA pozycja odhaczona przed czasem i wszystkie trzy dotyczyły podglądu** (S1.3, diff tekstu, miniatury klastrów) — czyli dokładnie tego, po co studio powstało. Wniosek na przyszłość: przy odhaczaniu widoku sprawdź, czy komponent NAPRAWDĘ woła endpoint, a nie tylko czy endpoint istnieje. `grep -c` po nazwie funkcji API w komponencie kosztuje sekundę.
 - **Kod grafu wjechał do repo: `organizer/studio/graf/`** (2026-09-22, decyzja użytkownika). Generator .NET + viewer Svelte wciągnięte przez `git subtree --squash` z gałęzi `feat/paczka-integration` klona synapse: 1,5 MB, 153 pliki. Powód: te zmiany żyły wyłącznie w lokalnym klonie i przepadłyby razem z nim, a `just studio-graf` wymagał cudzego repo obok. Przestawione: `just studio-graf`, `just synapse-view`, `vendor-check`, `VIEWER_DIST` w studiu i `tests/test_synapse_vendor_contract.py`. **`vendor/synapse` zostaje jako klon upstreamu** (dalej poza gitem) wyłącznie do synchronizacji: `git subtree pull/push --prefix=organizer/studio/graf organizer/vendor/synapse feat/paczka-integration`, a potem push z klona do `Billypl/synapse`.
 - Przy przeprowadzce domknięta cicha ścieżka: studio czyta dane grafu **wyłącznie** z `20_WORK/synapse/`. Wcześniej miało fallback na `public/graph.json` viewera — a vendorowany viewer ma tam własny, 17-kilobajtowy graf demo, więc brak naszego grafu skończyłby się pokazaniem cudzych danych zamiast komunikatu „zbuduj graf”. Artefakty `public/{graph,search-index}.json` są u nas ignorowane.
 - **Przewodnik studia z obrazkami: `studio/README.md`** (2026-09-22) — zrzut każdego widoku w `studio/docs/screens/`, flagi launchera, recepty, zmienne środowiskowe i pełne API z parametrami. Zrzuty robione na KOPII prawdziwego indeksu (`--db`), żeby decyzja pokazowa nie dotknęła roboczej bazy; stąd `scratchpad/demo.sqlite` w nagłówku na obrazkach.
@@ -80,25 +82,21 @@
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-09-22T10:55:22+02:00
+- Odświeżono: 2026-09-22T23:18:16+02:00
 - Branch: `master`
-- Commit: `bf1a651`
+- Commit: `ce3d933`
 - Git status:
   ```text
-  M .gitignore
-   M README.md
-   M docs/SYNAPSE.md
-   M justfile
-   M reports/HANDOFF.md
-   M studio/AGENTS.md
-   M studio/PLAN.md
+  M scripts/orglib/preview.py
    M studio/README.md
    M studio/TODO-studio.md
    M studio/api/app.py
-  D  studio/graf/synapse-viewer/public/graph.json
-  D  studio/graf/synapse-viewer/public/search-index.json
-   M tests/test_synapse_vault.py
-   M tests/test_synapse_vendor_contract.py
+   M studio/api/queries.py
+   M studio/docs/screens/06-klastry-karta.png
+   M studio/web/src/components/ClusterPanel.svelte
+   M studio/web/src/lib/api.test.ts
+   M studio/web/src/lib/api.ts
+   M tests/test_studio_preview.py
   ```
 - Pierwsze otwarte TODO: - [ ] B12. `scripts/provenance.py` — `reports/provenance.jsonl` + README per przedmiot do `paczka_meta/` + `00_SOURCES/linki.txt` z `source_packages`
 <!-- END AUTO -->

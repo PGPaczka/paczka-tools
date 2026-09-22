@@ -16,6 +16,7 @@ katalogu odtwarzalnym z definicji.
 
 from __future__ import annotations
 
+import io
 import sqlite3
 from pathlib import Path
 from typing import Iterable
@@ -104,6 +105,28 @@ def page_count(path: Path) -> int | None:
 
         with pymupdf.open(path) as document:
             return int(document.page_count)
+    except Exception:
+        return None
+
+
+def render_image(source: Path, width: int) -> bytes | None:
+    """Skaluje obraz do zadanej szerokości i zwraca JPEG.
+
+    Używane, gdy widok potrzebuje INNEGO rozmiaru niż miniatura z cache: siatka
+    klastra prosi o coś małego, a porównanie dwóch zdjęć obok siebie o coś, na czym
+    faktycznie widać różnicę. Nie cache'ujemy tego — cache ma jeden, ustalony rozmiar
+    i nie chcemy zaśmiecać go każdą szerokością, jakiej zażyczy sobie przeglądarka.
+    """
+    try:
+        from PIL import Image
+
+        with Image.open(source) as image:
+            image = image.convert("RGB")
+            if image.width > width:
+                image = image.resize((width, round(image.height * width / image.width)), Image.LANCZOS)
+            buffer = io.BytesIO()
+            image.save(buffer, "JPEG", quality=THUMBNAIL_QUALITY)
+            return buffer.getvalue()
     except Exception:
         return None
 

@@ -9,6 +9,7 @@
     type Item,
   } from '../lib/api';
   import { basename, bytes, percent } from '../lib/format';
+  import { previewImageUrl } from '../lib/api';
 
   interface Props {
     semester?: number | null;
@@ -23,6 +24,10 @@
   let error = $state<string | null>(null);
   let success = $state<string | null>(null);
   let noiseFilter = $state('');
+
+  /** Treści, dla których podgląd zwraca obrazek (PDF renderuje stronę). */
+  const SHOWABLE = new Set(['image', 'pdf']);
+  const showsPicture = (kind: string | null | undefined) => SHOWABLE.has(String(kind ?? ''));
 
   let expandedIndex = $state<number | null>(null);
   let selectedCanonical = $state<string | null>(null);
@@ -168,6 +173,14 @@
                     onclick={() => selectCanonical(member.sha256)}
                     title="Kliknij, żeby oznaczyć jako kanoniczną"
                   >
+                    {#if showsPicture(member.content_kind)}
+                      <img
+                        class="member-thumb"
+                        loading="lazy"
+                        src={previewImageUrl(member.sha256, 1, 240)}
+                        alt="Podgląd: {member.filename ?? member.sha256.slice(0, 12)}"
+                      />
+                    {/if}
                     <div class="member-sha mono">{member.sha256.slice(0, 12)}…</div>
                     {#if member.filename}
                       <div class="member-name">{member.filename}</div>
@@ -231,6 +244,13 @@
                           <span class="diff-filename">{diff.left.filename}</span>
                         {/if}
                       </div>
+                      {#if showsPicture(diff.left.content_kind)}
+                        <img
+                          class="diff-picture"
+                          src={previewImageUrl(diff.left.sha256, 1, 700)}
+                          alt="Podgląd: {diff.left.filename ?? ''}"
+                        />
+                      {/if}
                       <div class="diff-meta">
                         {#if diff.left.content_kind}<span class="tag">{diff.left.content_kind}</span>{/if}
                         {#if diff.left.size_bytes}<span class="dim">{bytes(diff.left.size_bytes)}</span>{/if}
@@ -254,6 +274,13 @@
                           <span class="diff-filename">{diff.right.filename}</span>
                         {/if}
                       </div>
+                      {#if showsPicture(diff.right.content_kind)}
+                        <img
+                          class="diff-picture"
+                          src={previewImageUrl(diff.right.sha256, 1, 700)}
+                          alt="Podgląd: {diff.right.filename ?? ''}"
+                        />
+                      {/if}
                       <div class="diff-meta">
                         {#if diff.right.content_kind}<span class="tag">{diff.right.content_kind}</span>{/if}
                         {#if diff.right.size_bytes}<span class="dim">{bytes(diff.right.size_bytes)}</span>{/if}
@@ -492,6 +519,25 @@
     gap: 4px;
     min-width: 0;
   }
+  /* Miniatura w karcie: „czy to zdjęcie jest duplikatem" rozstrzyga oko, nie hash. */
+  .member-thumb {
+    width: 100%;
+    height: 96px;
+    object-fit: cover;
+    border-radius: 4px;
+    background: var(--bg-deep);
+    margin-bottom: 4px;
+  }
+  /* Porównanie dwóch obrazów: `contain`, bo tu liczy się CAŁY kadr, nie ładne kafelki. */
+  .diff-picture {
+    width: 100%;
+    max-height: 40vh;
+    object-fit: contain;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-deep);
+  }
+
   .diff-side-header {
     display: flex;
     align-items: center;
