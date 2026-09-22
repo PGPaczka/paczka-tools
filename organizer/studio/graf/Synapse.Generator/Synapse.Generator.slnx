@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Synapse.Generator.Tests/Synapse.Generator.Tests.csproj" />
+  <Project Path="Synapse.Generator/Synapse.Generator.csproj" />
+</Solution>

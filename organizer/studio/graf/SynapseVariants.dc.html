@@ -1,0 +1,1773 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Lora:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ===== CARBON (default, dark) ===== */
+:root{
+  --font-ui:'Inter',system-ui,sans-serif;
+  --bg:#0d1117; --bg-deep:#010409; --panel:#161b22; --panel-2:#1c2128; --panel-3:#21262d;
+  --border:#30363d; --border-2:#21262d; --text:#e6edf3; --muted:#8b949e; --muted-2:#6e7681;
+  --accent:#58a6ff; --accent-dim:#1f6feb; --shadow:rgba(1,4,9,.6);
+  --green:#3fb950; --amber:#d29922; --gray:#7d8590; --orange:#f0883e; --red:#f85149;
+}
+[data-skin="carbon"][data-theme="light"]{
+  --bg:#ffffff; --bg-deep:#f6f8fa; --panel:#f6f8fa; --panel-2:#eef1f4; --panel-3:#e7ebef;
+  --border:#d0d7de; --border-2:#e2e6ea; --text:#1f2328; --muted:#656d76; --muted-2:#8c959f;
+  --accent:#0969da; --accent-dim:#0860ca; --shadow:rgba(31,35,40,.12);
+  --green:#1a7f37; --amber:#9a6700; --gray:#656d76; --orange:#bc4c00; --red:#cf222e;
+}
+
+/* ===== SOFT (rounded, airy, soft-shadow) ===== */
+[data-skin="soft"][data-theme="dark"]{
+  --font-ui:'Inter',system-ui,sans-serif;
+  --bg:#161a23; --bg-deep:#0f1219; --panel:#1d222e; --panel-2:#232a38; --panel-3:#2b3342;
+  --border:#333c4d; --border-2:#232a38; --text:#eef1f6; --muted:#a4adbe; --muted-2:#707a8c;
+  --accent:#818cf8; --accent-dim:#6366f1; --shadow:rgba(0,0,0,.4);
+  --green:#34d399; --amber:#fbbf24; --gray:#94a3b8; --orange:#fb923c; --red:#f87171;
+}
+[data-skin="soft"][data-theme="light"]{
+  --font-ui:'Inter',system-ui,sans-serif;
+  --bg:#f7f8fb; --bg-deep:#eef1f6; --panel:#ffffff; --panel-2:#f3f5f9; --panel-3:#eaeef4;
+  --border:#e3e8f0; --border-2:#eef1f6; --text:#1e2533; --muted:#64708a; --muted-2:#97a1b4;
+  --accent:#6366f1; --accent-dim:#4f46e5; --shadow:rgba(60,70,100,.13);
+  --green:#059669; --amber:#d97706; --gray:#64748b; --orange:#ea580c; --red:#dc2626;
+}
+
+/* ===== BRUTALIST (flat, square, thick borders) ===== */
+[data-skin="brutalist"][data-theme="dark"]{
+  --font-ui:'Space Grotesk','Inter',sans-serif;
+  --bg:#0a0a0a; --bg-deep:#000000; --panel:#141414; --panel-2:#1a1a1a; --panel-3:#242424;
+  --border:#ffffff; --border-2:#3a3a3a; --text:#ffffff; --muted:#b4b4b4; --muted-2:#7a7a7a;
+  --accent:#ffe600; --accent-dim:#d4c000; --shadow:rgba(0,0,0,.9);
+  --green:#00e676; --amber:#ffe600; --gray:#8a8a8a; --orange:#ff7a00; --red:#ff3b30;
+}
+[data-skin="brutalist"][data-theme="light"]{
+  --font-ui:'Space Grotesk','Inter',sans-serif;
+  --bg:#ffffff; --bg-deep:#f2f2f2; --panel:#ffffff; --panel-2:#f6f6f6; --panel-3:#ededed;
+  --border:#000000; --border-2:#000000; --text:#000000; --muted:#454545; --muted-2:#777777;
+  --accent:#1a1aff; --accent-dim:#0000d6; --shadow:rgba(0,0,0,.28);
+  --green:#008f3a; --amber:#a06f00; --gray:#454545; --orange:#d24a00; --red:#e10000;
+}
+
+/* ===== EDITORIAL (warm paper, Lora serif, hairline) ===== */
+[data-skin="editorial"][data-theme="dark"]{
+  --font-ui:'Lora',Georgia,serif;
+  --bg:#1c1714; --bg-deep:#120e0b; --panel:#251e19; --panel-2:#2e261f; --panel-3:#382e26;
+  --border:#463a30; --border-2:#2e261f; --text:#f0e6da; --muted:#b7a591; --muted-2:#837363;
+  --accent:#d99a52; --accent-dim:#c07f3a; --shadow:rgba(18,14,11,.5);
+  --green:#8aa05a; --amber:#d6a93f; --gray:#9a8a78; --orange:#d9824a; --red:#d96a5a;
+}
+[data-skin="editorial"][data-theme="light"]{
+  --font-ui:'Lora',Georgia,serif;
+  --bg:#f6f0e6; --bg-deep:#ece3d4; --panel:#efe7d9; --panel-2:#e6dcc9; --panel-3:#ddd0b9;
+  --border:#cdbda0; --border-2:#e2d6c2; --text:#33271c; --muted:#786452; --muted-2:#9c8870;
+  --accent:#b06a36; --accent-dim:#99572a; --shadow:rgba(51,39,28,.12);
+  --green:#5f7a3a; --amber:#9a6f1e; --gray:#786452; --orange:#b0571e; --red:#b3402e;
+}
+
+/* ===== GLASS (translucent, blurred, glow) ===== */
+[data-skin="glass"][data-theme="dark"]{
+  --font-ui:'Inter',system-ui,sans-serif;
+  --bg:#0b1020; --bg-deep:#070a14; --panel:#131a2e; --panel-2:#1a2440; --panel-3:#222e52;
+  --border:#2a3658; --border-2:#1a2440; --text:#e8edfb; --muted:#9aa6c8; --muted-2:#6b7798;
+  --accent:#22d3ee; --accent-dim:#06b6d4; --shadow:rgba(0,0,0,.45);
+  --green:#4ade80; --amber:#fbbf24; --gray:#8b98bd; --orange:#fb923c; --red:#fb7185;
+}
+[data-skin="glass"][data-theme="light"]{
+  --font-ui:'Inter',system-ui,sans-serif;
+  --bg:#eef3fb; --bg-deep:#e3ebf7; --panel:#ffffff; --panel-2:#f1f5fc; --panel-3:#e7eef9;
+  --border:#d4deef; --border-2:#e8eef8; --text:#16203a; --muted:#59648a; --muted-2:#8b96b5;
+  --accent:#0891b2; --accent-dim:#0e7490; --shadow:rgba(40,60,110,.14);
+  --green:#059669; --amber:#d97706; --gray:#64748b; --orange:#ea580c; --red:#e11d48;
+}
+
+/* ===== SHAPE & TREATMENT OVERRIDES (the actual "style") ===== */
+/* Soft — generous radius, soft shadow on surfaces, borderless panels */
+[data-skin="soft"] [style*="border-radius"]{border-radius:14px !important}
+[data-skin="soft"] [style*="var(--panel"]{box-shadow:0 6px 24px var(--shadow) !important;border-color:transparent !important}
+
+/* Brutalist — square everything, kill shadows, thicken & ink the borders */
+[data-skin="brutalist"] [style*="border-radius"]{border-radius:0 !important}
+[data-skin="brutalist"] [style*="box-shadow"]{box-shadow:none !important}
+[data-skin="brutalist"] [style*="solid var(--border)"]{border-width:2px !important;border-color:var(--text) !important}
+[data-skin="brutalist"] [style*="solid var(--border-2)"]{border-width:2px !important;border-color:var(--text) !important}
+[data-skin="brutalist"] [style*="letter-spacing"]{text-transform:uppercase}
+
+/* Editorial — crisp small radius, flat (no shadows) */
+[data-skin="editorial"] [style*="border-radius"]{border-radius:3px !important}
+[data-skin="editorial"] [style*="box-shadow"]{box-shadow:none !important}
+
+/* Glass — frosted translucent surfaces, soft radius, ambient glow on canvas */
+div[data-skin="glass"]{background:radial-gradient(1100px 620px at 82% -12%, color-mix(in srgb,var(--accent) 22%, transparent), transparent 60%), radial-gradient(900px 500px at 8% 110%, color-mix(in srgb,var(--accent) 14%, transparent), transparent 55%), var(--bg) !important}
+[data-skin="glass"] [style*="var(--panel"]{background:color-mix(in srgb,var(--text) 7%, transparent) !important;backdrop-filter:blur(16px) saturate(1.4) !important;-webkit-backdrop-filter:blur(16px) saturate(1.4) !important;border:1px solid color-mix(in srgb,var(--text) 13%, transparent) !important;box-shadow:0 8px 32px var(--shadow) !important}
+[data-skin="glass"] [style*="border-radius"]{border-radius:12px !important}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px}
+::-webkit-scrollbar-thumb:hover{background:var(--muted-2)}
+input,select,textarea,button{font-family:inherit}
+input:focus,select:focus,textarea:focus{outline:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@keyframes panelin{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
+@keyframes ovin{from{opacity:0}to{opacity:1}}
+@keyframes scalein{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+</style>
+</helmet>
+
+<div data-theme="{{ theme }}" data-skin="{{ skin }}" data-layout="{{ layout }}" style="height:100vh;width:100vw;display:flex;flex-direction:column;font-family:var(--font-ui);color:var(--text);background:var(--bg);overflow:hidden;font-size:13px;-webkit-font-smoothing:antialiased">
+
+  <!-- ===== TOP BAR (Classic) ===== -->
+  <sc-if value="{{ isLayoutClassic }}" hint-placeholder-val="{{ true }}">
+  <div style="height:48px;flex:none;display:flex;align-items:center;gap:14px;padding:0 14px;background:var(--panel);border-bottom:1px solid var(--border);z-index:40">
+    <div style="display:flex;align-items:center;gap:9px">
+      <div style="width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,var(--accent),#bc8cff);display:flex;align-items:center;justify-content:center;box-shadow:0 0 12px rgba(88,166,255,.4)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="6" cy="6" r="2.6" fill="#fff"/><circle cx="18" cy="7" r="2.2" fill="#fff" opacity=".85"/><circle cx="12" cy="17" r="2.6" fill="#fff"/><path d="M7.5 7.5l3.4 7M16.5 8.5l-4 7" stroke="#fff" stroke-width="1.3" opacity=".8"/></svg>
+      </div>
+      <div style="font-weight:700;font-size:14px;letter-spacing:-.02em">Synapse</div>
+      <div style="font-size:10px;color:var(--muted-2);font-family:'JetBrains Mono',monospace;padding:2px 6px;border:1px solid var(--border);border-radius:5px">{{ vaultName }}</div>
+    </div>
+
+    <div onClick="{{ openPalette }}" style="margin-left:6px;width:320px;height:30px;display:flex;align-items:center;gap:8px;padding:0 10px;background:var(--bg);border:1px solid var(--border);border-radius:7px;cursor:text;color:var(--muted)">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+      <span style="flex:1;font-size:12px">Search notes &amp; commands…</span>
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;border:1px solid var(--border);border-radius:4px;padding:1px 5px;color:var(--muted-2)">⌘K</span>
+    </div>
+
+    <div style="flex:1"></div>
+
+    <div style="display:flex;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:2px;gap:2px">
+      <button onClick="{{ setViewGraph }}" style="{{ tabGraphStyle }}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="8" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M7 7l3.5 9.5M16.8 9.5L13 16.5"/></svg>
+        Graph
+      </button>
+      <button onClick="{{ setViewCards }}" style="{{ tabCardsStyle }}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        Cards
+      </button>
+      <button onClick="{{ setViewDash }}" style="{{ tabDashStyle }}">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13h6V3H3zM15 21h6V11h-6zM15 7h6V3h-6zM3 21h6v-4H3z"/></svg>
+        Dashboard
+      </button>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:4px;padding:0 8px;margin-right:2px;border-right:1px solid var(--border);height:26px">
+      <sc-for list="{{ layoutSwitcher }}" as="l" hint-placeholder-count="3">
+        <div onClick="{{ l.onClick }}" title="{{ l.title }}" style="{{ l.style }}">{{ l.icon }}</div>
+      </sc-for>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:8px;padding:0 8px;margin-right:2px;border-right:1px solid var(--border);height:20px">
+      <sc-for list="{{ skinDots }}" as="sk" hint-placeholder-count="5">
+        <div onClick="{{ sk.onClick }}" title="{{ sk.title }}" style="{{ sk.style }}"></div>
+      </sc-for>
+    </div>
+
+    <button onClick="{{ toggleTheme }}" title="Toggle theme" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--muted);cursor:pointer">
+      {{ themeIcon }}
+    </button>
+    <button onClick="{{ openSettings }}" title="Settings" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--muted);cursor:pointer">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </div>
+  </sc-if>
+
+  <!-- ===== BODY ===== -->
+  <div style="flex:1;display:flex;min-height:0;position:relative">
+
+    <!-- RAIL (Rail layout) -->
+    <sc-if value="{{ isLayoutRail }}" hint-placeholder-val="{{ false }}">
+      <div style="width:58px;flex:none;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:10px;z-index:41">
+        <div style="width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#bc8cff);display:flex;align-items:center;justify-content:center;box-shadow:0 0 12px rgba(88,166,255,.4);margin-bottom:4px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="6" cy="6" r="2.6" fill="#fff"/><circle cx="18" cy="7" r="2.2" fill="#fff" opacity=".85"/><circle cx="12" cy="17" r="2.6" fill="#fff"/><path d="M7.5 7.5l3.4 7M16.5 8.5l-4 7" stroke="#fff" stroke-width="1.3" opacity=".8"/></svg>
+        </div>
+        <button onClick="{{ openPalette }}" title="Search (⌘K)" style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:8px;border:none;background:transparent;color:var(--muted);cursor:pointer">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        </button>
+        <div style="width:30px;height:1px;background:var(--border);margin:4px 0"></div>
+        <button onClick="{{ setViewGraph }}" title="Graph" style="{{ railGraphStyle }}">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="8" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M7 7l3.5 9.5M16.8 9.5L13 16.5"/></svg>
+        </button>
+        <button onClick="{{ setViewCards }}" title="Cards" style="{{ railCardsStyle }}">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        </button>
+        <button onClick="{{ setViewDash }}" title="Dashboard" style="{{ railDashStyle }}">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13h6V3H3zM15 21h6V11h-6zM15 7h6V3h-6zM3 21h6v-4H3z"/></svg>
+        </button>
+        <div style="flex:1"></div>
+        <div style="display:flex;flex-direction:column;gap:5px;align-items:center">
+          <sc-for list="{{ layoutSwitcher }}" as="l" hint-placeholder-count="3">
+            <div onClick="{{ l.onClick }}" title="{{ l.title }}" style="{{ l.style }}">{{ l.icon }}</div>
+          </sc-for>
+        </div>
+        <div style="width:30px;height:1px;background:var(--border);margin:2px 0"></div>
+        <div style="display:flex;flex-direction:column;gap:7px;align-items:center">
+          <sc-for list="{{ skinDots }}" as="sk" hint-placeholder-count="5">
+            <div onClick="{{ sk.onClick }}" title="{{ sk.title }}" style="{{ sk.style }}"></div>
+          </sc-for>
+        </div>
+        <div style="width:30px;height:1px;background:var(--border);margin:4px 0"></div>
+        <button onClick="{{ toggleTheme }}" title="Toggle theme" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;border-radius:7px;color:var(--muted);cursor:pointer">{{ themeIcon }}</button>
+        <button onClick="{{ openSettings }}" title="Settings" style="width:30px;height:30px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;border-radius:7px;color:var(--muted);cursor:pointer">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </div>
+    </sc-if>
+
+    <!-- FLOATING COMMAND BAR (Command layout) -->
+    <sc-if value="{{ isLayoutCommand }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;top:14px;left:50%;transform:translateX(-50%);z-index:50;display:flex;align-items:center;gap:12px;padding:6px 10px;background:var(--panel);border:1px solid var(--border);border-radius:14px;box-shadow:0 10px 32px var(--shadow)">
+        <div style="width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,var(--accent),#bc8cff);display:flex;align-items:center;justify-content:center;flex:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="6" cy="6" r="2.6" fill="#fff"/><circle cx="18" cy="7" r="2.2" fill="#fff" opacity=".85"/><circle cx="12" cy="17" r="2.6" fill="#fff"/><path d="M7.5 7.5l3.4 7M16.5 8.5l-4 7" stroke="#fff" stroke-width="1.3" opacity=".8"/></svg>
+        </div>
+        <div onClick="{{ openPalette }}" style="width:220px;height:28px;display:flex;align-items:center;gap:7px;padding:0 9px;background:var(--bg);border:1px solid var(--border);border-radius:7px;cursor:text;color:var(--muted)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+          <span style="flex:1;font-size:11.5px">Search…</span>
+        </div>
+        <div style="display:flex;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:2px;gap:2px">
+          <button onClick="{{ setViewGraph }}" style="{{ tabGraphStyle }}">Graph</button>
+          <button onClick="{{ setViewCards }}" style="{{ tabCardsStyle }}">Cards</button>
+          <button onClick="{{ setViewDash }}" style="{{ tabDashStyle }}">Dashboard</button>
+        </div>
+        <div style="display:flex;gap:5px;align-items:center">
+          <sc-for list="{{ skinDots }}" as="sk" hint-placeholder-count="5">
+            <div onClick="{{ sk.onClick }}" title="{{ sk.title }}" style="{{ sk.style }}"></div>
+          </sc-for>
+        </div>
+        <div style="display:flex;gap:3px;align-items:center;padding-left:6px;border-left:1px solid var(--border)">
+          <sc-for list="{{ layoutSwitcher }}" as="l" hint-placeholder-count="3">
+            <div onClick="{{ l.onClick }}" title="{{ l.title }}" style="{{ l.style }}">{{ l.icon }}</div>
+          </sc-for>
+        </div>
+        <button onClick="{{ toggleTheme }}" title="Toggle theme" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--muted);cursor:pointer">{{ themeIcon }}</button>
+      </div>
+    </sc-if>
+
+
+    <!-- FILTER PANEL (graph + cards) -->
+    <sc-if value="{{ showFilters }}" hint-placeholder-val="{{ true }}">
+      <div style="width:248px;flex:none;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;min-height:0">
+        <div style="padding:13px 14px 10px;display:flex;align-items:center;justify-content:space-between">
+          <div style="font-weight:600;font-size:12px;letter-spacing:.02em">FILTERS</div>
+          <button onClick="{{ clearFilters }}" style="font-size:11px;color:var(--accent);background:none;border:none;cursor:pointer;{{ clearFiltersVis }}">Reset</button>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:0 14px 16px">
+
+          <div style="font-size:10.5px;color:var(--muted-2);font-weight:600;letter-spacing:.06em;margin:8px 0 7px">STATUS</div>
+          <sc-for list="{{ statusList }}" as="s" hint-placeholder-count="3">
+            <div onClick="{{ s.toggle }}" style="{{ s.rowStyle }}">
+              <span style="width:9px;height:9px;border-radius:3px;background:{{ s.color }};flex:none"></span>
+              <span style="flex:1">{{ s.label }}</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted-2)">{{ s.count }}</span>
+              <span style="{{ s.checkStyle }}">✓</span>
+            </div>
+          </sc-for>
+
+          <div style="font-size:10.5px;color:var(--muted-2);font-weight:600;letter-spacing:.06em;margin:16px 0 7px">CATEGORIES</div>
+          <sc-for list="{{ categoryList }}" as="c" hint-placeholder-count="6">
+            <div onClick="{{ c.toggle }}" style="{{ c.rowStyle }}">
+              <span style="width:9px;height:9px;border-radius:50%;background:{{ c.color }};flex:none"></span>
+              <span style="flex:1">{{ c.label }}</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted-2)">{{ c.count }}</span>
+              <span style="{{ c.checkStyle }}">✓</span>
+            </div>
+          </sc-for>
+
+          <div style="font-size:10.5px;color:var(--muted-2);font-weight:600;letter-spacing:.06em;margin:16px 0 7px">LEVEL</div>
+          <div style="display:flex;gap:6px">
+            <sc-for list="{{ levelList }}" as="l" hint-placeholder-count="3">
+              <div onClick="{{ l.toggle }}" style="{{ l.style }}">{{ l.label }}</div>
+            </sc-for>
+          </div>
+
+          <div style="font-size:10.5px;color:var(--muted-2);font-weight:600;letter-spacing:.06em;margin:16px 0 7px">TAGS</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px">
+            <sc-for list="{{ tagList }}" as="t" hint-placeholder-count="10">
+              <div onClick="{{ t.toggle }}" style="{{ t.style }}">#{{ t.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="border-top:1px solid var(--border);padding:11px 14px;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:7px">
+          <span style="width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green)"></span>
+          Showing {{ visibleCount }} / {{ totalCount }} notes
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- MAIN STAGE -->
+    <div style="flex:1;position:relative;min-width:0;background:radial-gradient(circle at 50% 40%,var(--panel) 0%,var(--bg) 70%)">
+
+      <!-- GRAPH / VENN VIEW -->
+      <sc-if value="{{ isGraphView }}" hint-placeholder-val="{{ true }}">
+        <div ref="{{ stageRef }}" onMouseDown="{{ onStageDown }}" onWheel="{{ onWheel }}" style="position:absolute;inset:0;overflow:hidden;cursor:{{ stageCursor }}">
+          {{ vizSvg }}
+        </div>
+
+        <!-- mode toggle (top-right of viz) -->
+        <div style="position:absolute;top:14px;right:14px;display:flex;flex-direction:column;gap:9px;align-items:flex-end;z-index:10">
+          <div style="display:flex;background:var(--panel);border:1px solid var(--border);border-radius:9px;padding:3px;gap:3px;box-shadow:0 4px 16px var(--shadow)">
+            <button onClick="{{ setModeGraph }}" style="{{ modeGraphStyle }}">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="8" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M7 7l3.5 9.5M16.8 9.5L13 16.5"/></svg>
+              Graph
+            </button>
+            <button onClick="{{ setModeVenn }}" style="{{ modeVennStyle }}">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/></svg>
+              Venn
+            </button>
+          </div>
+
+          <!-- graph controls -->
+          <sc-if value="{{ isGraphMode }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+              <div onClick="{{ toggleLearning }}" style="{{ learnToggleStyle }}">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                Learning path
+              </div>
+              <div onClick="{{ toggleCollapse }}" style="{{ collapseToggleStyle }}">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3"/></svg>
+                Collapse clusters
+              </div>
+              <div onClick="{{ reheatSim }}" style="{{ ctrlBtnStyle }}">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg>
+                Re-layout
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- venn set picker -->
+          <sc-if value="{{ isVennMode }}" hint-placeholder-val="{{ true }}">
+            <div style="background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:11px;width:212px;box-shadow:0 4px 16px var(--shadow)">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div style="font-size:11px;font-weight:600">Venn sets</div>
+                <div style="display:flex;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px">
+                  <span onClick="{{ setVennTag }}" style="{{ vennTagStyle }}">Tags</span>
+                  <span onClick="{{ setVennCat }}" style="{{ vennCatStyle }}">Cats</span>
+                </div>
+              </div>
+              <div style="font-size:10px;color:var(--muted-2);margin-bottom:7px">Pick 2–4 to compare</div>
+              <div style="display:flex;flex-wrap:wrap;gap:5px;max-height:168px;overflow-y:auto">
+                <sc-for list="{{ vennOptions }}" as="o" hint-placeholder-count="8">
+                  <div onClick="{{ o.toggle }}" style="{{ o.style }}">{{ o.label }}</div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+
+        <!-- legend (bottom-left) -->
+        <div style="position:absolute;bottom:14px;left:14px;z-index:8;background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--border);border-radius:9px;padding:9px 11px;display:flex;flex-direction:column;gap:5px;backdrop-filter:blur(6px);font-size:10.5px;color:var(--muted)">
+          <div style="display:flex;gap:11px">
+            <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:var(--gray);border:1.5px solid var(--gray)"></span>Not started</span>
+            <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:var(--amber);border:1.5px solid var(--amber)"></span>In progress</span>
+            <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);border:1.5px solid var(--green)"></span>Completed</span>
+          </div>
+          <div style="display:flex;gap:11px">
+            <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;border-radius:50%;border:1.5px dashed var(--orange)"></span>Orphan</span>
+            <span style="display:flex;align-items:center;gap:5px;{{ arrowLegendVis }}"><svg width="16" height="8" viewBox="0 0 16 8"><path d="M0 4h11" stroke="var(--accent)" stroke-width="1.5"/><path d="M9 1.5L13 4l-4 2.5" fill="var(--accent)"/></svg>requires</span>
+            <span style="display:flex;align-items:center;gap:5px;{{ arrowLegendVis }}"><span style="width:9px;height:9px;border-radius:50%;background:var(--green);display:flex;align-items:center;justify-content:center"><svg width="5" height="5" viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z" fill="var(--bg)"/></svg></span>path start</span>
+          </div>
+        </div>
+
+        <!-- minimap (bottom-right) -->
+        <sc-if value="{{ showMinimap }}" hint-placeholder-val="{{ true }}">
+          <div style="position:absolute;bottom:14px;right:14px;z-index:8;width:172px;height:118px;background:color-mix(in srgb,var(--bg-deep) 80%,transparent);border:1px solid var(--border);border-radius:8px;overflow:hidden;box-shadow:0 4px 16px var(--shadow);backdrop-filter:blur(4px)">
+            <div style="position:absolute;top:5px;left:7px;font-size:9px;color:var(--muted-2);font-weight:600;letter-spacing:.05em;z-index:2">MINIMAP</div>
+            {{ minimapSvg }}
+          </div>
+        </sc-if>
+
+        <!-- "what's next" suggestion -->
+        <sc-if value="{{ hasNext }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;top:14px;left:14px;z-index:8;background:linear-gradient(160deg,color-mix(in srgb,var(--accent) 10%,var(--panel)),var(--panel));border:1px solid color-mix(in srgb,var(--accent) 30%,var(--border));border-radius:11px;padding:11px 13px;max-width:240px;box-shadow:0 8px 24px var(--shadow),0 0 0 1px color-mix(in srgb,var(--accent) 8%,transparent)">
+            <div style="font-size:10px;color:var(--accent);font-weight:600;letter-spacing:.04em;margin-bottom:5px;display:flex;align-items:center;gap:5px">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h7l-1 8 10-12h-7z"/></svg>
+              RECOMMENDED NEXT
+            </div>
+            <sc-for list="{{ nextNotes }}" as="n" hint-placeholder-count="2">
+              <div onClick="{{ n.open }}" style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer">
+                <span style="width:7px;height:7px;border-radius:50%;background:{{ n.color }};flex:none"></span>
+                <span style="flex:1;font-size:11.5px;font-weight:500">{{ n.title }}</span>
+                <span style="font-size:9px;color:var(--muted-2);font-family:'JetBrains Mono',monospace">L{{ n.level }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </sc-if>
+
+      <!-- CARDS VIEW -->
+      <sc-if value="{{ isCardsView }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;overflow-y:auto;padding:18px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+            <div style="font-size:13px;color:var(--muted)">{{ visibleCount }} notes</div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:220px;height:30px;display:flex;align-items:center;gap:8px;padding:0 10px;background:var(--panel);border:1px solid var(--border);border-radius:7px">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+                <input value="{{ search }}" onInput="{{ onSearch }}" placeholder="Search title &amp; content…" style="flex:1;background:none;border:none;color:var(--text);font-size:12px"/>
+              </div>
+              <select value="{{ cardSort }}" onChange="{{ onCardSort }}" style="height:30px;padding:0 26px 0 12px;background-color:var(--panel);background-image:url('data:image/svg+xml;utf8,&lt;svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%226%22 viewBox=%220 0 10 6%22&gt;&lt;path d=%22M1 1l4 4 4-4%22 stroke=%22%238b949e%22 stroke-width=%221.4%22 fill=%22none%22 stroke-linecap=%22round%22/&gt;&lt;/svg&gt;');background-repeat:no-repeat;background-position:right 10px center;appearance:none;-webkit-appearance:none;border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:11.5px;font-weight:500;cursor:pointer;transition:border-color .15s" style-hover="border-color:var(--accent)">
+                <option value="default">Sort: Default</option>
+                <option value="date">Sort: Date modified</option>
+                <option value="category">Sort: Category</option>
+                <option value="level">Sort: Level</option>
+                <option value="status">Sort: Status</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(244px,1fr));gap:13px">
+            <sc-for list="{{ cardNotes }}" as="n" hint-placeholder-count="9">
+              <div onClick="{{ n.open }}" style="{{ n.cardStyle }}">
+                <div style="display:flex;align-items:center;gap:7px;margin-bottom:8px">
+                  <span style="width:9px;height:9px;border-radius:50%;background:{{ n.color }};flex:none"></span>
+                  <span style="font-size:10px;color:var(--muted);font-weight:500">{{ n.category }}</span>
+                  <span style="flex:1"></span>
+                  <span style="{{ n.statusBadge }}">{{ n.statusLabel }}</span>
+                </div>
+                <div style="font-size:14px;font-weight:600;margin-bottom:5px;letter-spacing:-.01em">{{ n.title }}</div>
+                <div style="font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:10px;min-height:32px">{{ n.excerpt }}</div>
+                <div style="display:flex;flex-wrap:wrap;gap:4px">
+                  <sc-for list="{{ n.tags }}" as="t" hint-placeholder-count="2">
+                    <span style="font-size:9.5px;color:var(--muted-2);background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:1px 5px;font-family:'JetBrains Mono',monospace">#{{ t }}</span>
+                  </sc-for>
+                </div>
+                <div style="margin-top:10px;padding-top:9px;border-top:1px solid var(--border-2);display:flex;align-items:center;gap:10px;font-size:9.5px;color:var(--muted-2);font-family:'JetBrains Mono',monospace">
+                  <span>L{{ n.level }}</span>
+                  <span>⤓ {{ n.linkCount }}</span>
+                  <span style="flex:1"></span>
+                  <span>{{ n.modifiedShort }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- DASHBOARD VIEW -->
+      <sc-if value="{{ isDashView }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:0;overflow-y:auto;padding:20px 22px">
+          <div style="max-width:1080px;margin:0 auto">
+            <div style="font-size:18px;font-weight:700;letter-spacing:-.02em;margin-bottom:3px">Learning progress</div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:18px">Overview of your {{ totalCount }}-note knowledge base</div>
+
+            <!-- stat cards -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-bottom:16px">
+              <sc-for list="{{ statCards }}" as="s" hint-placeholder-count="4">
+                <div style="background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:14px 16px">
+                  <div style="display:flex;align-items:center;gap:7px;margin-bottom:9px">
+                    <span style="width:8px;height:8px;border-radius:3px;background:{{ s.color }}"></span>
+                    <span style="font-size:11px;color:var(--muted)">{{ s.label }}</span>
+                  </div>
+                  <div style="font-size:28px;font-weight:700;letter-spacing:-.03em;font-family:'JetBrains Mono',monospace">{{ s.value }}</div>
+                  <div style="font-size:10.5px;color:var(--muted-2);margin-top:2px">{{ s.sub }}</div>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:13px;margin-bottom:16px">
+              <!-- progress + status bars -->
+              <div style="background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:16px 18px">
+                <div style="font-size:13px;font-weight:600;margin-bottom:3px">Overall completion</div>
+                <div style="font-size:11px;color:var(--muted);margin-bottom:14px">{{ completedCount }} of {{ totalCount }} notes completed</div>
+                <div style="display:flex;align-items:flex-end;gap:5px;margin-bottom:6px">
+                  <div style="font-size:34px;font-weight:700;letter-spacing:-.03em;font-family:'JetBrains Mono',monospace;color:var(--green)">{{ progressPct }}%</div>
+                </div>
+                <div style="height:10px;border-radius:6px;background:var(--bg);overflow:hidden;display:flex;margin-bottom:16px">
+                  <div style="width:{{ pctCompleted }}%;background:var(--green)"></div>
+                  <div style="width:{{ pctProgress }}%;background:var(--amber)"></div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:9px">
+                  <sc-for list="{{ statusBars }}" as="b" hint-placeholder-count="3">
+                    <div style="display:flex;align-items:center;gap:9px">
+                      <span style="width:74px;font-size:11px;color:var(--muted)">{{ b.label }}</span>
+                      <div style="flex:1;height:7px;border-radius:4px;background:var(--bg);overflow:hidden">
+                        <div style="height:100%;width:{{ b.pct }}%;background:{{ b.color }};border-radius:4px"></div>
+                      </div>
+                      <span style="width:24px;text-align:right;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted)">{{ b.count }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+
+              <!-- category donut -->
+              <div style="background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:16px 18px">
+                <div style="font-size:13px;font-weight:600;margin-bottom:14px">By category</div>
+                <div style="display:flex;align-items:center;gap:18px">
+                  {{ donutSvg }}
+                  <div style="flex:1;display:flex;flex-direction:column;gap:7px">
+                    <sc-for list="{{ catLegend }}" as="c" hint-placeholder-count="6">
+                      <div style="display:flex;align-items:center;gap:8px">
+                        <span style="width:9px;height:9px;border-radius:3px;background:{{ c.color }};flex:none"></span>
+                        <span style="flex:1;font-size:11px">{{ c.label }}</span>
+                        <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--muted)">{{ c.count }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- heatmap -->
+            <div style="background:var(--panel);border:1px solid var(--border);border-radius:11px;padding:16px 18px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+                <div>
+                  <div style="font-size:13px;font-weight:600">Activity</div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:1px">{{ activityTotal }} edits over the last 26 weeks</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--muted-2)">
+                  Less
+                  <span style="width:11px;height:11px;border-radius:3px;background:var(--bg);border:1px solid var(--border)"></span>
+                  <span style="width:11px;height:11px;border-radius:3px;background:color-mix(in srgb,var(--green) 35%,var(--bg))"></span>
+                  <span style="width:11px;height:11px;border-radius:3px;background:color-mix(in srgb,var(--green) 65%,var(--bg))"></span>
+                  <span style="width:11px;height:11px;border-radius:3px;background:var(--green)"></span>
+                  More
+                </div>
+              </div>
+              {{ heatmapSvg }}
+            </div>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+
+    <!-- ===== NOTE PANEL ===== -->
+    <sc-if value="{{ hasSelected }}" hint-placeholder-val="{{ false }}">
+      <div style="width:418px;flex:none;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;min-height:0;z-index:30">
+        <!-- header -->
+        <div style="padding:12px 14px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+            <span style="width:10px;height:10px;border-radius:50%;background:{{ selColor }};flex:none;box-shadow:0 0 8px {{ selColor }}"></span>
+            <span style="font-size:11px;color:var(--muted);font-weight:500">{{ selCategory }}</span>
+            <span style="{{ selStatusBadge }}">{{ selStatusLabel }}</span>
+            <span style="flex:1"></span>
+            <button onClick="{{ closeNote }}" style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);cursor:pointer">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <!-- path row -->
+          <div style="display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:5px 8px;margin-bottom:8px">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--muted-2)" stroke-width="2" style="flex:none"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M13 2v7h7"/></svg>
+            <span style="flex:1;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ selPath }}</span>
+            <button onClick="{{ copyPath }}" title="Copy path" style="background:none;border:none;color:{{ copyColor }};cursor:pointer;display:flex;flex:none">
+              {{ copyIcon }}
+            </button>
+          </div>
+          <div style="display:flex;gap:7px">
+            <button onClick="{{ openObsidian }}" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;height:30px;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:11.5px;font-weight:500;cursor:pointer">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="#a88bfa"><path d="M12 2l7 4v8l-7 8-7-6V6z" opacity=".9"/></svg>
+              Open in Obsidian
+            </button>
+            <sc-if value="{{ isPreview }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ startEdit }}" style="flex:none;display:flex;align-items:center;gap:6px;height:30px;padding:0 13px;background:var(--accent);border:none;border-radius:7px;color:#fff;font-size:11.5px;font-weight:600;cursor:pointer">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+                Edit
+              </button>
+            </sc-if>
+          </div>
+        </div>
+
+        <!-- body -->
+        <div style="flex:1;overflow-y:auto;min-height:0">
+          <!-- PREVIEW -->
+          <sc-if value="{{ isPreview }}" hint-placeholder-val="{{ true }}">
+            <div style="padding:16px 18px">
+              <div style="font-size:21px;font-weight:700;letter-spacing:-.02em;margin-bottom:12px;line-height:1.25">{{ selTitle }}</div>
+              <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:16px">
+                <sc-for list="{{ selTags }}" as="t" hint-placeholder-count="3">
+                  <span onClick="{{ t.click }}" style="font-size:10px;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);border-radius:5px;padding:2px 7px;font-family:'JetBrains Mono',monospace;cursor:pointer">#{{ t.label }}</span>
+                </sc-for>
+              </div>
+              <div style="font-size:13px;line-height:1.62;color:var(--text)">{{ selRendered }}</div>
+
+              <!-- backlinks -->
+              <div style="margin-top:22px;padding-top:14px;border-top:1px solid var(--border)">
+                <div style="font-size:10.5px;color:var(--muted-2);font-weight:600;letter-spacing:.05em;margin-bottom:9px;display:flex;align-items:center;gap:6px">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
+                  LINKED MENTIONS · {{ backlinkCount }}
+                </div>
+                <sc-if value="{{ hasBacklinks }}" hint-placeholder-val="{{ true }}">
+                  <div style="display:flex;flex-direction:column;gap:6px">
+                    <sc-for list="{{ backlinks }}" as="b" hint-placeholder-count="2">
+                      <div onClick="{{ b.open }}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:7px;cursor:pointer">
+                        <span style="width:7px;height:7px;border-radius:50%;background:{{ b.color }};flex:none"></span>
+                        <span style="flex:1;font-size:12px;font-weight:500">{{ b.title }}</span>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--muted-2)" stroke-width="2"><path d="M7 7h10v10M7 17L17 7"/></svg>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ noBacklinks }}" hint-placeholder-val="{{ false }}">
+                  <div style="font-size:11.5px;color:var(--muted-2);font-style:italic">No notes link here yet.</div>
+                </sc-if>
+              </div>
+
+              <!-- outgoing links -->
+              <sc-if value="{{ hasOutgoing }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:16px">
+                  <div style="font-size:10.5px;color:var(--muted-2);font-weight:600;letter-spacing:.05em;margin-bottom:9px">LINKS TO</div>
+                  <div style="display:flex;flex-wrap:wrap;gap:6px">
+                    <sc-for list="{{ outgoing }}" as="o" hint-placeholder-count="2">
+                      <span onClick="{{ o.open }}" style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--accent);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 9px;cursor:pointer">{{ o.title }}</span>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <!-- EDIT -->
+          <sc-if value="{{ isEditing }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:14px 16px">
+              <div style="font-size:10.5px;color:var(--muted-2);font-weight:600;letter-spacing:.05em;margin-bottom:10px">FRONTMATTER</div>
+              <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px;display:flex;flex-direction:column;gap:10px">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="width:78px;font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace">title</span>
+                  <input value="{{ draftTitle }}" onInput="{{ onDraftTitle }}" style="flex:1;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:6px 9px;color:var(--text);font-size:12px"/>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="width:78px;font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace">category</span>
+                  <select value="{{ draftCategory }}" onChange="{{ onDraftCategory }}" style="flex:1;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:6px 9px;color:var(--text);font-size:12px;cursor:pointer">
+                    <sc-for list="{{ allCategories }}" as="c" hint-placeholder-count="6">
+                      <option value="{{ c }}">{{ c }}</option>
+                    </sc-for>
+                  </select>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="width:78px;font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace">status</span>
+                  <select value="{{ draftStatus }}" onChange="{{ onDraftStatus }}" style="flex:1;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:6px 9px;color:var(--text);font-size:12px;cursor:pointer">
+                    <option value="not-started">not started</option>
+                    <option value="in-progress">in progress</option>
+                    <option value="completed">completed</option>
+                  </select>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <span style="width:78px;font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace">level</span>
+                  <div style="display:flex;gap:5px">
+                    <sc-for list="{{ draftLevels }}" as="l" hint-placeholder-count="3">
+                      <span onClick="{{ l.set }}" style="{{ l.style }}">{{ l.label }}</span>
+                    </sc-for>
+                  </div>
+                </div>
+                <div style="display:flex;align-items:flex-start;gap:10px">
+                  <span style="width:78px;font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace;padding-top:6px">tags</span>
+                  <input value="{{ draftTags }}" onInput="{{ onDraftTags }}" placeholder="comma, separated" style="flex:1;background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:6px 9px;color:var(--text);font-size:12px;font-family:'JetBrains Mono',monospace"/>
+                </div>
+              </div>
+              <div style="font-size:10.5px;color:var(--muted-2);font-weight:600;letter-spacing:.05em;margin-bottom:10px">MARKDOWN</div>
+              <textarea value="{{ draftBody }}" onInput="{{ onDraftBody }}" spellcheck="false" style="width:100%;height:240px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px;color:var(--text);font-size:12px;line-height:1.6;font-family:'JetBrains Mono',monospace;resize:vertical"></textarea>
+            </div>
+          </sc-if>
+        </div>
+
+        <!-- edit footer -->
+        <sc-if value="{{ isEditing }}" hint-placeholder-val="{{ false }}">
+          <div style="border-top:1px solid var(--border);padding:11px 14px;display:flex;gap:8px;justify-content:flex-end">
+            <button onClick="{{ cancelEdit }}" style="height:32px;padding:0 16px;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:12px;font-weight:500;cursor:pointer">Cancel</button>
+            <button onClick="{{ saveEdit }}" style="height:32px;padding:0 18px;background:var(--accent);border:none;border-radius:7px;color:#fff;font-size:12px;font-weight:600;cursor:pointer">Save changes</button>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+  </div>
+
+  <!-- ===== COMMAND PALETTE ===== -->
+  <sc-if value="{{ paletteOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closePalette }}" style="position:fixed;inset:0;z-index:100;background:rgba(1,4,9,.55);display:flex;justify-content:center;padding-top:11vh">
+      <div onClick="{{ stop }}" style="width:560px;max-width:92vw;height:max-content;max-height:62vh;background:var(--panel);border:1px solid var(--border);border-radius:13px;box-shadow:0 24px 70px rgba(1,4,9,.7);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:11px;padding:13px 16px;border-bottom:1px solid var(--border)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+          <input ref="{{ paletteRef }}" value="{{ paletteQuery }}" onInput="{{ onPaletteInput }}" placeholder="Jump to a note or run a command…" style="flex:1;background:none;border:none;color:var(--text);font-size:15px"/>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:10px;border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--muted-2)">ESC</span>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:7px">
+          <sc-if value="{{ showActions }}" hint-placeholder-val="{{ true }}">
+            <div style="font-size:10px;color:var(--muted-2);font-weight:600;letter-spacing:.06em;padding:6px 10px 4px">ACTIONS</div>
+            <sc-for list="{{ paletteActions }}" as="a" hint-placeholder-count="4">
+              <div onClick="{{ a.run }}" style="{{ a.style }}">
+                <span style="width:22px;display:flex;justify-content:center;color:var(--muted)">{{ a.icon }}</span>
+                <span style="flex:1;font-size:13px">{{ a.label }}</span>
+                <span style="font-size:10px;color:var(--muted-2);font-family:'JetBrains Mono',monospace">{{ a.hint }}</span>
+              </div>
+            </sc-for>
+          </sc-if>
+          <div style="font-size:10px;color:var(--muted-2);font-weight:600;letter-spacing:.06em;padding:8px 10px 4px">NOTES · {{ paletteResultCount }}</div>
+          <sc-for list="{{ paletteResults }}" as="r" hint-placeholder-count="6">
+            <div onClick="{{ r.open }}" style="{{ r.style }}">
+              <span style="width:8px;height:8px;border-radius:50%;background:{{ r.color }};flex:none"></span>
+              <span style="flex:1;font-size:13px;font-weight:500">{{ r.title }}</span>
+              <span style="font-size:10px;color:var(--muted-2);font-family:'JetBrains Mono',monospace">{{ r.category }}</span>
+              <span style="{{ r.statusDot }}"></span>
+            </div>
+          </sc-for>
+          <sc-if value="{{ paletteEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:22px;text-align:center;color:var(--muted-2);font-size:12px">No matches for "{{ paletteQuery }}"</div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ===== SETTINGS MODAL ===== -->
+  <sc-if value="{{ settingsOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeSettings }}" style="position:fixed;inset:0;z-index:100;background:rgba(1,4,9,.55);display:flex;align-items:center;justify-content:center">
+      <div onClick="{{ stop }}" style="width:620px;max-width:94vw;max-height:86vh;background:var(--panel);border:1px solid var(--border);border-radius:14px;box-shadow:0 24px 70px rgba(1,4,9,.7);display:flex;flex-direction:column;overflow:hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid var(--border)">
+          <div style="font-size:15px;font-weight:700">Settings</div>
+          <button onClick="{{ closeSettings }}" style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:none;border:1px solid var(--border);border-radius:7px;color:var(--muted);cursor:pointer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:18px">
+
+          <div style="font-size:11px;color:var(--muted-2);font-weight:600;letter-spacing:.05em;margin-bottom:11px">APPEARANCE</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px">
+            <div><div style="font-size:13px;font-weight:500">Theme</div><div style="font-size:11px;color:var(--muted)">Default dark, technical look</div></div>
+            <div style="display:flex;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:3px">
+              <span onClick="{{ setDark }}" style="{{ darkBtnStyle }}">Dark</span>
+              <span onClick="{{ setLight }}" style="{{ lightBtnStyle }}">Light</span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px">
+            <div><div style="font-size:13px;font-weight:500">Default visualization</div><div style="font-size:11px;color:var(--muted)">View on open</div></div>
+            <div style="display:flex;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:3px">
+              <span onClick="{{ setDefGraph }}" style="{{ defGraphStyle }}">Graph</span>
+              <span onClick="{{ setDefVenn }}" style="{{ defVennStyle }}">Venn</span>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+            <div><div style="font-size:13px;font-weight:500">Minimap</div><div style="font-size:11px;color:var(--muted)">Overview navigator in graph</div></div>
+            <div onClick="{{ toggleMinimap }}" style="{{ minimapSwitchStyle }}"><span style="{{ minimapKnobStyle }}"></span></div>
+          </div>
+
+          <div style="height:1px;background:var(--border);margin:4px 0 16px"></div>
+          <div style="font-size:11px;color:var(--muted-2);font-weight:600;letter-spacing:.05em;margin-bottom:11px">OBSIDIAN VAULT</div>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:18px">
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="width:70px;font-size:12px;color:var(--muted)">Name</span>
+              <input value="{{ vaultName }}" onInput="{{ onVaultName }}" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:7px 10px;color:var(--text);font-size:12px;font-family:'JetBrains Mono',monospace"/>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="width:70px;font-size:12px;color:var(--muted)">Path</span>
+              <input value="{{ vaultPath }}" onInput="{{ onVaultPath }}" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:7px 10px;color:var(--text);font-size:12px;font-family:'JetBrains Mono',monospace"/>
+            </div>
+            <div style="font-size:10.5px;color:var(--muted-2);font-family:'JetBrains Mono',monospace">obsidian://open?vault={{ vaultName }}&amp;file=…</div>
+          </div>
+
+          <div style="height:1px;background:var(--border);margin:4px 0 16px"></div>
+          <div style="font-size:11px;color:var(--muted-2);font-weight:600;letter-spacing:.05em;margin-bottom:4px">PREREQUISITE MODEL</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:11px">How learning order is derived. Minimal-effort approaches preferred.</div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px">
+            <sc-for list="{{ prereqOptions }}" as="p" hint-placeholder-count="4">
+              <div onClick="{{ p.select }}" style="{{ p.style }}">
+                <span style="{{ p.radioStyle }}"><span style="{{ p.dotStyle }}"></span></span>
+                <div style="flex:1">
+                  <div style="display:flex;align-items:center;gap:7px"><span style="font-size:12.5px;font-weight:600">{{ p.label }}</span><span style="{{ p.recStyle }}">RECOMMENDED</span></div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:2px">{{ p.desc }}</div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="height:1px;background:var(--border);margin:4px 0 16px"></div>
+          <div style="font-size:11px;color:var(--muted-2);font-weight:600;letter-spacing:.05em;margin-bottom:11px">GRAPH PHYSICS</div>
+          <div style="margin-bottom:14px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px"><span style="color:var(--muted)">Repulsion force</span><span style="font-family:'JetBrains Mono',monospace;color:var(--accent)">{{ repulsionVal }}</span></div>
+            <input type="range" min="200" max="2400" step="50" value="{{ repulsion }}" onInput="{{ onRepulsion }}" style="width:100%;accent-color:var(--accent)"/>
+          </div>
+          <div style="margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px"><span style="color:var(--muted)">Link distance</span><span style="font-family:'JetBrains Mono',monospace;color:var(--accent)">{{ linkDistVal }}</span></div>
+            <input type="range" min="40" max="200" step="5" value="{{ linkDist }}" onInput="{{ onLinkDist }}" style="width:100%;accent-color:var(--accent)"/>
+          </div>
+
+          <div style="height:1px;background:var(--border);margin:14px 0 16px"></div>
+          <div style="font-size:11px;color:var(--muted-2);font-weight:600;letter-spacing:.05em;margin-bottom:11px">CATEGORY COLORS</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+            <sc-for list="{{ colorRows }}" as="c" hint-placeholder-count="6">
+              <div style="display:flex;align-items:center;gap:9px;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:6px 9px">
+                <input type="color" value="{{ c.color }}" onInput="{{ c.onChange }}" style="width:22px;height:22px;border:none;border-radius:5px;background:none;cursor:pointer;padding:0"/>
+                <span style="flex:1;font-size:11.5px">{{ c.label }}</span>
+                <span style="font-size:10px;color:var(--muted-2);font-family:'JetBrains Mono',monospace">{{ c.color }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;,&quot;height&quot;:&quot;100%&quot;}}">
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    const notes = this.seedNotes();
+    this.state = {
+      notes,
+      view: 'graph',
+      mode: 'graph',
+      theme: 'dark',
+      skin: 'carbon',
+      layout: 'classic',
+      defaultMode: 'graph',
+      selectedId: null,
+      editing: false,
+      draft: null,
+      search: '',
+      paletteOpen: false,
+      paletteQuery: '',
+      paletteIndex: 0,
+      settingsOpen: false,
+      filtCats: [], filtTags: [], filtStatus: [], filtLevels: [],
+      vennDim: 'tag',
+      vennSets: ['performance','indexing','containers'],
+      showLearning: true,
+      collapsed: false,
+      cardSort: 'default',
+      minimapOn: true,
+      repulsion: 820,
+      linkDist: 80,
+      prereqApproach: 'C',
+      vaultName: 'informatyka',
+      vaultPath: '/Users/me/vaults/informatyka',
+      catColors: {
+        'DevOps':'#3fb950','Databases':'#58a6ff','Algorithms':'#bc8cff',
+        'Networking':'#39c5cf','Operating Systems':'#f0883e','Security':'#f778ba','Tools':'#d29922'
+      },
+      copied: false,
+      hoverId: null,
+      tx: 0, ty: 0, scale: 1
+    };
+    // physics nodes (kept off React state)
+    this.sim = {};
+    this.alpha = 1; this.running = false;
+    this.vw = 800; this.vh = 600;
+    this.drag = null; this.pan = null;
+  }
+
+  // ---------- DATA ----------
+  seedNotes(){
+    const d = (s)=> s; // date strings yyyy-mm-dd
+    const N = (id,title,category,level,status,tags,links,body,modified,acts)=>(
+      {id,title,category,level,status,tags,links,
+       path:'informatyka/'+category.toLowerCase().replace(/[^a-z]+/g,'-')+'/'+id+'.md',
+       body,modified,activity:acts});
+    return [
+      N('docker-basics','Docker Basics','DevOps',1,'completed',['containers','cli'],['linux-fundamentals'],
+        "Docker packages an app and its dependencies into a portable **container** image.\n\n## Why containers\n- Consistent across machines\n- Lightweight vs. VMs (shared kernel)\n- Fast startup\n\nA related foundation is [[linux-fundamentals]].\n\n```bash\ndocker run -it ubuntu:22.04 bash\ndocker ps -a   # list containers\n```",
+        '2026-06-10',['2026-04-02','2026-05-18','2026-06-10']),
+      N('dockerfile','Writing a Dockerfile','DevOps',2,'completed',['containers','yaml'],['docker-basics'],
+        "A `Dockerfile` is a recipe for building an image. Builds on [[docker-basics]].\n\n```dockerfile\nFROM node:20-alpine\nWORKDIR /app\nCOPY package*.json ./\nRUN npm ci\nCOPY . .\nCMD [\"node\", \"server.js\"]\n```\n\n> Layer order matters for cache efficiency.",
+        '2026-06-12',['2026-04-20','2026-06-12']),
+      N('docker-compose','Docker Compose','DevOps',2,'in-progress',['containers','yaml','automation'],['dockerfile','docker-basics'],
+        "Compose defines **multi-container** apps declaratively. Requires [[dockerfile]].\n\n```yaml\nservices:\n  web:\n    build: .\n    ports: [\"8080:8080\"]\n  db:\n    image: postgres:16\n```\n\nUse `docker compose up -d` to start the stack.",
+        '2026-06-15',['2026-05-30','2026-06-08','2026-06-15']),
+      N('docker-networking','Docker Networking','DevOps',3,'not-started',['containers','networking','protocols'],['docker-compose','tcp-ip'],
+        "How containers talk to each other and the host. Builds on [[docker-compose]] and [[tcp-ip]].\n\n- bridge (default)\n- host\n- overlay (swarm)\n\nDNS-based service discovery resolves container names automatically.",
+        '2026-05-22',['2026-05-22']),
+      N('docker-volumes','Docker Volumes','DevOps',3,'not-started',['containers','storage'],['docker-basics'],
+        "Persisting data beyond a container lifecycle. See [[docker-basics]].\n\n```bash\ndocker volume create pgdata\ndocker run -v pgdata:/var/lib/postgresql/data postgres\n```",
+        '2026-05-12',['2026-05-12']),
+      N('kubernetes-intro','Kubernetes Intro','DevOps',3,'not-started',['containers','kubernetes','orchestration'],['docker-compose','docker-networking'],
+        "Kubernetes orchestrates containers at scale. Assumes [[docker-compose]] and [[docker-networking]].\n\n## Core objects\n- Pod\n- Deployment\n- Service\n- Ingress",
+        '2026-04-28',['2026-04-28']),
+      N('ci-cd-pipelines','CI/CD Pipelines','DevOps',2,'in-progress',['yaml','automation','performance'],['dockerfile'],
+        "Automate build → test → deploy. Pairs with [[dockerfile]].\n\n```yaml\njobs:\n  build:\n    steps:\n      - run: npm ci\n      - run: npm test\n      - run: docker build -t app .\n```",
+        '2026-06-14',['2026-06-01','2026-06-14']),
+      N('linux-fundamentals','Linux Fundamentals','Operating Systems',1,'completed',['linux','cli'],[],
+        "The shell, filesystem hierarchy, and permissions.\n\n```bash\nchmod 755 script.sh\nps aux | grep node\n```\n\nFoundational for most DevOps work.",
+        '2026-03-30',['2026-03-12','2026-03-30']),
+      N('process-scheduling','Process Scheduling','Operating Systems',2,'not-started',['concurrency','performance','linux'],['linux-fundamentals'],
+        "How the kernel decides which process runs next. Builds on [[linux-fundamentals]].\n\n- Round-robin\n- CFS (Completely Fair Scheduler)\n- Priorities & nice values",
+        '2026-04-15',['2026-04-15']),
+      N('relational-model','The Relational Model','Databases',1,'completed',['sql','theory'],[],
+        "Data as **relations** (tables) of tuples. The theoretical core of SQL databases.\n\n- Primary & foreign keys\n- Normalization (1NF→3NF)\n- Set-based thinking",
+        '2026-04-05',['2026-03-20','2026-04-05']),
+      N('sql-joins','SQL Joins','Databases',2,'completed',['sql','performance'],['relational-model'],
+        "Combining rows across tables. Builds on [[relational-model]].\n\n```sql\nSELECT u.name, o.total\nFROM users u\nJOIN orders o ON o.user_id = u.id\nWHERE o.total > 100;\n```",
+        '2026-05-02',['2026-04-22','2026-05-02']),
+      N('database-indexes','Database Indexes','Databases',2,'in-progress',['sql','performance','indexing'],['sql-joins','b-trees'],
+        "Indexes trade write cost for read speed. Uses [[b-trees]] under the hood; pairs with [[sql-joins]].\n\n```sql\nCREATE INDEX idx_orders_user ON orders(user_id);\n```\n\nWatch for unused indexes — they slow writes.",
+        '2026-06-16',['2026-05-25','2026-06-09','2026-06-16']),
+      N('transactions-acid','Transactions & ACID','Databases',3,'not-started',['sql','concurrency'],['relational-model'],
+        "Atomicity, Consistency, Isolation, Durability. Builds on [[relational-model]].\n\n- Isolation levels\n- Locking vs. MVCC\n- Deadlocks",
+        '2026-04-18',['2026-04-18']),
+      N('query-optimization','Query Optimization','Databases',3,'not-started',['sql','performance','indexing'],['database-indexes'],
+        "Reading `EXPLAIN` plans and tuning queries. Requires [[database-indexes]].\n\n```sql\nEXPLAIN ANALYZE SELECT ...;\n```\n\nSeq scan vs. index scan vs. bitmap heap scan.",
+        '2026-04-25',['2026-04-25']),
+      N('recursion','Recursion','Algorithms',1,'completed',['fundamentals','theory'],[],
+        "A function defined in terms of itself.\n\n```python\ndef fact(n):\n    return 1 if n <= 1 else n * fact(n-1)\n```\n\nNeed a base case and progress toward it.",
+        '2026-03-28',['2026-03-15','2026-03-28']),
+      N('binary-search-trees','Binary Search Trees','Algorithms',2,'completed',['data-structures'],['recursion'],
+        "Ordered tree: left < node < right. Uses [[recursion]] for traversal.\n\n- O(log n) search when balanced\n- Degrades to O(n) when skewed",
+        '2026-05-08',['2026-04-30','2026-05-08']),
+      N('b-trees','B-Trees','Algorithms',3,'in-progress',['data-structures','indexing','performance'],['binary-search-trees'],
+        "Balanced multi-way trees optimized for disk. Generalizes [[binary-search-trees]].\n\nHigh fan-out → shallow depth → fewer disk reads. The backbone of database indexes.",
+        '2026-06-11',['2026-05-20','2026-06-11']),
+      N('tcp-ip','TCP/IP','Networking',1,'completed',['protocols','networking'],[],
+        "The layered protocol suite of the internet.\n\n- IP: addressing & routing\n- TCP: reliable, ordered streams\n- 3-way handshake: SYN → SYN-ACK → ACK",
+        '2026-04-08',['2026-03-22','2026-04-08']),
+      N('http-basics','HTTP Basics','Networking',2,'in-progress',['protocols','web'],['tcp-ip'],
+        "Request/response over TCP. Builds on [[tcp-ip]].\n\n```http\nGET /api/users HTTP/1.1\nHost: example.com\n```\n\nMethods, status codes, headers, and caching.",
+        '2026-06-13',['2026-05-28','2026-06-13']),
+      N('tls-ssl','TLS / SSL','Security',2,'not-started',['protocols','encryption','security'],['http-basics','tcp-ip'],
+        "Encrypting transport. Builds on [[http-basics]] and [[tcp-ip]].\n\n- Handshake & cipher suites\n- Certificates & chain of trust\n- Forward secrecy",
+        '2026-04-12',['2026-04-12']),
+      N('regex-cheatsheet','Regex Cheatsheet','Tools',1,'not-started',['cli','text'],[],
+        "Quick reference for regular expressions.\n\n```\n\\d+      one or more digits\n^abc     starts with abc\n(a|b)    a or b\n```\n\nStandalone reference — no prerequisites.",
+        '2026-05-05',['2026-05-05']),
+      N('vim-shortcuts','Vim Shortcuts','Tools',1,'completed',['cli','editor'],[],
+        "Motions and operators.\n\n```\ndw   delete word\nciw  change inner word\n:%s/a/b/g  replace all\n```\n\nStandalone — muscle memory only.",
+        '2026-03-25',['2026-03-18','2026-03-25'])
+    ];
+  }
+
+  componentDidMount(){
+    this.initSim();
+    window.addEventListener('keydown', this.onKey);
+    window.addEventListener('mousemove', this.onWinMove);
+    window.addEventListener('mouseup', this.onWinUp);
+    this.start();
+  }
+  componentWillUnmount(){
+    window.removeEventListener('keydown', this.onKey);
+    window.removeEventListener('mousemove', this.onWinMove);
+    window.removeEventListener('mouseup', this.onWinUp);
+    if(this.raf) cancelAnimationFrame(this.raf);
+  }
+
+  // ---------- GEOMETRY / EDGES ----------
+  edges(){
+    const byId = {}; this.state.notes.forEach(n=>byId[n.id]=n);
+    const es = [];
+    this.state.notes.forEach(n=>{
+      (n.links||[]).forEach(t=>{
+        if(byId[t]){
+          // direction: requirement points from note -> its prereq (lower level)
+          const a = n, b = byId[t];
+          const dir = (a.level >= b.level);
+          es.push({source: dir? b.id : a.id, target: dir? a.id : b.id, from:n.id, to:t});
+        }
+      });
+    });
+    return es;
+  }
+  adjacency(){
+    const adj={}; this.state.notes.forEach(n=>adj[n.id]=new Set());
+    this.edges().forEach(e=>{ adj[e.from].add(e.to); adj[e.to].add(e.from); });
+    return adj;
+  }
+  orphanSet(){
+    const adj=this.adjacency(); const s=new Set();
+    Object.keys(adj).forEach(id=>{ if(adj[id].size===0) s.add(id); });
+    return s;
+  }
+
+  initSim(){
+    const cx=this.vw/2, cy=this.vh/2;
+    const cats=[...new Set(this.state.notes.map(n=>n.category))];
+    const ncat=cats.length;
+    this.state.notes.forEach((n,i)=>{
+      const ci=cats.indexOf(n.category);
+      // seed each category in its own angular wedge so clusters start apart
+      const base=(ci/ncat)*Math.PI*2;
+      const r=120 + n.level*30 + (i%3)*12;
+      this.sim[n.id]={
+        x:cx+Math.cos(base+(i*0.7))*r,
+        y:cy+Math.sin(base+(i*0.7))*r,
+        vx:0, vy:0, fx:null, fy:null
+      };
+    });
+    this.alpha=1;
+  }
+  start(){ if(!this.running){ this.running=true; this.raf=requestAnimationFrame(this.tick); } }
+  reheat(a){ this.alpha=Math.max(this.alpha, a||0.7); this.start(); }
+  reheatSim = ()=>{ this.initSim(); this._userMoved=false; this.setState({tx:0,ty:0,scale:1}); this.reheat(1); };
+  sortedVisible(visible){
+    const arr=[...visible];
+    const statusOrder={'not-started':0,'in-progress':1,'completed':2};
+    const s=this.state.cardSort;
+    if(s==='date') arr.sort((a,b)=>b.modified.localeCompare(a.modified));
+    else if(s==='category') arr.sort((a,b)=>a.category.localeCompare(b.category));
+    else if(s==='level') arr.sort((a,b)=>a.level-b.level);
+    else if(s==='status') arr.sort((a,b)=>statusOrder[a.status]-statusOrder[b.status]);
+    return arr;
+  }
+  categoryAnchors(){
+    const notes=this.state.notes;
+    const cx=this.vw/2, cy=this.vh/2;
+    const cats={}; let ci=0;
+    notes.forEach(n=>{ if(!(n.category in cats)) cats[n.category]=ci++; });
+    const catList=Object.keys(cats);
+    const AR=Math.min(this.vw,this.vh)*0.24;
+    const anch={};
+    catList.forEach((c,i)=>{ const a=(i/catList.length)*Math.PI*2 - Math.PI/2; anch[c]={x:cx+Math.cos(a)*AR, y:cy+Math.sin(a)*AR}; });
+    return anch;
+  }
+  toggleCollapse = ()=>{
+    const next=!this.state.collapsed;
+    const anch=this.categoryAnchors();
+    this.state.notes.forEach((n,idx)=>{
+      const sp=this.sim[n.id]; if(!sp) return;
+      if(next){
+        const c=anch[n.category];
+        const j=(idx%6)*2.6;
+        sp.fx=c.x+Math.cos(idx*1.9)*j; sp.fy=c.y+Math.sin(idx*1.9)*j;
+      } else { sp.fx=null; sp.fy=null; }
+    });
+    this._userMoved=false;
+    this.reheat(next?0.5:1);
+    this.setState({collapsed:next});
+  };
+  fitView(){
+    const ids=Object.keys(this.sim); if(!ids.length) return;
+    let minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;
+    ids.forEach(id=>{const s=this.sim[id]; minx=Math.min(minx,s.x);maxx=Math.max(maxx,s.x);miny=Math.min(miny,s.y);maxy=Math.max(maxy,s.y);});
+    const pad=84;
+    const bw=(maxx-minx)+pad*2, bh=(maxy-miny)+pad*2;
+    const sc=Math.max(0.4, Math.min(this.vw/bw, this.vh/bh, 1.35));
+    const cxw=(minx+maxx)/2, cyw=(miny+maxy)/2;
+    this.setState({scale:sc, tx:this.vw/2 - cxw*sc, ty:this.vh/2 - cyw*sc});
+  }
+
+  tick = ()=>{
+    if(this.state.paletteOpen || this.state.settingsOpen || this.state.editing){ this.running=false; return; }
+    this.step();
+    this.forceUpdate();
+    this.alpha *= 0.975;
+    if(this.alpha < 0.004 && !this.drag){ this.running=false; if(!this._userMoved) this.fitView(); return; }
+    this.raf=requestAnimationFrame(this.tick);
+  };
+
+  step(){
+    const notes=this.state.notes;
+    const sim=this.sim;
+    const cx=this.vw/2, cy=this.vh/2;
+    const k=this.alpha;
+    const rep=this.state.repulsion;
+    const cats={}; let ci=0;
+    notes.forEach(n=>{ if(!(n.category in cats)) cats[n.category]=ci++; });
+    // repulsion
+    for(let i=0;i<notes.length;i++){
+      const a=sim[notes[i].id];
+      for(let j=i+1;j<notes.length;j++){
+        const b=sim[notes[j].id];
+        let dx=a.x-b.x, dy=a.y-b.y; let d2=dx*dx+dy*dy; if(d2<0.01){d2=0.01;dx=Math.random();dy=Math.random();}
+        const d=Math.sqrt(d2);
+        const f=(rep)/d2*k;
+        const fx=dx/d*f, fy=dy/d*f;
+        a.vx+=fx; a.vy+=fy; b.vx-=fx; b.vy-=fy;
+      }
+    }
+    // springs (links) — keep linked notes close to cut down on crossings
+    const L=this.state.linkDist;
+    this.edges().forEach(e=>{
+      const a=sim[e.source], b=sim[e.target];
+      let dx=b.x-a.x, dy=b.y-a.y; const d=Math.sqrt(dx*dx+dy*dy)||0.01;
+      const f=(d-L)/d*0.09*k*30;
+      const fx=dx*f/ d, fy=dy*f/d;
+      a.vx+=fx; a.vy+=fy; b.vx-=fx; b.vy-=fy;
+    });
+    // category anchors — each category gets its own fixed region of the canvas
+    const catList=Object.keys(cats);
+    const AR=Math.min(this.vw,this.vh)*0.24;
+    const anch={};
+    catList.forEach((c,i)=>{ const a=(i/catList.length)*Math.PI*2 - Math.PI/2; anch[c]={x:cx+Math.cos(a)*AR, y:cy+Math.sin(a)*AR}; });
+    // integrate
+    notes.forEach(n=>{
+      const s=sim[n.id];
+      // gentle pull to canvas center
+      s.vx += (cx-s.x)*0.0006*k*30;
+      s.vy += (cy-s.y)*0.0006*k*30;
+      // strong pull to the note's category anchor — groups categories together
+      const ct=anch[n.category];
+      s.vx += (ct.x-s.x)*0.0085*k*30;
+      s.vy += (ct.y-s.y)*0.0085*k*30;
+      if(s.fx!=null){ s.x=s.fx; s.y=s.fy; s.vx=0; s.vy=0; return; }
+      s.vx*=0.86; s.vy*=0.86;
+      s.x+=s.vx; s.y+=s.vy;
+    });
+    // collision relaxation — hard separation so nodes + labels don't overlap
+    const cr={}; notes.forEach(n=>{ cr[n.id]= 9 + n.level*2.2 + 30; });
+    for(let iter=0; iter<3; iter++){
+      for(let i=0;i<notes.length;i++){
+        const A=sim[notes[i].id], ra=cr[notes[i].id];
+        for(let j=i+1;j<notes.length;j++){
+          const B=sim[notes[j].id], rb=cr[notes[j].id];
+          let dx=B.x-A.x, dy=B.y-A.y; let d=Math.sqrt(dx*dx+dy*dy); if(d<0.01){d=0.01;dx=Math.random()-0.5;dy=Math.random()-0.5;}
+          const min=ra+rb;
+          if(d<min){
+            const push=(min-d)/d*0.5;
+            const ox=dx*push, oy=dy*push;
+            if(A.fx==null){ A.x-=ox; A.y-=oy; }
+            if(B.fx==null){ B.x+=ox; B.y+=oy; }
+          }
+        }
+      }
+    }
+  }
+
+  // ---------- INPUT ----------
+  onKey = (e)=>{
+    if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); this.togglePalette(); return; }
+    if(e.key==='Escape'){
+      if(this.state.paletteOpen) this.setState({paletteOpen:false});
+      else if(this.state.settingsOpen) this.setState({settingsOpen:false});
+      else if(this.state.selectedId) this.setState({selectedId:null,editing:false});
+      return;
+    }
+    if(this.state.paletteOpen){
+      const res=this.paletteList();
+      if(e.key==='ArrowDown'){ e.preventDefault(); this.setState(s=>({paletteIndex:Math.min(s.paletteIndex+1,res.length-1)})); }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); this.setState(s=>({paletteIndex:Math.max(s.paletteIndex-1,0)})); }
+      else if(e.key==='Enter'){ e.preventDefault(); const r=res[this.state.paletteIndex]; if(r) r.action(); }
+    }
+  };
+  onWinMove = (e)=>{
+    if(this.drag){
+      const s=this.sim[this.drag];
+      const p=this.toWorld(e.clientX,e.clientY);
+      s.fx=p.x; s.fy=p.y;
+      if(!this.running) this.start();
+    } else if(this.pan){
+      const dx=e.clientX-this.pan.x, dy=e.clientY-this.pan.y;
+      this.setState({tx:this.pan.tx0+dx, ty:this.pan.ty0+dy});
+    }
+  };
+  onWinUp = ()=>{
+    if(this.drag){ const s=this.sim[this.drag]; if(s){ s.fx=null; s.fy=null; } this.drag=null; }
+    this.pan=null;
+  };
+  stageRef = (el)=>{
+    if(el && !this._stageEl){
+      this._stageEl=el;
+      const ro=new ResizeObserver(()=>{ const r=el.getBoundingClientRect(); this.vw=r.width; this.vh=r.height; this._rect=r; });
+      ro.observe(el);
+      const r=el.getBoundingClientRect(); this.vw=r.width; this.vh=r.height; this._rect=r;
+    }
+  };
+  rect(){ return this._stageEl? this._stageEl.getBoundingClientRect() : {left:0,top:0,width:this.vw,height:this.vh}; }
+  toWorld(cx,cy){ const r=this.rect(); const x=(cx-r.left-this.state.tx)/this.state.scale; const y=(cy-r.top-this.state.ty)/this.state.scale; return {x,y}; }
+  onStageDown = (e)=>{ this._userMoved=true; this.pan={x:e.clientX,y:e.clientY,tx0:this.state.tx,ty0:this.state.ty}; };
+  onWheel = (e)=>{
+    e.preventDefault();
+    this._userMoved=true;
+    const r=this.rect();
+    const mx=e.clientX-r.left, my=e.clientY-r.top;
+    const factor=e.deltaY<0?1.12:0.89;
+    const ns=Math.max(0.35,Math.min(2.6,this.state.scale*factor));
+    const wx=(mx-this.state.tx)/this.state.scale, wy=(my-this.state.ty)/this.state.scale;
+    this.setState({scale:ns, tx:mx-wx*ns, ty:my-wy*ns});
+  };
+  nodeDown = (id)=> (e)=>{ e.stopPropagation(); this._userMoved=true; this.drag=id; const s=this.sim[id]; const p=this.toWorld(e.clientX,e.clientY); s.fx=p.x; s.fy=p.y; this.reheat(0.06); this._downId=id; this._moved=false; this._downXY={x:e.clientX,y:e.clientY}; };
+  nodeUp = (id)=> (e)=>{ e.stopPropagation();
+    // stopPropagation keeps the window mouseup from firing, so release the drag here
+    if(this.drag){ const s=this.sim[this.drag]; if(s){ s.fx=null; s.fy=null; } this.drag=null; }
+    this.pan=null;
+    if(this._downId===id){ const dx=Math.abs(e.clientX-this._downXY.x), dy=Math.abs(e.clientY-this._downXY.y); if(dx<4&&dy<4) this.openNote(id); }
+  };
+
+  // ---------- FILTERS ----------
+  visibleNotes(){
+    const st=this.state;
+    return st.notes.filter(n=>{
+      if(st.filtCats.length && !st.filtCats.includes(n.category)) return false;
+      if(st.filtStatus.length && !st.filtStatus.includes(n.status)) return false;
+      if(st.filtLevels.length && !st.filtLevels.includes(n.level)) return false;
+      if(st.filtTags.length && !st.filtTags.some(t=>n.tags.includes(t))) return false;
+      if(st.view==='cards' && st.search){ const q=st.search.toLowerCase(); if(!(n.title.toLowerCase().includes(q)||n.body.toLowerCase().includes(q)||n.tags.join(' ').includes(q))) return false; }
+      return true;
+    });
+  }
+  toggleArr(key,val){ this.setState(s=>{ const arr=s[key]; const has=arr.includes(val); return {[key]: has? arr.filter(x=>x!==val): [...arr,val]}; }); }
+
+  // ---------- NOTE ----------
+  openNote = (id)=>{ this.setState({selectedId:id, editing:false, copied:false}); };
+  closeNote = ()=> this.setState({selectedId:null, editing:false});
+  startEdit = ()=>{ const n=this.sel(); this.setState({editing:true, draft:{title:n.title,category:n.category,status:n.status,level:n.level,tags:n.tags.join(', '),body:n.body}}); };
+  cancelEdit = ()=> this.setState({editing:false, draft:null});
+  saveEdit = ()=>{
+    const d=this.state.draft; const id=this.state.selectedId;
+    this.setState(s=>({
+      notes: s.notes.map(n=> n.id===id? {...n, title:d.title, category:d.category, status:d.status, level:d.level, tags:d.tags.split(',').map(t=>t.trim()).filter(Boolean), body:d.body, modified:new Date().toISOString().slice(0,10)} : n),
+      editing:false, draft:null
+    }));
+  };
+  sel(){ return this.state.notes.find(n=>n.id===this.state.selectedId); }
+  copyPath = ()=>{ const n=this.sel(); if(n){ try{navigator.clipboard.writeText(n.path);}catch(e){} this.setState({copied:true}); setTimeout(()=>this.setState({copied:false}),1400);} };
+  openObsidian = ()=>{ const n=this.sel(); if(n){ const url='obsidian://open?vault='+encodeURIComponent(this.state.vaultName)+'&file='+encodeURIComponent(n.path); try{window.open(url,'_blank');}catch(e){} } };
+
+  // ---------- PALETTE ----------
+  togglePalette = ()=>{ this.setState(s=>({paletteOpen:!s.paletteOpen, paletteQuery:'', paletteIndex:0})); setTimeout(()=>{ if(this._palEl) this._palEl.focus(); },30); };
+  openPalette = ()=>{ this.setState({paletteOpen:true, paletteQuery:'', paletteIndex:0}); setTimeout(()=>{ if(this._palEl) this._palEl.focus(); },30); };
+  closePalette = ()=> this.setState({paletteOpen:false});
+  paletteRef = (el)=>{ if(el) this._palEl=el; };
+  onPaletteInput = (e)=> this.setState({paletteQuery:e.target.value, paletteIndex:0});
+  paletteActionDefs(){
+    const s=this.state;
+    return [
+      {id:'mode', label: s.mode==='graph'?'Switch to Venn diagram':'Switch to graph', hint:'view', icon:'◑', run:()=>{ this.setState({mode:s.mode==='graph'?'venn':'graph', view:'graph', paletteOpen:false}); }},
+      {id:'dash', label:'Go to dashboard', hint:'view', icon:'▦', run:()=>this.setState({view:'dashboard',paletteOpen:false})},
+      {id:'theme', label: s.theme==='dark'?'Switch to light theme':'Switch to dark theme', hint:'appearance', icon:'◐', run:()=>this.setState({theme:s.theme==='dark'?'light':'dark',paletteOpen:false})},
+      {id:'settings', label:'Open settings', hint:'app', icon:'⚙', run:()=>this.setState({settingsOpen:true,paletteOpen:false})}
+    ];
+  }
+  paletteList(){
+    const q=this.state.paletteQuery.trim().toLowerCase();
+    const acts=this.paletteActionDefs().filter(a=>!q||a.label.toLowerCase().includes(q)).map(a=>({type:'action',...a, action:a.run}));
+    const notes=this.state.notes.filter(n=>!q||n.title.toLowerCase().includes(q)||n.category.toLowerCase().includes(q)||n.tags.join(' ').includes(q))
+      .map(n=>({type:'note', id:n.id, title:n.title, category:n.category, status:n.status, action:()=>this.setState({selectedId:n.id,paletteOpen:false,editing:false})}));
+    return [...acts, ...notes];
+  }
+
+  // ---------- SETTINGS ----------
+  openSettings = ()=> this.setState({settingsOpen:true});
+  closeSettings = ()=> this.setState({settingsOpen:false});
+  stop = (e)=> e.stopPropagation();
+  toggleTheme = ()=> this.setState(s=>({theme:s.theme==='dark'?'light':'dark'}));
+
+  statusMeta(){ return {
+    'not-started':{label:'Not started', color:'var(--gray)', short:'Not started'},
+    'in-progress':{label:'In progress', color:'var(--amber)', short:'In progress'},
+    'completed':{label:'Completed', color:'var(--green)', short:'Done'}
+  }; }
+  catColor(c){ return this.state.catColors[c]||'#888'; }
+  statusColor(s){ const m={'not-started':'#7d8590','in-progress':'#d29922','completed':'#3fb950'}; return m[s]; }
+
+  // ---------- MARKDOWN ----------
+  esc(t){ return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  hl(code, lang){
+    let c=this.esc(code);
+    // comments
+    c=c.replace(/(#.*?$)/gm,'<span style="color:#7d8590">$1</span>');
+    c=c.replace(/(\/\/.*?$)/gm,'<span style="color:#7d8590">$1</span>');
+    // strings
+    c=c.replace(/(&quot;|&#39;|`|")([^&"`]*?)(&quot;|&#39;|`|")/g,'<span style="color:#a5d6ff">$1$2$3</span>');
+    c=c.replace(/(['"])(.*?)\1/g,'<span style="color:#a5d6ff">$1$2$1</span>');
+    // keywords
+    const kw=/\b(FROM|WORKDIR|COPY|RUN|CMD|SELECT|JOIN|WHERE|FROM|CREATE|INDEX|ON|EXPLAIN|ANALYZE|def|return|if|else|FROM|services|build|image|ports|GET|POST|HTTP|jobs|steps|run|docker|npm|chmod|ps|grep)\b/g;
+    c=c.replace(kw,'<span style="color:#ff7b72">$1</span>');
+    // numbers
+    c=c.replace(/\b(\d+)\b/g,'<span style="color:#79c0ff">$1</span>');
+    return c;
+  }
+  mdRender(md){
+    const lines=md.split('\n'); let html=''; let i=0;
+    while(i<lines.length){
+      const ln=lines[i];
+      if(ln.startsWith('```')){
+        const lang=ln.slice(3).trim(); let code=[]; i++;
+        while(i<lines.length && !lines[i].startsWith('```')){ code.push(lines[i]); i++; }
+        i++;
+        html+='<div style="position:relative;margin:12px 0"><div style="position:absolute;top:7px;right:9px;font-size:9px;color:var(--muted-2);font-family:JetBrains Mono,monospace;text-transform:uppercase;letter-spacing:.05em">'+(lang||'code')+'</div><pre style="background:var(--bg-deep);border:1px solid var(--border);border-radius:8px;padding:12px 13px;overflow-x:auto;margin:0"><code style="font-family:JetBrains Mono,monospace;font-size:11.5px;line-height:1.6;color:var(--text)">'+this.hl(code.join('\n'),lang)+'</code></pre></div>';
+        continue;
+      }
+      if(ln.startsWith('## ')){ html+='<div style="font-size:14px;font-weight:700;margin:16px 0 7px;letter-spacing:-.01em">'+this.inline(ln.slice(3))+'</div>'; i++; continue; }
+      if(ln.startsWith('# ')){ html+='<div style="font-size:16px;font-weight:700;margin:14px 0 8px">'+this.inline(ln.slice(2))+'</div>'; i++; continue; }
+      if(ln.startsWith('> ')){ html+='<div style="border-left:3px solid var(--accent);padding:4px 0 4px 11px;margin:9px 0;color:var(--muted);font-style:italic">'+this.inline(ln.slice(2))+'</div>'; i++; continue; }
+      if(/^[-*] /.test(ln)){
+        let items=[];
+        while(i<lines.length && /^[-*] /.test(lines[i])){ items.push(lines[i].slice(2)); i++; }
+        html+='<ul style="margin:7px 0;padding-left:18px;display:flex;flex-direction:column;gap:3px">'+items.map(it=>'<li style="font-size:13px;line-height:1.5">'+this.inline(it)+'</li>').join('')+'</ul>';
+        continue;
+      }
+      if(ln.trim()===''){ i++; continue; }
+      html+='<p style="margin:8px 0;font-size:13px;line-height:1.62">'+this.inline(ln)+'</p>';
+      i++;
+    }
+    return html;
+  }
+  inline(t){
+    t=this.esc(t);
+    t=t.replace(/\[\[([^\]]+)\]\]/g,'<span style="color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:4px;padding:0 4px;font-weight:500">$1</span>');
+    t=t.replace(/\*\*([^*]+)\*\*/g,'<strong style="font-weight:700">$1</strong>');
+    t=t.replace(/`([^`]+)`/g,'<code style="font-family:JetBrains Mono,monospace;font-size:11.5px;background:var(--bg-deep);border:1px solid var(--border);border-radius:4px;padding:1px 5px">$1</code>');
+    return t;
+  }
+
+  // ---------- VIZ SVG ----------
+  vizSvg(){
+    const h=React.createElement;
+    if(this.state.mode==='venn') return this.vennEl();
+    return this.graphEl();
+  }
+  graphEl(){
+    const h=React.createElement;
+    const st=this.state, sim=this.sim;
+    const vis=new Set(this.visibleNotes().map(n=>n.id));
+    const orphans=this.orphanSet();
+    const hover=st.hoverId;
+    const adj=this.adjacency();
+    const sel=st.selectedId;
+    const edges=this.edges();
+    const els=[];
+    const noteById={}; this.state.notes.forEach(n=>noteById[n.id]=n);
+    const radiusOf=(nn)=> nn? 9+nn.level*2.2 : 9;
+    const inDeg={}, outDeg={};
+    edges.forEach(e=>{ inDeg[e.target]=(inDeg[e.target]||0)+1; outDeg[e.source]=(outDeg[e.source]||0)+1; });
+    // edges
+    edges.forEach((e,idx)=>{
+      const a=sim[e.source], b=sim[e.target]; if(!a||!b) return;
+      const on = vis.has(e.source)&&vis.has(e.target);
+      const hl = hover && (e.from===hover||e.to===hover) || sel && (e.from===sel||e.to===sel);
+      const op = on? (hl?0.95:(hover||sel?0.12:0.34)) : 0.04;
+      const directed = st.showLearning;
+      const opFinal = on && !hl && !hover && !sel ? (directed?0.58:op) : op;
+      // shorten the line so the arrowhead lands outside the target node instead of under it
+      const br=radiusOf(noteById[e.target])+3.5;
+      const dx=b.x-a.x, dy=b.y-a.y, dist=Math.sqrt(dx*dx+dy*dy)||1;
+      const ex=b.x-(dx/dist)*br, ey=b.y-(dy/dist)*br;
+      els.push(h('line',{key:'e'+idx, x1:a.x,y1:a.y,x2:ex,y2:ey,
+        stroke: hl? 'var(--accent)': (directed&&on?'var(--muted)':'var(--border)'), strokeWidth: hl?1.8:(directed&&on?1.5:1.1), opacity:opFinal,
+        markerEnd: directed && on ? (hl?'url(#arrowHL)':'url(#arrow)') : null}));
+    });
+    // nodes
+    this.visibleOrder().forEach(n=>{
+      const s=sim[n.id]; if(!s) return;
+      const on=vis.has(n.id);
+      const isHover=hover===n.id, isSel=sel===n.id;
+      const conn = hover? adj[hover].has(n.id)||hover===n.id : (sel? adj[sel].has(n.id)||sel===n.id : true);
+      const dim = (hover||sel) && !conn;
+      const op = on? (dim?0.22:1) : 0.08;
+      const r = 9 + n.level*2.2 + (isSel?3:0) + (isHover?2:0);
+      const col=this.catColor(n.category);
+      const sc=this.statusColor(n.status);
+      const isOrph=orphans.has(n.id);
+      const g=[];
+      if(isSel||isHover) g.push(h('circle',{key:'glow',cx:s.x,cy:s.y,r:r+7,fill:col,opacity:0.16}));
+      // node
+      g.push(h('circle',{key:'c',cx:s.x,cy:s.y,r, fill: n.status==='not-started'? 'var(--panel)' : col,
+        stroke: isOrph? 'var(--orange)': sc, strokeWidth: isOrph?2:2.4, strokeDasharray: isOrph?'3 3':null,
+        opacity:op, style:{cursor:'pointer', transition:'r .12s'},
+        onMouseEnter:()=>this.setState({hoverId:n.id}), onMouseLeave:()=>this.setState({hoverId:null}),
+        onMouseDown:this.nodeDown(n.id), onMouseUp:this.nodeUp(n.id)}));
+      // inner dot for category when hollow
+      if(n.status==='not-started') g.push(h('circle',{key:'i',cx:s.x,cy:s.y,r:Math.max(2,r*0.34),fill:col,opacity:op*0.9,style:{pointerEvents:'none'}}));
+      // "path start" badge — roots of a prerequisite chain, when learning path is on
+      if(st.showLearning && on && !inDeg[n.id] && outDeg[n.id] && !dim){
+        const bx=s.x+r*0.66, by=s.y-r*0.66;
+        g.push(h('circle',{key:'psb',cx:bx,cy:by,r:6.5,fill:'var(--green)',stroke:'var(--bg)',strokeWidth:1.5,style:{pointerEvents:'none'}}));
+        g.push(h('path',{key:'pst',d:`M${bx-2},${by-3} L${bx-2},${by+3} L${bx+3},${by} Z`,fill:'var(--bg)',style:{pointerEvents:'none'}}));
+      }
+      // label
+      if(on && (r>11 || isHover || isSel || !hover && !sel)){
+        const fs= isSel||isHover?12:10.5;
+        const lw= n.title.length*fs*0.56 + 10;
+        g.push(h('rect',{key:'lb',x:s.x-lw/2,y:s.y+r+4,width:lw,height:fs+6,rx:4,
+          fill:'var(--bg)', opacity:dim?0.0:0.72, style:{pointerEvents:'none'}}));
+        g.push(h('text',{key:'t',x:s.x,y:s.y+r+12+fs*0.18, textAnchor:'middle',
+          fontSize: fs, fontWeight: isSel?700:500,
+          fill: dim?'var(--muted-2)':'var(--text)', opacity:dim?0.4:1,
+          style:{pointerEvents:'none', fontFamily:'Inter,sans-serif', userSelect:'none'}}, n.title));
+      }
+      els.push(h('g',{key:'n'+n.id}, g));
+    });
+    const defs=h('defs',{key:'defs'},[
+      h('marker',{key:'a',id:'arrow',viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:7,markerHeight:7,orient:'auto-start-reverse'},
+        h('path',{d:'M0 0L10 5L0 10z',fill:'var(--muted-2)'})),
+      h('marker',{key:'b',id:'arrowHL',viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:7,markerHeight:7,orient:'auto-start-reverse'},
+        h('path',{d:'M0 0L10 5L0 10z',fill:'var(--accent)'}))
+    ]);
+    return h('svg',{width:'100%',height:'100%',viewBox:`0 0 ${this.vw} ${this.vh}`,preserveAspectRatio:'none',style:{display:'block'}},[
+      defs,
+      h('g',{key:'vp',transform:`translate(${st.tx},${st.ty}) scale(${st.scale})`}, els)
+    ]);
+  }
+  visibleOrder(){
+    // selected/hover last (on top)
+    const ns=[...this.state.notes];
+    const pri=(n)=> (n.id===this.state.selectedId?2:(n.id===this.state.hoverId?1:0));
+    return ns.sort((a,b)=>pri(a)-pri(b));
+  }
+
+  vennEl(){
+    const h=React.createElement;
+    const st=this.state;
+    const sets=st.vennSets.slice(0,4);
+    const W=this.vw, H=this.vh; const cx=W/2, cy=H/2;
+    const member=(n,key)=> st.vennDim==='tag'? n.tags.includes(key) : n.category===key;
+    const R=Math.min(W,H)*0.26;
+    const palette=['#58a6ff','#3fb950','#bc8cff','#f0883e'];
+    let centers=[];
+    if(sets.length===2){ centers=[{x:cx-R*0.6,y:cy},{x:cx+R*0.6,y:cy}]; }
+    else if(sets.length===3){ centers=[{x:cx,y:cy-R*0.62},{x:cx-R*0.7,y:cy+R*0.5},{x:cx+R*0.7,y:cy+R*0.5}]; }
+    else if(sets.length===4){ centers=[{x:cx-R*0.55,y:cy-R*0.5},{x:cx+R*0.55,y:cy-R*0.5},{x:cx-R*0.55,y:cy+R*0.5},{x:cx+R*0.55,y:cy+R*0.5}]; }
+    else { centers=[{x:cx,y:cy}]; }
+    const els=[];
+    // circles
+    sets.forEach((s,i)=>{
+      els.push(h('circle',{key:'vc'+i,cx:centers[i].x,cy:centers[i].y,r:R,fill:palette[i],opacity:0.10,stroke:palette[i],strokeWidth:1.6,strokeOpacity:0.6}));
+    });
+    sets.forEach((s,i)=>{
+      const lx=centers[i].x, ly=centers[i].y - R - 8;
+      els.push(h('text',{key:'vl'+i,x:lx,y:sets.length===3&&i===0?ly:(sets.length===3?centers[i].y+R+20:ly),textAnchor:'middle',fontSize:13,fontWeight:700,fill:palette[i],style:{fontFamily:'Inter'}}, (st.vennDim==='tag'?'#':'')+s));
+    });
+    // place notes
+    const vis=new Set(this.visibleNotes().map(n=>n.id));
+    const placed=[];
+    this.state.notes.forEach(n=>{
+      if(!vis.has(n.id)) return;
+      const inSets=sets.map((s,i)=>member(n,s)?i:-1).filter(i=>i>=0);
+      if(inSets.length===0) return;
+      let px,py;
+      const seed=(str)=>{ let hh=0; for(let i=0;i<str.length;i++){hh=(hh*31+str.charCodeAt(i))|0;} return ((hh>>>0)%1000)/1000; };
+      if(inSets.length===1){ const c=centers[inSets[0]]; const ang=seed(n.id+'a')*Math.PI*2; const rr=R*(0.45+seed(n.id+'b')*0.32); px=c.x+Math.cos(ang)*rr; py=c.y+Math.sin(ang)*rr; }
+      else { let mx=0,my=0; inSets.forEach(i=>{mx+=centers[i].x;my+=centers[i].y;}); px=mx/inSets.length+(seed(n.id+'x')-0.5)*22; py=my/inSets.length+(seed(n.id+'y')-0.5)*22; }
+      placed.push({n,px,py,multi:inSets.length>1});
+    });
+    placed.forEach((p,idx)=>{
+      const col=this.catColor(p.n.category); const sc=this.statusColor(p.n.status);
+      const isSel=this.state.selectedId===p.n.id;
+      const isHover=this.state.hoverId===p.n.id;
+      const g=[h('circle',{key:'d',cx:p.px,cy:p.py,r:p.multi?10:8, fill:p.n.status==='not-started'?'var(--panel)':col, stroke:sc, strokeWidth:2.4, opacity:p.multi?1:0.94, style:{cursor:'pointer'},
+        onClick:()=>this.openNote(p.n.id), onMouseEnter:()=>this.setState({hoverId:p.n.id}), onMouseLeave:()=>this.setState({hoverId:null})})];
+      if(isHover||isSel) g.push(h('text',{key:'t',x:p.px,y:p.py-11,textAnchor:'middle',fontSize:11,fontWeight:600,fill:'var(--text)',style:{pointerEvents:'none',fontFamily:'Inter'}},p.n.title));
+      els.push(h('g',{key:'vp'+idx},g));
+    });
+    if(sets.length<2){
+      els.push(h('text',{key:'hint',x:cx,y:cy,textAnchor:'middle',fontSize:14,fill:'var(--muted)'},'Select 2–4 sets to compare →'));
+    }
+    return h('svg',{width:'100%',height:'100%',viewBox:`0 0 ${W} ${H}`,preserveAspectRatio:'none',style:{display:'block'}}, els);
+  }
+
+  minimapSvg(){
+    const h=React.createElement;
+    const sim=this.sim; const ids=Object.keys(sim); if(!ids.length) return null;
+    let minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;
+    ids.forEach(id=>{ const s=sim[id]; minx=Math.min(minx,s.x);miny=Math.min(miny,s.y);maxx=Math.max(maxx,s.x);maxy=Math.max(maxy,s.y); });
+    const pad=40; minx-=pad;miny-=pad;maxx+=pad;maxy+=pad;
+    const bw=maxx-minx, bh=maxy-miny;
+    const W=172,H=118;
+    const sc=Math.min(W/bw,H/bh);
+    const ox=(W-bw*sc)/2, oy=(H-bh*sc)/2;
+    const mx=(x)=>(x-minx)*sc+ox, my=(y)=>(y-miny)*sc+oy;
+    const vis=new Set(this.visibleNotes().map(n=>n.id));
+    const els=[];
+    this.edges().forEach((e,i)=>{ const a=sim[e.source],b=sim[e.target]; if(!a||!b)return; els.push(h('line',{key:'e'+i,x1:mx(a.x),y1:my(a.y),x2:mx(b.x),y2:my(b.y),stroke:'var(--border)',strokeWidth:0.6,opacity:0.5})); });
+    this.state.notes.forEach(n=>{ const s=sim[n.id]; if(!s)return; els.push(h('circle',{key:n.id,cx:mx(s.x),cy:my(s.y),r:2.4,fill:vis.has(n.id)?this.catColor(n.category):'var(--border)',opacity:vis.has(n.id)?1:0.4})); });
+    // viewport rect
+    const st=this.state;
+    const vx0=(0-st.tx)/st.scale, vy0=(0-st.ty)/st.scale, vx1=(this.vw-st.tx)/st.scale, vy1=(this.vh-st.ty)/st.scale;
+    els.push(h('rect',{key:'vp',x:mx(vx0),y:my(vy0),width:(vx1-vx0)*sc,height:(vy1-vy0)*sc,fill:'none',stroke:'var(--accent)',strokeWidth:1.2,opacity:0.8,rx:2}));
+    return h('svg',{width:W,height:H,style:{display:'block'}},els);
+  }
+
+  // ---------- DASHBOARD VISUALS ----------
+  donutSvg(){
+    const h=React.createElement;
+    const cats={}; this.state.notes.forEach(n=>cats[n.category]=(cats[n.category]||0)+1);
+    const keys=Object.keys(cats); const total=this.state.notes.length;
+    let acc=0; const R=44, sw=15, C=2*Math.PI*R; const els=[];
+    keys.forEach((k,i)=>{
+      const frac=cats[k]/total; const len=frac*C;
+      els.push(h('circle',{key:k,cx:56,cy:56,r:R,fill:'none',stroke:this.catColor(k),strokeWidth:sw,
+        strokeDasharray:`${len} ${C-len}`, strokeDashoffset:-acc, transform:'rotate(-90 56 56)'}));
+      acc+=len;
+    });
+    els.push(h('text',{key:'tt',x:56,y:53,textAnchor:'middle',fontSize:20,fontWeight:700,fill:'var(--text)',style:{fontFamily:'JetBrains Mono'}},String(total)));
+    els.push(h('text',{key:'ts',x:56,y:68,textAnchor:'middle',fontSize:9,fill:'var(--muted)'},'notes'));
+    return h('svg',{width:112,height:112},els);
+  }
+  heatmapSvg(){
+    const h=React.createElement;
+    const weeks=26, days=7; const cell=12, gap=3;
+    // build count map
+    const counts={};
+    this.state.notes.forEach(n=>(n.activity||[]).forEach(d=>{counts[d]=(counts[d]||0)+1;}));
+    const today=new Date('2026-06-19');
+    const start=new Date(today); start.setDate(start.getDate()-(weeks*7-1));
+    // align start to Sunday
+    start.setDate(start.getDate()-start.getDay());
+    const els=[];
+    let max=1; Object.values(counts).forEach(v=>max=Math.max(max,v));
+    const monthLabels=[];
+    for(let w=0; w<weeks; w++){
+      for(let dd=0; dd<days; dd++){
+        const dt=new Date(start); dt.setDate(start.getDate()+w*7+dd);
+        if(dt>today) continue;
+        const key=dt.toISOString().slice(0,10);
+        const c=counts[key]||0;
+        const lvl=c===0?0:(c/max);
+        const fill=c===0?'var(--bg)': `color-mix(in srgb, var(--green) ${Math.round(25+lvl*65)}%, var(--bg))`;
+        els.push(h('rect',{key:w+'-'+dd,x:w*(cell+gap),y:dd*(cell+gap),width:cell,height:cell,rx:3,fill:fill,stroke:'var(--border)',strokeWidth:0.6}));
+        if(dt.getDate()<=7 && dd===0){ monthLabels.push(h('text',{key:'m'+w,x:w*(cell+gap),y:-4,fontSize:9,fill:'var(--muted-2)'}, dt.toLocaleString('en',{month:'short'}))); }
+      }
+    }
+    const totalW=weeks*(cell+gap);
+    return h('svg',{width:totalW,height:days*(cell+gap)+14,style:{display:'block',marginTop:'8px'}},
+      [h('g',{key:'lbl',transform:'translate(0,14)'},monthLabels), h('g',{key:'cells',transform:'translate(0,14)'},els)]);
+  }
+
+  // ---------- RENDER VALS ----------
+  renderVals(){
+    const st=this.state;
+    const sm=this.statusMeta();
+    const allNotes=st.notes;
+    const visible=this.visibleNotes();
+    const visIds=new Set(visible.map(n=>n.id));
+    const orphans=this.orphanSet();
+    const adj=this.adjacency();
+    const cats=[...new Set(allNotes.map(n=>n.category))];
+    const tabBase='display:flex;align-items:center;gap:6px;height:24px;padding:0 11px;border:none;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;';
+    const tabOn=tabBase+'background:var(--panel-3);color:var(--text);';
+    const tabOff=tabBase+'background:transparent;color:var(--muted);';
+    const chip=(active,col)=>'cursor:pointer;font-size:11px;padding:3px 9px;border-radius:14px;border:1px solid '+(active?(col||'var(--accent)'):'var(--border)')+';background:'+(active?'color-mix(in srgb,'+(col||'var(--accent)')+' 16%,transparent)':'var(--bg)')+';color:'+(active?'var(--text)':'var(--muted)')+';font-family:JetBrains Mono,monospace;';
+
+    // filters
+    const statusList=['not-started','in-progress','completed'].map(s=>{
+      const active=st.filtStatus.includes(s);
+      return {key:s,label:sm[s].label,color:this.statusColor(s),count:allNotes.filter(n=>n.status===s).length,
+        toggle:()=>this.toggleArr('filtStatus',s),
+        rowStyle:'display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;cursor:pointer;font-size:12px;'+(active?'background:var(--panel-3);':''),
+        checkStyle:'color:var(--accent);font-size:11px;'+(active?'':'visibility:hidden;')};
+    });
+    const categoryList=cats.map(c=>{
+      const active=st.filtCats.includes(c);
+      return {key:c,label:c,color:this.catColor(c),count:allNotes.filter(n=>n.category===c).length,
+        toggle:()=>this.toggleArr('filtCats',c),
+        rowStyle:'display:flex;align-items:center;gap:8px;padding:5px 7px;border-radius:6px;cursor:pointer;font-size:12px;'+(active?'background:var(--panel-3);':''),
+        checkStyle:'color:var(--accent);font-size:11px;'+(active?'':'visibility:hidden;')};
+    });
+    const levelList=[1,2,3].map(l=>{
+      const active=st.filtLevels.includes(l);
+      return {key:l,label:'L'+l,toggle:()=>this.toggleArr('filtLevels',l),
+        style:'flex:1;text-align:center;padding:5px 0;border-radius:6px;font-size:11px;font-family:JetBrains Mono,monospace;cursor:pointer;border:1px solid '+(active?'var(--accent)':'var(--border)')+';background:'+(active?'color-mix(in srgb,var(--accent) 16%,transparent)':'var(--bg)')+';color:'+(active?'var(--text)':'var(--muted)')};
+    });
+    const allTags=[...new Set(allNotes.flatMap(n=>n.tags))].sort();
+    const tagList=allTags.map(t=>{ const active=st.filtTags.includes(t); return {key:t,label:t,toggle:()=>this.toggleArr('filtTags',t),style:chip(active)}; });
+
+    // selected note
+    const sel=this.sel();
+    let selVals={};
+    if(sel){
+      const backIds=allNotes.filter(n=>(n.links||[]).includes(sel.id));
+      const out=(sel.links||[]).map(id=>allNotes.find(n=>n.id===id)).filter(Boolean);
+      selVals={
+        selTitle:sel.title, selCategory:sel.category, selColor:this.catColor(sel.category), selPath:sel.path,
+        selStatusLabel:sm[sel.status].label,
+        selStatusBadge:'font-size:9.5px;font-weight:600;padding:2px 7px;border-radius:5px;color:'+this.statusColor(sel.status)+';background:color-mix(in srgb,'+this.statusColor(sel.status)+' 16%,transparent);',
+        selTags:sel.tags.map(t=>({label:t, click:()=>{ if(!st.filtTags.includes(t)) this.toggleArr('filtTags',t); }})),
+        selRendered: React.createElement('div',{dangerouslySetInnerHTML:{__html:this.mdRender(sel.body)}}),
+        backlinks:backIds.map(n=>({title:n.title,color:this.catColor(n.category),open:()=>this.openNote(n.id)})),
+        backlinkCount:backIds.length, hasBacklinks:backIds.length>0, noBacklinks:backIds.length===0,
+        outgoing:out.map(n=>({title:n.title,open:()=>this.openNote(n.id)})), hasOutgoing:out.length>0,
+        copyColor: st.copied?'var(--green)':'var(--muted)',
+        copyIcon: st.copied
+          ? React.createElement('svg',{width:14,height:14,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2.4},React.createElement('path',{d:'M20 6L9 17l-5-5'}))
+          : React.createElement('svg',{width:14,height:14,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2},[React.createElement('rect',{key:1,x:9,y:9,width:13,height:13,rx:2}),React.createElement('path',{key:2,d:'M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'})])
+      };
+    }
+    // draft
+    const d=st.draft||{};
+    const draftLevels=[1,2,3].map(l=>({label:'L'+l,set:()=>this.setState(s=>({draft:{...s.draft,level:l}})),
+      style:'width:34px;text-align:center;padding:5px 0;border-radius:6px;font-size:11px;font-family:JetBrains Mono,monospace;cursor:pointer;border:1px solid '+(d.level===l?'var(--accent)':'var(--border)')+';background:'+(d.level===l?'color-mix(in srgb,var(--accent) 16%,transparent)':'var(--panel)')+';color:'+(d.level===l?'var(--text)':'var(--muted)')}));
+
+    // palette
+    const palAll=this.paletteList();
+    const palActions=palAll.filter(x=>x.type==='action');
+    const palNotes=palAll.filter(x=>x.type==='note');
+    const palIdx=st.paletteIndex;
+    const rowSel=(i)=> i===palIdx;
+    const palRowStyle=(i)=>'display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:8px;cursor:pointer;'+(rowSel(i)?'background:var(--panel-3);':'');
+    const paletteActions=palActions.map((a,i)=>({label:a.label,hint:a.hint,icon:a.icon,run:a.action,style:palRowStyle(i)}));
+    const paletteResults=palNotes.map((r,i)=>{
+      const gi=palActions.length+i;
+      return {title:r.title,category:r.category,color:this.catColor(r.category),open:r.action,style:palRowStyle(gi),
+        statusDot:'width:7px;height:7px;border-radius:50%;background:'+this.statusColor(r.status)+';flex:none;'};
+    });
+
+    // venn options
+    const vennPool = st.vennDim==='tag'? allTags : cats;
+    const vennOptions=vennPool.map(o=>{ const active=st.vennSets.includes(o); return {label:(st.vennDim==='tag'?'#':'')+o,
+      toggle:()=>this.setState(s=>{ let v=s.vennSets; if(v.includes(o)) v=v.filter(x=>x!==o); else if(v.length<4) v=[...v,o]; return {vennSets:v}; }),
+      style:chip(active)}; });
+
+    // dashboard
+    const countBy=(s)=>allNotes.filter(n=>n.status===s).length;
+    const completedCount=countBy('completed');
+    const total=allNotes.length;
+    const statCards=[
+      {label:'Total notes',value:total,sub:cats.length+' categories',color:'var(--accent)'},
+      {label:'Completed',value:completedCount,sub:Math.round(completedCount/total*100)+'% of base',color:'var(--green)'},
+      {label:'In progress',value:countBy('in-progress'),sub:'active learning',color:'var(--amber)'},
+      {label:'Orphans',value:orphans.size,sub:'no connections',color:'var(--orange)'}
+    ];
+    const statusBars=['completed','in-progress','not-started'].map(s=>({label:sm[s].label,count:countBy(s),pct:Math.round(countBy(s)/total*100),color:this.statusColor(s)}));
+    const catCounts={}; allNotes.forEach(n=>catCounts[n.category]=(catCounts[n.category]||0)+1);
+    const catLegend=cats.map(c=>({label:c,color:this.catColor(c),count:catCounts[c]}));
+    const activityTotal=allNotes.reduce((a,n)=>a+(n.activity||[]).length,0);
+
+    // settings prereq
+    const prereqDefs=[
+      {id:'A',label:'A · Infer from links + status',desc:'Zero extra fields. Order derived from [[wiki-links]] and completion status.'},
+      {id:'B',label:'B · Optional "requires:" frontmatter',desc:'Add a requires list only where it matters. Some manual effort.'},
+      {id:'C',label:'C · "level: 1/2/3" per category',desc:'One number per note. Lightweight, scales well, sorts learning order within a category.',rec:true},
+      {id:'D',label:'D · Drag-and-drop dependencies',desc:'Set edges in-app, stored beside the vault. No .md edits, but most setup work.'}
+    ];
+    const prereqOptions=prereqDefs.map(p=>{ const active=st.prereqApproach===p.id; return {
+      label:p.label,desc:p.desc,select:()=>this.setState({prereqApproach:p.id}),
+      style:'display:flex;gap:11px;padding:11px;border-radius:9px;cursor:pointer;border:1px solid '+(active?'var(--accent)':'var(--border)')+';background:'+(active?'color-mix(in srgb,var(--accent) 8%,transparent)':'var(--bg)')+';',
+      radioStyle:'width:16px;height:16px;border-radius:50%;border:2px solid '+(active?'var(--accent)':'var(--border)')+';display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px;',
+      dotStyle:'width:7px;height:7px;border-radius:50%;background:var(--accent);'+(active?'':'display:none;'),
+      recStyle:'font-size:8.5px;font-weight:700;letter-spacing:.04em;color:var(--green);background:color-mix(in srgb,var(--green) 16%,transparent);border-radius:4px;padding:1px 5px;'+(p.rec?'':'display:none;')};
+    });
+    const colorRows=cats.map(c=>({label:c,color:this.state.catColors[c],onChange:(e)=>{const v=e.target.value;this.setState(s=>({catColors:{...s.catColors,[c]:v}}));}}));
+
+    // "what's next" based on level approach C: lowest uncompleted level in started categories
+    const startedCats=new Set(allNotes.filter(n=>n.status!=='not-started').map(n=>n.category));
+    const completedByCat={}; allNotes.forEach(n=>{ if(n.status==='completed'){ completedByCat[n.category]=Math.max(completedByCat[n.category]||0,n.level);} });
+    const nextCandidates=allNotes.filter(n=> n.status==='not-started' && startedCats.has(n.category) && n.level <= (completedByCat[n.category]||1)+1)
+      .sort((a,b)=>a.level-b.level).slice(0,3);
+    const nextNotes=nextCandidates.map(n=>({title:n.title,level:n.level,color:this.catColor(n.category),open:()=>this.openNote(n.id)}));
+
+    const segStyle=(active)=>'font-size:11px;padding:4px 12px;border-radius:6px;cursor:pointer;font-weight:500;'+(active?'background:var(--accent);color:#fff;':'color:var(--muted);');
+    const switchOn=st.minimapOn;
+
+    const skinDefs=[
+      {key:'carbon',label:'Carbon · dev-tool',color:'#58a6ff'},
+      {key:'soft',label:'Soft · rounded',color:'#6366f1'},
+      {key:'brutalist',label:'Brutalist · flat',color:'#ffe600'},
+      {key:'editorial',label:'Editorial · serif',color:'#b06a36'},
+      {key:'glass',label:'Glass · frosted',color:'#22d3ee'}
+    ];
+    const skinDots=skinDefs.map(sk=>({key:sk.key,title:sk.label,
+      onClick:()=>this.setState({skin:sk.key}),
+      style:'width:15px;height:15px;border-radius:50%;cursor:pointer;background:'+sk.color+';transition:transform .15s,box-shadow .15s,opacity .15s;'+
+        (st.skin===sk.key
+          ? 'box-shadow:0 0 0 2px var(--panel),0 0 0 3.5px '+sk.color+';transform:scale(1.06)'
+          : 'opacity:.45')}));
+
+    const layoutDefs=[
+      {key:'classic',label:'Classic · top bar',icon:'▭'},
+      {key:'rail',label:'Rail · side nav',icon:'▯'},
+      {key:'command',label:'Command · floating bar',icon:'◠'}
+    ];
+    const layoutSwitcher=layoutDefs.map(l=>({key:l.key,title:l.label,icon:l.icon,
+      onClick:()=>this.setState({layout:l.key}),
+      style:'width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;font-size:13px;border:1px solid '+(st.layout===l.key?'var(--accent)':'var(--border)')+';color:'+(st.layout===l.key?'var(--accent)':'var(--muted)')+';background:'+(st.layout===l.key?'color-mix(in srgb,var(--accent) 12%,transparent)':'var(--bg)')}));
+    const railBtn=(active)=>'width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;border:none;background:'+(active?'var(--panel-3)':'transparent')+';color:'+(active?'var(--text)':'var(--muted)')+';';
+
+    return {
+      theme:st.theme, skin:st.skin, skinDots, layout:st.layout, layoutSwitcher,
+      isLayoutClassic: st.layout==='classic', isLayoutRail: st.layout==='rail', isLayoutCommand: st.layout==='command',
+      railGraphStyle: railBtn(st.view==='graph'), railCardsStyle: railBtn(st.view==='cards'), railDashStyle: railBtn(st.view==='dashboard'),
+      vaultName:st.vaultName, vaultPath:st.vaultPath,
+      themeIcon: st.theme==='dark'
+        ? React.createElement('svg',{width:15,height:15,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2},React.createElement('path',{d:'M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z'}))
+        : React.createElement('svg',{width:15,height:15,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:2},[React.createElement('circle',{key:1,cx:12,cy:12,r:4}),React.createElement('path',{key:2,d:'M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4'})]),
+      // tabs
+      tabGraphStyle: st.view==='graph'?tabOn:tabOff,
+      tabCardsStyle: st.view==='cards'?tabOn:tabOff,
+      tabDashStyle: st.view==='dashboard'?tabOn:tabOff,
+      setViewGraph:()=>this.setState({view:'graph'}),
+      setViewCards:()=>this.setState({view:'cards'}),
+      setViewDash:()=>this.setState({view:'dashboard'}),
+      toggleTheme:this.toggleTheme, openSettings:this.openSettings,
+      // body flags
+      showFilters: st.view==='graph'||st.view==='cards',
+      isGraphView: st.view==='graph',
+      isCardsView: st.view==='cards',
+      isDashView: st.view==='dashboard',
+      isGraphMode: st.mode==='graph',
+      isVennMode: st.mode==='venn',
+      hasSelected: !!sel,
+      isPreview: !!sel && !st.editing,
+      isEditing: !!sel && st.editing,
+      paletteOpen: st.paletteOpen,
+      settingsOpen: st.settingsOpen,
+      // filters
+      statusList, categoryList, levelList, tagList,
+      clearFilters:()=>{this.setState({filtCats:[],filtTags:[],filtStatus:[],filtLevels:[]});},
+      clearFiltersVis: (st.filtCats.length||st.filtTags.length||st.filtStatus.length||st.filtLevels.length)?'':'visibility:hidden;',
+      visibleCount:visible.length, totalCount:total,
+      // stage
+      stageRef:this.stageRef, onStageDown:this.onStageDown, onWheel:this.onWheel,
+      stageCursor: this.pan?'grabbing':'grab',
+      vizSvg:this.vizSvg(), minimapSvg:this.minimapSvg(), showMinimap: st.minimapOn && st.mode==='graph',
+      // mode toggles
+      setModeGraph:()=>this.setState({mode:'graph'}), setModeVenn:()=>this.setState({mode:'venn'}),
+      modeGraphStyle: (st.mode==='graph'?tabOn:tabOff),
+      modeVennStyle: (st.mode==='venn'?tabOn:tabOff),
+      toggleLearning:()=>this.setState(s=>({showLearning:!s.showLearning})),
+      learnToggleStyle:'display:flex;align-items:center;gap:6px;font-size:11px;padding:5px 10px;border-radius:7px;cursor:pointer;border:1px solid '+(st.showLearning?'var(--accent)':'var(--border)')+';background:'+(st.showLearning?'color-mix(in srgb,var(--accent) 14%,transparent)':'var(--panel)')+';color:'+(st.showLearning?'var(--text)':'var(--muted)')+';box-shadow:0 2px 8px var(--shadow);',
+      toggleCollapse:this.toggleCollapse,
+      collapseToggleStyle:'display:flex;align-items:center;gap:6px;font-size:11px;padding:5px 10px;border-radius:7px;cursor:pointer;border:1px solid '+(st.collapsed?'var(--accent)':'var(--border)')+';background:'+(st.collapsed?'color-mix(in srgb,var(--accent) 14%,transparent)':'var(--panel)')+';color:'+(st.collapsed?'var(--text)':'var(--muted)')+';box-shadow:0 2px 8px var(--shadow);',
+      reheatSim:this.reheatSim,
+      ctrlBtnStyle:'display:flex;align-items:center;gap:6px;font-size:11px;padding:5px 10px;border-radius:7px;cursor:pointer;border:1px solid var(--border);background:var(--panel);color:var(--muted);box-shadow:0 2px 8px var(--shadow);',
+      arrowLegendVis: st.showLearning?'':'display:none;',
+      // venn picker
+      setVennTag:()=>this.setState({vennDim:'tag',vennSets:['performance','indexing','containers']}),
+      setVennCat:()=>this.setState({vennDim:'category',vennSets:cats.slice(0,3)}),
+      vennTagStyle: segStyle(st.vennDim==='tag'),
+      vennCatStyle: segStyle(st.vennDim==='category'),
+      vennOptions,
+      // whats next
+      hasNext: st.mode==='graph' && st.view==='graph' && nextNotes.length>0 && !sel,
+      nextNotes,
+      // cards
+      search:st.search, onSearch:(e)=>this.setState({search:e.target.value}),
+      cardSort: st.cardSort, onCardSort:(e)=>this.setState({cardSort:e.target.value}),
+      cardNotes: this.sortedVisible(visible).map(n=>{
+        const sc=this.statusColor(n.status);
+        return {id:n.id,title:n.title,category:n.category,color:this.catColor(n.category),
+          excerpt:n.body.replace(/[#>*`\[\]]/g,'').replace(/\n+/g,' ').slice(0,96)+'…',
+          tags:n.tags.slice(0,3), level:n.level, linkCount:(n.links||[]).length,
+          statusLabel:sm[n.status].label,
+          statusBadge:'font-size:9px;font-weight:600;padding:2px 7px;border-radius:5px;color:'+sc+';background:color-mix(in srgb,'+sc+' 16%,transparent);',
+          modifiedShort:n.modified.slice(5),
+          open:()=>this.openNote(n.id),
+          cardStyle:'background:var(--panel);border:1px solid '+(st.selectedId===n.id?'var(--accent)':'var(--border)')+';border-radius:11px;padding:14px;cursor:pointer;transition:border-color .15s,transform .15s;'};
+      }),
+      // note panel
+      ...selVals,
+      closeNote:this.closeNote, startEdit:this.startEdit, openObsidian:this.openObsidian, copyPath:this.copyPath,
+      allCategories:cats,
+      draftTitle:d.title, draftCategory:d.category, draftStatus:d.status, draftTags:d.tags, draftBody:d.body, draftLevels,
+      onDraftTitle:(e)=>this.setState(s=>({draft:{...s.draft,title:e.target.value}})),
+      onDraftCategory:(e)=>this.setState(s=>({draft:{...s.draft,category:e.target.value}})),
+      onDraftStatus:(e)=>this.setState(s=>({draft:{...s.draft,status:e.target.value}})),
+      onDraftTags:(e)=>this.setState(s=>({draft:{...s.draft,tags:e.target.value}})),
+      onDraftBody:(e)=>this.setState(s=>({draft:{...s.draft,body:e.target.value}})),
+      cancelEdit:this.cancelEdit, saveEdit:this.saveEdit,
+      // palette
+      openPalette:this.openPalette, closePalette:this.closePalette, stop:this.stop,
+      paletteRef:this.paletteRef, paletteQuery:st.paletteQuery, onPaletteInput:this.onPaletteInput,
+      paletteActions, paletteResults, paletteResultCount:palNotes.length,
+      showActions: paletteActions.length>0,
+      paletteEmpty: palAll.length===0,
+      // dashboard
+      statCards, completedCount, progressPct:Math.round(completedCount/total*100),
+      pctCompleted: completedCount/total*100, pctProgress: countBy('in-progress')/total*100,
+      statusBars, donutSvg:this.donutSvg(), catLegend, heatmapSvg:this.heatmapSvg(), activityTotal,
+      // settings
+      closeSettings:this.closeSettings,
+      setDark:()=>this.setState({theme:'dark'}), setLight:()=>this.setState({theme:'light'}),
+      darkBtnStyle: segStyle(st.theme==='dark'), lightBtnStyle: segStyle(st.theme==='light'),
+      setDefGraph:()=>this.setState({defaultMode:'graph',mode:'graph'}), setDefVenn:()=>this.setState({defaultMode:'venn',mode:'venn'}),
+      defGraphStyle: segStyle(st.defaultMode==='graph'), defVennStyle: segStyle(st.defaultMode==='venn'),
+      toggleMinimap:()=>this.setState(s=>({minimapOn:!s.minimapOn})),
+      minimapSwitchStyle:'width:40px;height:22px;border-radius:12px;cursor:pointer;position:relative;transition:background .15s;background:'+(switchOn?'var(--accent)':'var(--border)')+';',
+      minimapKnobStyle:'position:absolute;top:2px;left:'+(switchOn?'20px':'2px')+';width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s;',
+      onVaultName:(e)=>this.setState({vaultName:e.target.value}),
+      onVaultPath:(e)=>this.setState({vaultPath:e.target.value}),
+      prereqOptions,
+      repulsion:st.repulsion, repulsionVal:st.repulsion, onRepulsion:(e)=>{this.setState({repulsion:+e.target.value});this.reheat(0.5);},
+      linkDist:st.linkDist, linkDistVal:st.linkDist, onLinkDist:(e)=>{this.setState({linkDist:+e.target.value});this.reheat(0.5);},
+      colorRows
+    };
+  }
+}
+</script>
+</body>
+</html>

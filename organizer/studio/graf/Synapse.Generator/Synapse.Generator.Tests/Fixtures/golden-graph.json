@@ -1,0 +1,273 @@
+﻿{
+  "schemaVersion": 2,
+  "generatedAt": "__NORMALIZED__",
+  "vault": {
+    "name": "Vault",
+    "notesCount": 9,
+    "ghostCount": 2,
+    "orphanCount": 1
+  },
+  "nodes": [
+    {
+      "id": "docker-basics",
+      "kind": "real",
+      "title": "Docker Basics",
+      "path": "docker-basics.md",
+      "category": "DevOps",
+      "level": 1,
+      "status": "completed",
+      "tags": [
+        "containers",
+        "cli"
+      ],
+      "aliases": [],
+      "modified": "2026-08-04",
+      "excerpt": "Docker packages applications into portable containers. Uses linux-fundamentals for kernel features. Key commands: - docker build - docker run - docker ps",
+      "wordCount": 22,
+      "type": "file",
+      "history": [
+        "2026-08-04"
+      ]
+    },
+    {
+      "id": "docker-compose",
+      "kind": "real",
+      "title": "Docker Compose",
+      "path": "docker-compose.md",
+      "category": "Uncategorized",
+      "level": 2,
+      "status": "in-progress",
+      "tags": [
+        "containers",
+        "orchestration"
+      ],
+      "aliases": [],
+      "modified": "2026-08-04",
+      "excerpt": "Orchestrates multi-container apps. Works alongside Docker.",
+      "wordCount": 6,
+      "history": [
+        "2026-08-04"
+      ]
+    },
+    {
+      "id": "docker-networking",
+      "kind": "real",
+      "title": "Docker Networking",
+      "path": "docker-networking.md",
+      "category": "DevOps",
+      "level": null,
+      "status": "in-progress",
+      "tags": [
+        "containers",
+        "networking"
+      ],
+      "aliases": [],
+      "modified": "2026-08-04",
+      "excerpt": "Container networking modes. Links to docker-compose .",
+      "wordCount": 6,
+      "history": [
+        "2026-08-04"
+      ]
+    },
+    {
+      "id": "docker-volumes",
+      "kind": "real",
+      "title": "Docker Volumes",
+      "path": "docker-volumes.md",
+      "category": "DevOps",
+      "level": 2,
+      "status": "not-started",
+      "tags": [
+        "containers",
+        "storage"
+      ],
+      "aliases": [],
+      "modified": "2026-08-04",
+      "excerpt": "Persistent storage for containers. See also Kubernetes Advanced for StatefulSets.",
+      "wordCount": 10,
+      "history": [
+        "2026-08-04"
+      ]
+    },
+    {
+      "id": "dockerfile",
+      "kind": "real",
+      "title": "Dockerfile",
+      "path": "dockerfile.md",
+      "category": "DevOps",
+      "level": 1,
+      "status": "completed",
+      "tags": [
+        "containers",
+        "docker"
+      ],
+      "aliases": [],
+      "modified": "2026-08-04",
+      "excerpt": "A Dockerfile defines the image build steps. Requires docker-basics . Example: dockerfile FROM ubuntu:22.04 not-a-link inside code block \u2014 must NOT be extracted RUN apt-get update Keep layers small for",
+      "wordCount": 33,
+      "history": [
+        "2026-08-04"
+      ]
+    },
+    {
+      "id": "kernel-internals",
+      "kind": "ghost",
+      "title": "kernel-internals",
+      "referencedBy": [
+        "linux-fundamentals"
+      ],
+      "referenceCount": 1
+    },
+    {
+      "id": "kubernetes advanced",
+      "kind": "ghost",
+      "title": "Kubernetes Advanced",
+      "referencedBy": [
+        "docker-volumes",
+        "kubernetes-intro"
+      ],
+      "referenceCount": 2
+    },
+    {
+      "id": "kubernetes-intro",
+      "kind": "real",
+      "title": "Kubernetes Intro",
+      "path": "kubernetes-intro.md",
+      "category": "DevOps",
+      "level": 2,
+      "status": "in-progress",
+      "tags": [
+        "orchestration",
+        "containers"
+      ],
+      "aliases": [],
+      "modified": "2026-08-04",
+      "excerpt": "Container orchestration at scale. Links: Kubernetes Advanced|kubernetes-advanced for next steps and docker-compose Scaling for compose basics.",
+      "wordCount": 15,
+      "history": [
+        "2026-08-04"
+      ]
+    },
+    {
+      "id": "linux-fundamentals",
+      "kind": "real",
+      "title": "Linux Fundamentals",
+      "path": "linux-fundamentals.md",
+      "category": "OS",
+      "level": 1,
+      "status": "completed",
+      "tags": [
+        "linux",
+        "cli"
+      ],
+      "aliases": [
+        "Linux Basics"
+      ],
+      "modified": "2026-08-04",
+      "excerpt": "Core Linux concepts: processes, files, permissions.",
+      "wordCount": 6,
+      "type": "file",
+      "history": [
+        "2026-08-04"
+      ]
+    },
+    {
+      "id": "process-scheduling",
+      "kind": "real",
+      "title": "Process Scheduling",
+      "path": "process-scheduling.md",
+      "category": "OS",
+      "level": 2,
+      "status": "not-started",
+      "tags": [
+        "linux",
+        "kernel"
+      ],
+      "aliases": [],
+      "modified": "2026-08-04",
+      "excerpt": "How the kernel schedules processes. Builds on Linux Basics .",
+      "wordCount": 9,
+      "history": [
+        "2026-08-04"
+      ]
+    },
+    {
+      "id": "vim-shortcuts",
+      "kind": "real",
+      "title": "Vim Shortcuts",
+      "path": "vim-shortcuts.md",
+      "category": "Tools",
+      "level": 1,
+      "status": "completed",
+      "tags": [
+        "cli",
+        "editor"
+      ],
+      "aliases": [],
+      "modified": "2026-08-04",
+      "excerpt": "Essential Vim motions. No links.",
+      "wordCount": 5,
+      "history": [
+        "2026-08-04"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "docker-basics",
+      "target": "dockerfile",
+      "linkText": "dockerfile",
+      "kind": "near_duplicate",
+      "confidence": 0.82
+    },
+    {
+      "source": "docker-basics",
+      "target": "linux-fundamentals",
+      "linkText": "[[linux-fundamentals]]",
+      "kind": "link"
+    },
+    {
+      "source": "docker-networking",
+      "target": "docker-compose",
+      "linkText": "[[docker-compose]]",
+      "kind": "link"
+    },
+    {
+      "source": "docker-volumes",
+      "target": "kubernetes advanced",
+      "linkText": "[[Kubernetes Advanced]]",
+      "kind": "link"
+    },
+    {
+      "source": "dockerfile",
+      "target": "docker-basics",
+      "linkText": "[[docker-basics]]",
+      "kind": "link"
+    },
+    {
+      "source": "kubernetes-intro",
+      "target": "docker-compose",
+      "linkText": "[[docker-compose#Scaling]]",
+      "kind": "link"
+    },
+    {
+      "source": "kubernetes-intro",
+      "target": "kubernetes advanced",
+      "linkText": "[[Kubernetes Advanced|kubernetes-advanced]]",
+      "kind": "link"
+    },
+    {
+      "source": "linux-fundamentals",
+      "target": "kernel-internals",
+      "linkText": "kernel-internals",
+      "kind": "older_version"
+    },
+    {
+      "source": "process-scheduling",
+      "target": "linux-fundamentals",
+      "linkText": "[[Linux Basics]]",
+      "kind": "link"
+    }
+  ],
+  "warnings": []
+}

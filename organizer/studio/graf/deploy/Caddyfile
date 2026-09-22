@@ -1,0 +1,58 @@
+# Caddyfile — Synapse viewer static server
+#
+# Designed for homelab / WireGuard-only access.
+# WireGuard provides the secure tunnel, so plain HTTP on :80 is fine for
+# traffic that never leaves the private network.
+#
+# Copy to /etc/caddy/Caddyfile (or include from your existing Caddyfile).
+# Reload with: systemctl reload caddy
+#
+# To add TLS (e.g. for a public-facing setup or internal HTTPS):
+#   1. Comment out the :80 block below.
+#   2. Uncomment the synapse.internal.example.com block.
+#   3. Adjust the hostname and ensure port 443 is reachable for ACME.
+
+# ── Plain HTTP — for WireGuard-only access ────────────────────────────────────
+
+:80 {
+    root * /opt/synapse/viewer
+
+    # graph.json: always revalidate so the viewer picks up new pushes.
+    @graph_json path /graph.json
+    header @graph_json Cache-Control "no-cache"
+
+    # Fingerprinted Vite assets: cache forever (content hash in filename).
+    @vite_assets path /assets/*
+    header @vite_assets Cache-Control "max-age=31536000, immutable"
+
+    # Forgejo webhook endpoint — forwarded to the local webhook receiver.
+    # Only needed when using the Forgejo-as-intermediary flow (see README).
+    handle /hook {
+        reverse_proxy localhost:9000
+    }
+
+    # SPA: serve real files first, fall back to index.html for client routing.
+    handle {
+        try_files {path} /index.html
+        file_server
+    }
+}
+
+# ── TLS variant (uncomment and configure if needed) ───────────────────────────
+#
+# synapse.internal.example.com {
+#     root * /opt/synapse/viewer
+#
+#     @graph_json path /graph.json
+#     header @graph_json Cache-Control "no-cache"
+#
+#     @vite_assets path /assets/*
+#     header @vite_assets Cache-Control "max-age=31536000, immutable"
+#
+#     file_server
+#     try_files {path} /index.html
+#
+#     # Caddy auto-HTTPS: obtains and renews a cert automatically.
+#     # Requires the hostname to be publicly resolvable, or configure
+#     # tls with an internal CA / DNS challenge for private hostnames.
+# }

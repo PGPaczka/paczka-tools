@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# post-receive — Synapse vault regeneration hook
+#
+# Install at: /opt/synapse/vault.git/hooks/post-receive
+# Make executable: chmod +x /opt/synapse/vault.git/hooks/post-receive
+#
+# Triggered automatically by git after every successful push.
+# Checks out the pushed vault, runs the generator, and writes graph.json.
+# Exits 0 always so a generation failure never blocks the push.
+
+set -euo pipefail
+
+# ── Configuration (override via environment) ──────────────────────────────────
+
+SYNAPSE_BRANCH="${SYNAPSE_BRANCH:-main}"
+SYNAPSE_GENERATOR_BIN="${SYNAPSE_GENERATOR_BIN:-/opt/synapse/Synapse.Generator}"
+VAULT_CHECKOUT="${VAULT_CHECKOUT:-/opt/synapse/vault}"
+SYNAPSE_CONFIG="${SYNAPSE_CONFIG:-/opt/synapse/generator.config.json}"
+SYNAPSE_OUTPUT="${SYNAPSE_OUTPUT:-/opt/synapse/viewer/graph.json}"
+SYNAPSE_LOG="${SYNAPSE_LOG:-/var/log/synapse-generator.log}"
+LOCK_FILE="${LOCK_FILE:-/tmp/synapse-generator.lock}"
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+log() {
+    echo "[$(date -u '+%Y-%m-%dT%H:%M:%SZ')] $*" | tee -a "$SYNAPSE_LOG"
+}
+
+# ── Main (wrapped so we can always exit 0) ────────────────────────────────────
+
+main() {
+    # Determine which ref was pushed (stdin: oldrev newrev refname)
+    local pushed_branch=""
+    while read -r _oldrev _newrev refname; do
+        # refs/heads/main -> main
+        pushed_branch="${refname#refs/heads/}"
+    done
+
+    if [[ "$pushed_branch" != "$SYNAPSE_BRANCH" ]]; then
+        log "INFO  Pushed branch '$pushed_branch' is not '$SYNAPSE_BRANCH'; skipping generation."
+        return 0
+    fi
+
+    # ── Acquire lock ─────────────────────────────────────────────────────────
+
+    # Use file descriptor 9 and flock for atomic lock acquisition.
+    exec 9>"$LOCK_FILE"
+    if ! flock --nonblock 9; then
+        log "WARN  Generator already running (lock held: $LOCK_FILE). Skipping this push."
+        log "      The graph.json from the in-progress run remains valid."
+        return 0
+    fi
+    # Lock released automatically when fd 9 closes at subshell exit.
+
+    log "INFO  ── Synapse generation started ──────────────────────────────"
+    local start_ts
+    start_ts=$(date +%s)
+
+    # ── Checkout vault ────────────────────────────────────────────────────────
+
+    mkdir -p "$VAULT_CHECKOUT"
+    log "INFO  Checking out '$SYNAPSE_BRANCH' to $VAULT_CHECKOUT"
+    git --git-dir="$GIT_DIR" --work-tree="$VAULT_CHECKOUT" checkout -f "$SYNAPSE_BRANCH"
+
+    # ── Run generator ─────────────────────────────────────────────────────────
+
+    log "INFO  Running generator: $SYNAPSE_GENERATOR_BIN"
+    local gen_output
+    gen_output=$("$SYNAPSE_GENERATOR_BIN" \
+        --vault  "$VAULT_CHECKOUT" \
+        --config "$SYNAPSE_CONFIG" \
+        --out    "$SYNAPSE_OUTPUT" 2>&1)
+    local gen_exit=$?
+
+    if [[ $gen_exit -ne 0 ]]; then
+        log "ERROR Generator exited with code $gen_exit"
+        log "      Output: $gen_output"
+    else
+        log "INFO  $gen_output"
+        local end_ts elapsed
+        end_ts=$(date +%s)
+        elapsed=$(( end_ts - start_ts ))
+        log "INFO  graph.json written to $SYNAPSE_OUTPUT (${elapsed}s)"
+    fi
+
+    log "INFO  ── Synapse generation complete ─────────────────────────────"
+}
+
+# Run main; capture any unexpected errors; always exit 0 so the push succeeds.
+main "$@" || log "ERROR Unexpected error in post-receive hook (exit code $?)."
+exit 0
