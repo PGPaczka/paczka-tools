@@ -1,0 +1,22 @@
+{
+  "_comment": [
+    "PLACEHOLDER — adjust all values to match your actual vault's frontmatter conventions.",
+    "The keys listed under 'frontmatterMap' are the YAML frontmatter field names that the",
+    "Synapse Generator will look for in each .md file. If your vault uses different names",
+    "(e.g. 'type' instead of 'category', or 'date_modified' instead of 'modified') update",
+    "the values here. The keys themselves (categoryKey, levelKey, …) must not be changed —",
+    "they are the generator's internal identifiers.",
+    "",
+    "Deploy this file to /opt/synapse/generator.config.json on the Raspberry Pi.",
+    "The post-receive hook reads it via the SYNAPSE_CONFIG env var."
+  ],
+  "frontmatterMap": {
+    "categoryKey": "category",
+    "levelKey": "level",
+    "statusKey": "status",
+    "tagsKey": "tags",
+    "aliasesKey": "aliases",
+    "titleKey": "title",
+    "modifiedKey": "modified"
+  }
+}

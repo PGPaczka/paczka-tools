@@ -1,0 +1,19 @@
+[Unit]
+Description=Synapse Forgejo webhook receiver
+Documentation=file:///opt/synapse/deploy/README-deploy.md
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+EnvironmentFile=/etc/synapse/webhook.env
+ExecStart=/usr/bin/python3 /opt/synapse/synapse-webhook.py
+Restart=on-failure
+RestartSec=5
+
+# Keep stdout/stderr in the journal: journalctl -u synapse-webhook
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

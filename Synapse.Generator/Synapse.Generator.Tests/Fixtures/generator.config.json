@@ -1,0 +1,13 @@
+{
+  "frontmatterMap": {
+    "categoryKey": "category",
+    "levelKey": "level",
+    "statusKey": "status",
+    "tagsKey": "tags",
+    "aliasesKey": "aliases",
+    "titleKey": "title",
+    "modifiedKey": "modified",
+    "typeKey": "type",
+    "relationsKey": "relations"
+  }
+}

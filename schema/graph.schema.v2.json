@@ -1,0 +1,283 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://synapse/graph.schema.v2.json",
+  "title": "Synapse graph.json v2",
+  "description": "Output of Synapse.Generator — the contract between generator and viewer.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "vault",
+    "nodes",
+    "edges",
+    "warnings"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 2,
+      "description": "Always 2. Hard-equality-checked by the viewer."
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp of generation."
+    },
+    "vault": {
+      "type": "object",
+      "required": [
+        "name",
+        "notesCount",
+        "ghostCount",
+        "orphanCount"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "notesCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "ghostCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "orphanCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/definitions/RealNode"
+          },
+          {
+            "$ref": "#/definitions/GhostNode"
+          }
+        ]
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Edge"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Warning"
+      }
+    }
+  },
+  "definitions": {
+    "RealNode": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "path",
+        "category",
+        "tags",
+        "aliases",
+        "modified",
+        "excerpt",
+        "wordCount"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Filename stem, used as the stable node key. Matched case-insensitively during resolution, displayed with original casing."
+        },
+        "kind": {
+          "type": "string",
+          "const": "real"
+        },
+        "title": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string",
+          "description": "Vault-relative path including extension, e.g. 'devops/docker-basics.md'."
+        },
+        "category": {
+          "type": "string",
+          "description": "Defaults to 'Uncategorized' when the frontmatter key is absent."
+        },
+        "level": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1,
+          "description": "null when frontmatter key is absent."
+        },
+        "status": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "not-started",
+            "in-progress",
+            "completed",
+            null
+          ],
+          "description": "null when frontmatter key is absent."
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Alternative names used during link resolution (alias tier)."
+        },
+        "modified": {
+          "type": "string",
+          "description": "yyyy-mm-dd date from frontmatter or file mtime."
+        },
+        "excerpt": {
+          "type": "string",
+          "description": "First ~200 chars of body text, stripped of markdown."
+        },
+        "wordCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "description": "yyyy-mm-dd"
+          },
+          "description": "Commit dates from git log --follow, oldest first. Absent if the file has no git history."
+        },
+        "body": {
+          "type": "string",
+          "description": "Full markdown body of the note. When present, the viewer renders it in the detail panel instead of excerpt."
+        },
+        "type": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "What the note IS in the vault's own taxonomy (e.g. 'semester', 'subject', 'file'). Free-form: a vault defines its own set. Absent when the frontmatter key is missing. Distinct from 'kind', which only discriminates real vs ghost."
+        }
+      }
+    },
+    "GhostNode": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "title",
+        "referencedBy",
+        "referenceCount"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Trimmed/collapsed/lower-cased raw link target text used as the dedup key."
+        },
+        "kind": {
+          "type": "string",
+          "const": "ghost"
+        },
+        "title": {
+          "type": "string",
+          "description": "Raw link target text as written in the source note."
+        },
+        "referencedBy": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "IDs of real notes that link to this ghost."
+        },
+        "referenceCount": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "Edge": {
+      "type": "object",
+      "required": [
+        "source",
+        "target",
+        "linkText",
+        "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "string",
+          "description": "ID of the note containing the [[wikilink]]."
+        },
+        "target": {
+          "type": "string",
+          "description": "ID of the resolved note or ghost."
+        },
+        "linkText": {
+          "type": "string",
+          "description": "Raw wikilink text (including |alias or #heading) for viewer resolution."
+        },
+        "kind": {
+          "type": "string",
+          "description": "Why the two notes are connected: 'link' for a plain [[wikilink]], or the kind declared by a typed frontmatter relation (e.g. 'contains', 'near_duplicate', 'older_version', 'related'). Free-form, so a vault can define its vocabulary."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Optional strength of a typed relation, carried through from the vault. Absent for plain wikilinks."
+        }
+      }
+    },
+    "Warning": {
+      "type": "object",
+      "required": [
+        "kind",
+        "noteId",
+        "linkText"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "ambiguous-link",
+            "duplicate-id"
+          ],
+          "description": "Non-fatal pipeline concern surfaced for vault hygiene."
+        },
+        "noteId": {
+          "type": "string"
+        },
+        "linkText": {
+          "type": "string"
+        },
+        "resolvedTo": {
+          "type": "string",
+          "description": "Which target was chosen for ambiguous-link (first-scanned-wins)."
+        }
+      }
+    }
+  }
+}

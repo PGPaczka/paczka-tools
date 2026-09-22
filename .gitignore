@@ -1,0 +1,5 @@
+# Vault clone — external Forgejo repo, not part of this project
+Vault/
+
+# Generated vault files served by the viewer
+synapse-viewer/public/vault/
