@@ -178,6 +178,10 @@ smoke test backendów, nieużywany w automatycznym cyklu per-przedmiot.
 
 ## Skrypty cyklu per-przedmiot — gotowe B1, B2, B3, B5, B6, B7, B8, B9, B10, B11
 
+> **Przewodnik krok po kroku — `docs/CLI.md`**: cała droga od stosu paczek do
+> materiałów w repo, z komendami, kodami wyjścia i tym, co zrobić, gdy etap
+> odmówi. Poniżej zostaje kontrakt i uzasadnienia poszczególnych etapów.
+
 Po pierwszym przebiegu przygotuj wycinek z **istniejącego indeksu SQLite**:
 
 ```bash
@@ -398,10 +402,15 @@ Dalsze skrypty B12–B13 są nadal do implementacji.
 
 ## Studio — lokalny warsztat nad indeksem
 
-Widok do pracy nad paczką: pulpit przedmiotów, kolejka „co następne”, przeglądanie
-treści z decyzjami potoku. Plan i uzasadnienia: `studio/PLAN.md`, stan prac:
-`studio/TODO-studio.md`. **Faza S0 jest wyłącznie do odczytu** — nie ma żadnego
-endpointu zapisu (pilnuje tego test), a baza jest otwierana w trybie `mode=ro`.
+Ten sam proces co wyżej, tylko w przeglądarce: pulpit przedmiotów, kolejka decyzji
+z podglądem dokumentu, porównywarka klastrów, historia i statystyki na żywo.
+
+> **Przewodnik — `studio/README.md`**: start, zakładki, klawiatura, API i model
+> bezpieczeństwa. Plan i uzasadnienia: `studio/PLAN.md`, stan prac:
+> `studio/TODO-studio.md`.
+
+Studio nie jest drugim potokiem — woła ten sam kod i pisze do tej samej bazy co
+komendy `just`. Zapisuje **wyłącznie decyzje**; materiały rusza tylko `apply`.
 
 ```bash
 just studio-build     # front do postaci, którą serwuje `just studio`
@@ -598,25 +607,31 @@ anthropic          # backend AI (Claude) — dla llm_client
 openai             # backend AI (Codex) — dla llm_client
 ```
 
-## Quickstart (docelowo)
+## Quickstart
 
 ```bash
-# 0. Bootstrap — poznaj skalę dublowania (nic nie kasuje)
-rmlint --merge-directories /ścieżka/do/00_SOURCES
-ncdu -o sources_snapshot.json /ścieżka/do/00_SOURCES
+bash setup/install.sh --with-apt   # raz na maszynę
+just db-init
 
-# 1. Skan + dedup na całości (mapa)
-python scripts/scan.py
-python scripts/hash_files.py
-python scripts/fold_hash.py
-python scripts/dedup_report.py
+# 1. Pierwszy przebieg na całości źródeł (nic nie kasuje)
+just scan && just hash && just fold-hash && just dedup-report && just extract
+just scan-target                   # ground truth: co już leży w repo paczki
+just status                        # reports/STATUS.md — przedmioty × etapy
 
-# 2. Pilotaż jednego przedmiotu e2e (np. AK, sem3)
-just subject-start AK 3          # gh issue + branch (w target_repo)
-python scripts/prepare_subject.py --semester 3 --skrot AK
-# → classify → plan → review → apply → verify
-just subject-pr AK 3
+# 2. Jeden przedmiot od początku do końca
+just subject-prepare 3 AKO
+just subject-classify 3 AKO
+just subject-relate 3 AKO
+just subject-ai-resolve 3 AKO
+just subject-plan 3 AKO
+just subject-validate 3 AKO        # bramka: kod 2 = planu NIE wolno wykonać
+just subject-review 3 AKO          # reports/AKO/review.html do obejrzenia
+
+# 3. Dopiero po Twojej akceptacji konkretnego planu
+just subject-apply 3 AKO                                  # DRY-RUN
+just subject-apply 3 AKO --yes --expect-hash <odcisk>     # wykonanie
+just subject-verify 3 AKO                                 # dowód; potem commit
 ```
 
-> Skrypty powstają po zatwierdzeniu architektury — patrz plan działania w
-> `docs/ARCHITEKTURA_FINALv1.md`.
+Pełny przewodnik z wariantami i diagnostyką: **`docs/CLI.md`**. To samo
+w przeglądarce: **`studio/README.md`** (`just studio`).
