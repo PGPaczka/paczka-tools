@@ -32,21 +32,31 @@ export class Viewport {
   }
 
   /**
-   * Zoom toward the mouse position.
-   * factor = deltaY < 0 ? 1.12 : 0.89
-   * scale clamped to [0.35, 2.6]
+   * Zoom by an arbitrary factor, keeping the world point under (x, y) fixed.
+   *
+   * Shared by the wheel and by pinch gestures, so both obey the same clamp and
+   * the same anchoring rule.
+   *
+   * The upper bound is 6, not 2.6: with four thousand nodes a vault opens at a
+   * scale where a node is a few pixels wide, and on a tablet the old ceiling left
+   * no way to actually look at one. Browser page zoom is not a substitute — it
+   * scales an already-rasterised canvas, so it only blurs.
    */
-  applyWheel(deltaY: number, mouseX: number, mouseY: number): void {
-    const factor = deltaY < 0 ? 1.12 : 0.89
-    const ns = clamp(this.scale * factor, 0.35, 2.6)
+  zoomBy(factor: number, x: number, y: number): void {
+    const ns = clamp(this.scale * factor, 0.35, 6)
 
-    // Keep the world point under the mouse fixed
-    const wx = (mouseX - this.tx) / this.scale
-    const wy = (mouseY - this.ty) / this.scale
+    // Keep the world point under the pointer fixed
+    const wx = (x - this.tx) / this.scale
+    const wy = (y - this.ty) / this.scale
 
     this.scale = ns
-    this.tx = mouseX - wx * ns
-    this.ty = mouseY - wy * ns
+    this.tx = x - wx * ns
+    this.ty = y - wy * ns
+  }
+
+  /** Zoom toward the mouse position (wheel step). */
+  applyWheel(deltaY: number, mouseX: number, mouseY: number): void {
+    this.zoomBy(deltaY < 0 ? 1.12 : 0.89, mouseX, mouseY)
   }
 
   /**

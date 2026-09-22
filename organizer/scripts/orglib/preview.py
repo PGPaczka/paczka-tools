@@ -27,6 +27,10 @@ from . import config
 THUMBNAIL_SIZE: tuple[int, int] = (320, 320)
 THUMBNAIL_QUALITY: int = 72
 
+#: Jakość JPEG dla renderowanej strony PDF. 82 to próg, powyżej którego rośnie
+#: już tylko rozmiar — sprawdzone na skanach i slajdach z tej paczki.
+PAGE_QUALITY: int = 82
+
 #: Szerokość renderowanej strony PDF w pikselach. Tyle wystarcza, żeby z ekranu
 #: rozpoznać, co to za dokument; więcej kosztuje tylko czas i pamięć.
 PAGE_WIDTH: int = 1000
@@ -78,7 +82,13 @@ def first_existing_copy(paths: config.Paths, copies: Iterable[tuple[str, str]]) 
 
 
 def render_pdf_page(path: Path, *, page: int = 1, width: int = PAGE_WIDTH) -> bytes | None:
-    """Renderuje stronę PDF do PNG (PyMuPDF). ``None``, gdy pliku nie da się otworzyć."""
+    """Renderuje stronę PDF do JPEG (PyMuPDF). ``None``, gdy pliku nie da się otworzyć.
+
+    JPEG, nie PNG: zmierzone na realnym wykładzie AKO przy 1000 px — PNG 1006 KiB,
+    JPEG 110 KiB. To jest PODGLĄD, który ma odpowiedzieć na pytanie „co to za
+    dokument”, a nie reprodukcja do druku; dziewięciokrotna różnica decyduje o tym,
+    czy kolejka decyzji działa na tablecie przez sieć, czy się wlecze.
+    """
     try:
         import pymupdf
     except ImportError:  # pragma: no cover - PyMuPDF jest twardą zależnością
@@ -91,7 +101,7 @@ def render_pdf_page(path: Path, *, page: int = 1, width: int = PAGE_WIDTH) -> by
             target = document.load_page(index)
             zoom = width / max(target.rect.width, 1)
             pixmap = target.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom))
-            return bytes(pixmap.tobytes("png"))
+            return bytes(pixmap.tobytes("jpeg", jpg_quality=PAGE_QUALITY))
     except Exception:
         # Uszkodzony albo zaszyfrowany PDF nie jest awarią narzędzia — podgląd
         # ma wtedy nie pokazać nic, a decyzja i tak należy do człowieka.

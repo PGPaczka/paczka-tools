@@ -10,6 +10,7 @@
   } from '../lib/api';
   import { basename, bytes, percent } from '../lib/format';
   import { previewImageUrl } from '../lib/api';
+  import Lightbox from './Lightbox.svelte';
 
   interface Props {
     semester?: number | null;
@@ -25,11 +26,24 @@
   let success = $state<string | null>(null);
   let noiseFilter = $state('');
 
+  /** Treść oglądana na cały ekran: {sha, nazwa} albo nic. */
+  let zoomed = $state<{ sha256: string; name: string } | null>(null);
+
   /** Treści, dla których podgląd zwraca obrazek (PDF renderuje stronę). */
   const SHOWABLE = new Set(['image', 'pdf']);
   const showsPicture = (kind: string | null | undefined) => SHOWABLE.has(String(kind ?? ''));
 
   let expandedIndex = $state<number | null>(null);
+  /** Ile miniatur rozwiniętego klastra już doszło — widać, że się doczytują,
+   *  zamiast patrzeć na puste kafelki i zgadywać, czy coś się dzieje. */
+  let thumbsLoaded = $state(0);
+  const thumbsExpected = $derived(
+    expandedIndex === null
+      ? 0
+      : (page?.clusters[expandedIndex]?.members ?? []).filter((member) =>
+          showsPicture(member.content_kind),
+        ).length,
+  );
   let selectedCanonical = $state<string | null>(null);
 
   let diff = $state<ClusterDiff | null>(null);
@@ -53,6 +67,7 @@
   }
 
   function toggle(index: number): void {
+    thumbsLoaded = 0;
     if (expandedIndex === index) {
       expandedIndex = null;
       selectedCanonical = null;
@@ -165,6 +180,12 @@
 
           {#if expandedIndex === i}
             <div class="cluster-body">
+              {#if thumbsExpected > 0 && thumbsLoaded < thumbsExpected}
+                <div class="thumbs-progress">
+                  podglądy: {thumbsLoaded} / {thumbsExpected}
+                  <span class="bar"><span style="width: {(thumbsLoaded / thumbsExpected) * 100}%"></span></span>
+                </div>
+              {/if}
               <div class="members-grid">
                 {#each cluster.members as member}
                   <button
@@ -174,12 +195,27 @@
                     title="Kliknij, żeby oznaczyć jako kanoniczną"
                   >
                     {#if showsPicture(member.content_kind)}
-                      <img
-                        class="member-thumb"
-                        loading="lazy"
-                        src={previewImageUrl(member.sha256, 1, 240)}
-                        alt="Podgląd: {member.filename ?? member.sha256.slice(0, 12)}"
-                      />
+                      <span class="thumb-wrap">
+                        <img
+                          class="member-thumb"
+                          loading="lazy"
+                          onload={() => (thumbsLoaded += 1)}
+                          onerror={() => (thumbsLoaded += 1)}
+                          src={previewImageUrl(member.sha256, 1, 240)}
+                          alt="Podgląd: {member.filename ?? member.sha256.slice(0, 12)}"
+                        />
+                        <!-- Osobna lupka, bo klik w kartę wybiera wersję kanoniczną. -->
+                        <span
+                          class="zoom-badge"
+                          role="button"
+                          tabindex="0"
+                          title="Pokaż na cały ekran"
+                          onclick={(e) => { e.stopPropagation();
+                            zoomed = { sha256: member.sha256, name: member.filename ?? member.sha256 }; }}
+                          onkeydown={(e) => { if (e.key === 'Enter') { e.stopPropagation();
+                            zoomed = { sha256: member.sha256, name: member.filename ?? member.sha256 }; } }}
+                        >⤢</span>
+                      </span>
                     {/if}
                     <div class="member-sha mono">{member.sha256.slice(0, 12)}…</div>
                     {#if member.filename}
@@ -245,11 +281,18 @@
                         {/if}
                       </div>
                       {#if showsPicture(diff.left.content_kind)}
-                        <img
-                          class="diff-picture"
-                          src={previewImageUrl(diff.left.sha256, 1, 700)}
-                          alt="Podgląd: {diff.left.filename ?? ''}"
-                        />
+                        <button
+                          class="picture-btn"
+                          title="Pokaż na cały ekran"
+                          onclick={() => (zoomed = { sha256: diff!.left.sha256,
+                            name: diff!.left.filename ?? diff!.left.sha256 })}
+                        >
+                          <img
+                            class="diff-picture"
+                            src={previewImageUrl(diff.left.sha256, 1, 700)}
+                            alt="Podgląd: {diff.left.filename ?? ''}"
+                          />
+                        </button>
                       {/if}
                       <div class="diff-meta">
                         {#if diff.left.content_kind}<span class="tag">{diff.left.content_kind}</span>{/if}
@@ -275,11 +318,18 @@
                         {/if}
                       </div>
                       {#if showsPicture(diff.right.content_kind)}
-                        <img
-                          class="diff-picture"
-                          src={previewImageUrl(diff.right.sha256, 1, 700)}
-                          alt="Podgląd: {diff.right.filename ?? ''}"
-                        />
+                        <button
+                          class="picture-btn"
+                          title="Pokaż na cały ekran"
+                          onclick={() => (zoomed = { sha256: diff!.right.sha256,
+                            name: diff!.right.filename ?? diff!.right.sha256 })}
+                        >
+                          <img
+                            class="diff-picture"
+                            src={previewImageUrl(diff.right.sha256, 1, 700)}
+                            alt="Podgląd: {diff.right.filename ?? ''}"
+                          />
+                        </button>
                       {/if}
                       <div class="diff-meta">
                         {#if diff.right.content_kind}<span class="tag">{diff.right.content_kind}</span>{/if}
@@ -319,6 +369,16 @@
     </div>
   {/if}
 </div>
+
+{#if zoomed}
+  <Lightbox
+    src={previewImageUrl(zoomed.sha256, 1, 1800)}
+    alt={zoomed.name}
+    caption={zoomed.name}
+    original={previewImageUrl(zoomed.sha256, 1, 2000)}
+    onClose={() => (zoomed = null)}
+  />
+{/if}
 
 <style>
   .cluster-panel {
@@ -520,6 +580,51 @@
     min-width: 0;
   }
   /* Miniatura w karcie: „czy to zdjęcie jest duplikatem" rozstrzyga oko, nie hash. */
+  .thumbs-progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    color: var(--muted-2);
+    font-size: 11px;
+  }
+  .thumbs-progress .bar {
+    flex: 1;
+    max-width: 160px;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--panel-3);
+    overflow: hidden;
+  }
+  .thumbs-progress .bar span {
+    display: block;
+    height: 100%;
+    background: var(--accent-dim);
+    transition: width 0.15s;
+  }
+  .thumb-wrap {
+    position: relative;
+    display: block;
+  }
+  .zoom-badge {
+    position: absolute;
+    right: 4px;
+    bottom: 8px;
+    padding: 0 6px;
+    border-radius: 5px;
+    background: rgba(1, 4, 9, 0.72);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 12px;
+    line-height: 18px;
+    cursor: zoom-in;
+  }
+  .picture-btn {
+    display: block;
+    width: 100%;
+    padding: 0;
+    cursor: zoom-in;
+  }
   .member-thumb {
     width: 100%;
     height: 96px;

@@ -10,6 +10,8 @@
     query = $bindable(''),
     semester = $bindable<number | null>(null),
     semesters,
+    grupa = $bindable<string | null>(null),
+    grupy = [],
   }: {
     subjects: SubjectRow[];
     selected: SubjectRow | null;
@@ -17,6 +19,9 @@
     query: string;
     semester: number | null;
     semesters: number[];
+    grupa: string | null;
+    /** Strumienie/katedry w wybranym semestrze; pusto = ten semestr ich nie ma. */
+    grupy: string[];
   } = $props();
 
   let search: HTMLInputElement | undefined = $state();
@@ -47,11 +52,28 @@
       aria-label="Szukaj przedmiotu"
     />
     <div class="semesters">
-      <button class:active={semester === null} onclick={() => (semester = null)}>wszystkie</button>
+      <button class:active={semester === null} onclick={() => { semester = null; grupa = null; }}>
+        wszystkie
+      </button>
       {#each semesters as value (value)}
-        <button class:active={semester === value} onclick={() => (semester = value)}>{value}</button>
+        <button class:active={semester === value} onclick={() => { semester = value; grupa = null; }}>
+          {value}
+        </button>
       {/each}
     </div>
+
+    <!-- Drugi poziom wyboru: strumień (SEM5/6) albo katedra (SEM7). Pokazuje się
+         tylko wtedy, gdy w tym semestrze naprawdę rozdziela przedmioty. -->
+    {#if grupy.length}
+      <div class="semesters grupy">
+        <button class:active={grupa === null} onclick={() => (grupa = null)}>wszystkie grupy</button>
+        {#each grupy as name (name)}
+          <button class:active={grupa === name} onclick={() => (grupa = name)} title={name}>
+            {name.replaceAll('_', ' ')}
+          </button>
+        {/each}
+      </div>
+    {/if}
   </header>
 
   <ol>
@@ -137,6 +159,12 @@
   }
   .semesters button:hover {
     color: var(--text);
+  }
+  .grupy button {
+    max-width: 14rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .semesters button.active {
     background: var(--panel-3);

@@ -155,8 +155,9 @@ def test_preview_renders_the_first_page_of_a_pdf(client) -> None:
     response = client.get(f"/api/preview/{SHA['a']}/image")
 
     assert response.status_code == 200
-    assert response.headers["content-type"] == "image/png"
-    assert response.content.startswith(b"\x89PNG")
+    # JPEG, nie PNG: przy 1000 px ta sama strona to 110 KiB zamiast 1006 KiB.
+    assert response.headers["content-type"] == "image/jpeg"
+    assert response.content.startswith(b"\xff\xd8\xff")
 
 
 def test_preview_serves_an_image_content_as_a_picture(client) -> None:

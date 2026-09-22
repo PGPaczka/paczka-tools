@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Lightbox from './Lightbox.svelte';
   import {
     postDecision,
     postUndo,
@@ -37,12 +38,24 @@
   // Podgląd: bez niego decyzja zapada po samej nazwie pliku, czyli dokładnie tak,
   // jak w konsoli — a po to studio nie powstało (PLAN.md: „podgląd po lewej,
   // propozycja po prawej").
+  /** Podgląd na cały ekran — miniatura mówi „co to”, pełny ekran mówi „czym się różni”. */
+  let zoomed = $state(false);
+
   let preview = $state<Preview | null>(null);
   let previewError = $state<string | null>(null);
   let page = $state(1);
 
+  /** Szerokość renderu dopasowana do ekranu: tablet nie potrzebuje wersji jak monitor,
+   *  a przez sieć każdy zbędny piksel to czekanie. Sufit 1200 px, bo wyżej i tak
+   *  nie widać różnicy na podglądzie. */
+  function previewWidth(): number {
+    const css = typeof window === 'undefined' ? 1000 : window.innerWidth;
+    const dpr = typeof window === 'undefined' ? 1 : Math.min(window.devicePixelRatio || 1, 2);
+    return Math.max(480, Math.min(1200, Math.round(css * 0.55 * dpr)));
+  }
+
   const imageUrl = $derived(
-    current && preview?.has_image ? previewImageUrl(current.sha256, page) : null,
+    current && preview?.has_image ? previewImageUrl(current.sha256, page, previewWidth()) : null,
   );
 
   async function loadNext(): Promise<void> {
@@ -212,7 +225,10 @@
     <div class="item-card">
       <figure class="preview">
         {#if imageUrl}
-          <img src={imageUrl} alt="Podgląd: {current.filename ?? current.sha256}" />
+          <button class="zoom-wrap" onclick={() => (zoomed = true)} title="Pokaż na cały ekran">
+            <img src={imageUrl} alt="Podgląd: {current.filename ?? current.sha256}" />
+            <span class="zoom-badge" aria-hidden="true">⤢</span>
+          </button>
           {#if preview?.pages && preview.pages > 1}
             <figcaption class="pager">
               <button onclick={() => (page = Math.max(1, page - 1))} disabled={page <= 1}>‹</button>
@@ -246,6 +262,16 @@
           </details>
         {/if}
       </figure>
+
+      {#if zoomed && current}
+        <Lightbox
+          src={previewImageUrl(current.sha256, page, 1800)}
+          alt={current.filename ?? current.sha256}
+          caption={current.source_relative_path}
+          original={previewImageUrl(current.sha256, page, 2000)}
+          onClose={() => (zoomed = false)}
+        />
+      {/if}
 
       <div class="decision">
       <div class="item-header">
@@ -376,6 +402,25 @@
     border: 1px solid var(--border-2);
     border-radius: 8px;
     background: var(--bg-deep);
+  }
+  .zoom-wrap {
+    position: relative;
+    display: block;
+    width: 100%;
+    padding: 0;
+    cursor: zoom-in;
+  }
+  .zoom-badge {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(1, 4, 9, 0.72);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 20px;
   }
   .preview img {
     width: 100%;

@@ -75,6 +75,16 @@ export class CanvasGraphRenderer implements IGraphRenderer {
   private animToScale = 1
 
   // Pan state
+  // Touch state. The canvas previously listened to mouse events only, so on a
+  // tablet the graph could be neither panned nor zoomed — the browser just scaled
+  // the whole page, which blurs an already-rasterised canvas.
+  private touchMode: 'none' | 'pan' | 'pinch' = 'none'
+  private touchStartX = 0
+  private touchStartY = 0
+  private touchStartTx = 0
+  private touchStartTy = 0
+  private pinchStartDistance = 0
+
   private isPanning = false
   private panStartX = 0
   private panStartY = 0
@@ -107,6 +117,12 @@ export class CanvasGraphRenderer implements IGraphRenderer {
     this.canvas.addEventListener('mouseup', this.onCanvasMouseUp)
     this.canvas.addEventListener('wheel', this.onWheel, { passive: false })
     this.canvas.addEventListener('mouseleave', this.onMouseLeave)
+    this.canvas.addEventListener('touchstart', this.onTouchStart, { passive: false })
+    this.canvas.addEventListener('touchmove', this.onTouchMove, { passive: false })
+    this.canvas.addEventListener('touchend', this.onTouchEnd)
+    this.canvas.addEventListener('touchcancel', this.onTouchEnd)
+    // Without this the browser claims the gesture and zooms the page instead.
+    this.canvas.style.touchAction = 'none'
 
     this.scheduleRender()
   }
@@ -131,6 +147,10 @@ export class CanvasGraphRenderer implements IGraphRenderer {
       this.canvas.removeEventListener('mouseup', this.onCanvasMouseUp)
       this.canvas.removeEventListener('wheel', this.onWheel)
       this.canvas.removeEventListener('mouseleave', this.onMouseLeave)
+      this.canvas.removeEventListener('touchstart', this.onTouchStart)
+      this.canvas.removeEventListener('touchmove', this.onTouchMove)
+      this.canvas.removeEventListener('touchend', this.onTouchEnd)
+      this.canvas.removeEventListener('touchcancel', this.onTouchEnd)
     }
     this.options = null
     this.canvas = null
@@ -307,6 +327,66 @@ export class CanvasGraphRenderer implements IGraphRenderer {
     this.viewport.applyWheel(e.deltaY, x, y)
     this.options?.onUserMove?.()
     this.scheduleRender()
+  }
+
+  // ---------- touch ----------
+
+  private touchPoint(t: Touch): { x: number; y: number } {
+    const rect = this.canvas!.getBoundingClientRect()
+    return { x: t.clientX - rect.left, y: t.clientY - rect.top }
+  }
+
+  private static distance(a: Touch, b: Touch): number {
+    return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
+  }
+
+  private readonly onTouchStart = (e: TouchEvent): void => {
+    if (!this.canvas) return
+    this.animating = false
+    this.touchStartTx = this.viewport.tx
+    this.touchStartTy = this.viewport.ty
+    if (e.touches.length === 1) {
+      const { x, y } = this.touchPoint(e.touches[0])
+      this.touchMode = 'pan'
+      this.touchStartX = x
+      this.touchStartY = y
+    } else if (e.touches.length >= 2) {
+      this.touchMode = 'pinch'
+      this.pinchStartDistance = CanvasGraphRenderer.distance(e.touches[0], e.touches[1])
+    }
+  }
+
+  private readonly onTouchMove = (e: TouchEvent): void => {
+    if (!this.canvas || this.touchMode === 'none') return
+    e.preventDefault()
+
+    if (this.touchMode === 'pan' && e.touches.length === 1) {
+      const { x, y } = this.touchPoint(e.touches[0])
+      const [tx, ty] = this.clampPan(
+        this.touchStartTx + (x - this.touchStartX),
+        this.touchStartTy + (y - this.touchStartY),
+      )
+      this.viewport.tx = tx
+      this.viewport.ty = ty
+    } else if (e.touches.length >= 2) {
+      const distance = CanvasGraphRenderer.distance(e.touches[0], e.touches[1])
+      if (this.pinchStartDistance > 0) {
+        // Anchor the zoom at the midpoint between the fingers, the way a map does.
+        const a = this.touchPoint(e.touches[0])
+        const b = this.touchPoint(e.touches[1])
+        this.viewport.zoomBy(distance / this.pinchStartDistance, (a.x + b.x) / 2, (a.y + b.y) / 2)
+      }
+      this.pinchStartDistance = distance
+      this.touchMode = 'pinch'
+    }
+
+    this.options?.onUserMove?.()
+    this.scheduleRender()
+  }
+
+  private readonly onTouchEnd = (): void => {
+    this.touchMode = 'none'
+    this.pinchStartDistance = 0
   }
 
   private readonly onMouseLeave = (): void => {

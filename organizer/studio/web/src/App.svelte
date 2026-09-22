@@ -11,6 +11,7 @@
     type SubjectRow,
   } from './lib/api';
   import { count } from './lib/format';
+  import { loadPrefs, savePrefs, type Prefs } from './lib/prefs';
   import QueuePanel from './components/QueuePanel.svelte';
   import SubjectList from './components/SubjectList.svelte';
   import SubjectPanel from './components/SubjectPanel.svelte';
@@ -26,13 +27,16 @@
   /** Ile pozycji dokłada „Pokaż więcej”. */
   const PAGE = 30;
 
+  /** Zapamiętany wybór z poprzedniej wizyty; odczyt jest bezpieczny nawet bez pamięci. */
+  const saved: Prefs = loadPrefs();
+
   let dashboard = $state<Dashboard | null>(null);
   let health = $state<Health | null>(null);
   let fatal = $state<string | null>(null);
 
-  let stage = $state<string | null>(null);
+  let stage = $state<string | null>(saved.stage ?? null);
   let query = $state('');
-  let semester = $state<number | null>(null);
+  let semester = $state<number | null>(saved.semester ?? null);
 
   let selected = $state<SubjectRow | null>(null);
   let detail = $state<SubjectDetail | null>(null);
@@ -43,8 +47,23 @@
   let page = $state<ItemsPage | null>(null);
   let loadingItems = $state(false);
 
-  let mode = $state<Mode>('browse');
+  let mode = $state<Mode>((saved.mode as Mode) ?? 'browse');
+  /** Strumień/katedra — drugi poziom wyboru dla SEM5–7. */
+  let grupa = $state<string | null>(saved.grupa ?? null);
+  /** Boczne panele: na tablecie oddają miejsce panelowi roboczemu. */
+  let queueOpen = $state<boolean>(saved.queueOpen ?? true);
+  let listOpen = $state<boolean>(saved.listOpen ?? true);
   let list: SubjectList | undefined = $state();
+
+  /** Grupy (strumień/katedra) dostępne w wybranym semestrze — drugi poziom wyboru.
+   *  Pokazujemy je tylko wtedy, gdy naprawdę rozdzielają przedmioty. */
+  const grupy = $derived.by(() => {
+    const rows = (dashboard?.subjects ?? []).filter(
+      (row) => semester === null || row.semester === semester,
+    );
+    const names = [...new Set(rows.map((row) => row.grupa))].sort();
+    return names.length > 1 ? names : [];
+  });
 
   const semesters = $derived(
     dashboard ? [...new Set(dashboard.subjects.map((row) => row.semester))].sort((a, b) => a - b) : [],
@@ -56,6 +75,7 @@
     return rows.filter((row) => {
       if (stage && row.stage !== stage) return false;
       if (semester !== null && row.semester !== semester) return false;
+      if (grupa !== null && row.grupa !== grupa) return false;
       if (!needle) return true;
       const haystack = [row.skrot, row.nazwa, row.grupa, ...row.aliases]
         .join(' ')
@@ -167,6 +187,34 @@
     loadDashboard();
   });
 
+  // Zapamiętujemy wybór, żeby odświeżenie strony (albo powrót na tablecie)
+  // wracało tam, gdzie się skończyło.
+  $effect(() => {
+    savePrefs({
+      mode,
+      semester,
+      grupa,
+      skrot: selected?.skrot ?? null,
+      stage,
+      queueOpen,
+      listOpen,
+    });
+  });
+
+  /** Odtworzenie wybranego przedmiotu — dopiero gdy przyjdzie lista z serwera. */
+  let restored = false;
+  $effect(() => {
+    if (restored || !dashboard || !saved.skrot) return;
+    restored = true;
+    const row = dashboard.subjects.find(
+      (item) =>
+        item.skrot === saved.skrot &&
+        (saved.semester == null || item.semester === saved.semester) &&
+        (saved.grupa == null || item.grupa === saved.grupa),
+    );
+    if (row) selected = row;
+  });
+
   $effect(() => {
     const row = selected;
     if (!row) return;
@@ -242,9 +290,21 @@
 
     <div class="right mono">
       {#if health}
-        <span title={health.db}>{health.db.split('/').slice(-2).join('/')}</span>
-        <span class="dim">schema v{health.schema_version}</span>
+        <span class="db" title={health.db}>{health.db.split('/').slice(-2).join('/')}</span>
+        <span class="db dim">schema v{health.schema_version}</span>
       {/if}
+      <button
+        class="panel-toggle"
+        class:off={!queueOpen}
+        onclick={() => (queueOpen = !queueOpen)}
+        title="Zwiń/rozwiń kolejkę etapów"
+      >⟨kolejka⟩</button>
+      <button
+        class="panel-toggle"
+        class:off={!listOpen}
+        onclick={() => (listOpen = !listOpen)}
+        title="Zwiń/rozwiń listę przedmiotów"
+      >⟨lista⟩</button>
       <button onclick={loadDashboard} title="Przeładuj liczby z bazy">odśwież</button>
         <button
           class="mode-toggle"
@@ -305,18 +365,39 @@
   {:else if !dashboard}
     <div class="fatal"><p>Wczytuję indeks…</p></div>
   {:else}
-    <main class:lens={mode === 'graph'}>
-      <QueuePanel {dashboard} {stage} onStage={(value) => (stage = value)} />
+    <main
+      class:lens={mode === 'graph'}
+      class:queue-hidden={!queueOpen}
+      class:list-hidden={!listOpen || mode === 'graph'}
+    >
+      <!-- Panele boczne zwijają się do pionowej zakładki: na tablecie cała szerokość
+           idzie wtedy do panelu roboczego, a wybór wraca jednym kliknięciem. -->
+      {#if queueOpen}
+        <QueuePanel {dashboard} {stage} onStage={(value) => (stage = value)} />
+      {:else}
+        <button class="rail" onclick={() => (queueOpen = true)} title="Pokaż kolejkę etapów">
+          <span>kolejka</span>
+        </button>
+      {/if}
+
       {#if mode !== 'graph'}
-      <SubjectList
-        bind:this={list}
-        subjects={filtered}
-        {selected}
-        onSelect={select}
-        bind:query
-        bind:semester
-        {semesters}
-      />
+        {#if listOpen}
+          <SubjectList
+            bind:this={list}
+            subjects={filtered}
+            {selected}
+            onSelect={select}
+            bind:query
+            bind:semester
+            bind:grupa
+            {grupy}
+            {semesters}
+          />
+        {:else}
+          <button class="rail" onclick={() => (listOpen = true)} title="Pokaż listę przedmiotów">
+            <span>{selected ? selected.skrot : 'przedmioty'}</span>
+          </button>
+        {/if}
       {/if}
       {#if mode === 'decide'}
         <DecisionPanel
@@ -374,9 +455,9 @@
   header {
     display: flex;
     align-items: center;
-    gap: 18px;
-    padding: 0 14px;
-    height: 44px;
+    gap: 12px;
+    padding: 4px 10px;
+    min-height: 44px;
     border-bottom: 1px solid var(--border);
     background: var(--bg-deep);
   }
@@ -410,9 +491,18 @@
   .right {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     margin-left: auto;
     color: var(--muted-2);
+    /* Zakładki MUSZĄ być dosięgalne na każdym ekranie. Na wąskim nagłówek nie
+       zawija ich poza widok, tylko przewija się w poziomie — wcześniej na telefonie
+       `plan`, `graf` i `statystyki` były po prostu nieklikalne. */
+    overflow-x: auto;
+    scrollbar-width: none;
+    max-width: 100%;
+  }
+  .right::-webkit-scrollbar {
+    display: none;
   }
   .right button {
     padding: 2px 10px;
@@ -438,11 +528,61 @@
     grid-template-columns: 220px minmax(320px, 0.9fr) minmax(0, 1.3fr);
     min-height: 0;
   }
+  main.queue-hidden {
+    grid-template-columns: 28px minmax(320px, 0.9fr) minmax(0, 1.3fr);
+  }
+  main.list-hidden {
+    grid-template-columns: 220px 28px minmax(0, 1fr);
+  }
+  main.queue-hidden.list-hidden {
+    grid-template-columns: 28px 28px minmax(0, 1fr);
+  }
+
+  /* Zwinięty panel jako pionowa zakładka przy krawędzi. */
+  .rail {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid var(--border);
+    background: var(--bg-deep);
+    color: var(--muted);
+    padding: 0;
+  }
+  .rail:hover {
+    color: var(--text);
+    background: var(--panel);
+  }
+  .rail span {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .panel-toggle {
+    padding: 2px 8px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .panel-toggle.off {
+    opacity: 0.45;
+  }
+  .panel-toggle:hover {
+    color: var(--text);
+    border-color: var(--accent-dim);
+  }
 
   /* Graf to soczewka na całą paczkę: viewer ma własne trzy panele, więc w wąskiej
      kolumnie zostawał mu pasek na sam rysunek. Lista przedmiotów wraca klawiszem `b`. */
   main.lens {
     grid-template-columns: 220px minmax(0, 1fr);
+  }
+  main.lens.queue-hidden {
+    grid-template-columns: 28px minmax(0, 1fr);
   }
 
   .fatal {
@@ -459,6 +599,30 @@
 
   /* Na wąskim ekranie znika kolejka (jest powtórzona jako filtr etapu),
      a nie panel przedmiotu — to on jest treścią tego widoku. */
+  /* Poniżej tej szerokości liczniki i ścieżka bazy ustępują miejsca zakładkom:
+     te same liczby są w zakładce „statystyki", a zakładki muszą być klikalne. */
+  @media (max-width: 1100px) {
+    .totals {
+      display: none;
+    }
+    .right .db {
+      display: none;
+    }
+    .brand .phase {
+      display: none;
+    }
+  }
+  @media (max-width: 700px) {
+    header {
+      flex-wrap: wrap;
+    }
+    .right {
+      width: 100%;
+      margin-left: 0;
+      justify-content: flex-start;
+    }
+  }
+
   @media (max-width: 1100px) {
     main {
       grid-template-columns: minmax(240px, 0.85fr) minmax(0, 1.15fr);

@@ -102,11 +102,9 @@
 
   $: activeTagFilters = $filters.tags
 
-  // ── Obsidian URI ───────────────────────────────────────────
-  $: vaultName = $graph?.vault.name ?? null
-  $: obsidianUri = realNode && vaultName
-    ? `obsidian://open?vault=${encodeURIComponent(vaultName)}&file=${encodeURIComponent(realNode.path.replace(/\.md$/i, ''))}`
-    : null
+  // Notatki vaulta są u nas GENEROWANE z indeksu (`just synapse`), więc nie ma czego
+  // otwierać w Obsidianie — link prowadziłby do pliku, którego nikt nie edytuje ręcznie
+  // i którego kolejny eksport i tak nadpisze. Usunięte świadomie, nie przez przeoczenie.
 
   let pathCopied = false
   let copyTimeout: ReturnType<typeof setTimeout> | null = null
@@ -238,17 +236,6 @@
             <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 11H3a1.5 1.5 0 0 1-1.5-1.5V3A1.5 1.5 0 0 1 3 1.5h7A1.5 1.5 0 0 1 11.5 3v2" stroke="currentColor" stroke-width="1.4"/></svg>
           {/if}
         </button>
-        {#if obsidianUri}
-          <a
-            class="obsidian-btn"
-            href={obsidianUri}
-            rel="noopener noreferrer"
-            title="Open this note in Obsidian"
-          >
-            Open in Obsidian
-            <svg width="10" height="10" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 10 10 2M5.5 2H10v4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </a>
-        {/if}
       </div>
     {/if}
 
@@ -604,27 +591,6 @@
   }
   .copy-btn--ok {
     color: var(--green);
-  }
-
-  .obsidian-btn {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex-shrink: 0;
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--accent);
-    text-decoration: none;
-    padding: 3px 7px;
-    border-radius: 4px;
-    border: 1px solid rgba(88, 166, 255, 0.25);
-    background: rgba(88, 166, 255, 0.07);
-    transition: background 0.12s, border-color 0.12s;
-    white-space: nowrap;
-  }
-  .obsidian-btn:hover {
-    background: rgba(88, 166, 255, 0.15);
-    border-color: rgba(88, 166, 255, 0.5);
   }
 
   .body-loading {

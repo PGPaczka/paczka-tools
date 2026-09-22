@@ -770,7 +770,7 @@ def preview_image(
         payload = preview_lib.render_pdf_page(
             source, page=page, width=width or preview_lib.PAGE_WIDTH
         )
-        return (payload, "image/png") if payload else None
+        return (payload, "image/jpeg") if payload else None
     if kind in preview_lib.IMAGE_KINDS:
         # Domyślna szerokość idzie z cache (jedna miniatura na treść, liczona raz);
         # każda inna jest renderowana na bieżąco, bo cache ma ustalony rozmiar.

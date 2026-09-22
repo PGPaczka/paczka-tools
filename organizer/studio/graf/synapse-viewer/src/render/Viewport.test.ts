@@ -59,10 +59,13 @@ describe('Viewport', () => {
       expect(vp.scale).toBeLessThan(oldScale)
     })
 
-    it('scale is clamped to max 2.6', () => {
-      vp.scale = 2.5
-      vp.applyWheel(-1, 400, 300) // factor 1.12 → 2.8 → clamped
-      expect(vp.scale).toBeLessThanOrEqual(2.6)
+    it('scale is clamped to max 6', () => {
+      // Raised from 2.6 on 2026-09-22: a four-thousand-node vault opens at a scale
+      // where one node is a few pixels wide, and on a touch screen the old ceiling
+      // left no way to look at it. Page zoom is not a substitute — it blurs the canvas.
+      vp.scale = 5.9
+      vp.applyWheel(-1, 400, 300) // factor 1.12 → 6.6 → clamped
+      expect(vp.scale).toBeLessThanOrEqual(6)
     })
 
     it('scale is clamped to min 0.35', () => {

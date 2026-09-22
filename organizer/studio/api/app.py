@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, AsyncIterator, Iterator, Optional
 
 from fastapi import Body, Depends, FastAPI, HTTPException, Path as PathParam, Query, Request
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import (
     FileResponse,
     HTMLResponse,
@@ -105,6 +106,13 @@ def create_app(
         version="0.1.0",
         lifespan=lifespan,
     )
+    # Kompresja odpowiedzi. Zmierzone: `graph.json` 4,4 MB, drzewo planu 722 KiB,
+    # klastry 432 KiB — to są pliki tekstowe, które kompresują się kilkukrotnie,
+    # a przez sieć (tailnet, tablet) to jest różnica między „chwila” a „czekam”.
+    # Ta wersja Starlette sama pomija `text/event-stream` i obrazy, więc strumień
+    # logu etapu leci dalej na żywo, a JPEG-i nie są pakowane drugi raz.
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
+
     app.state.db_path = database_path
     app.state.subjects = catalog
     app.state.thresholds = limits
