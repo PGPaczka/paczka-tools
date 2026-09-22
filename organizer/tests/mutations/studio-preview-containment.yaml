@@ -10,3 +10,4 @@ replace: '    resolved = Path(paths.work) / relative_path'
 tests:
 - tests/test_studio_preview.py
 - tests/test_studio_s1_extended.py
+- tests/test_studio_clusters.py

@@ -20,6 +20,10 @@ import status_report
 from orglib import config, preview as preview_lib
 from orglib.review import TEXT_KINDS, build_clusters
 
+#: Ile znaków głowy tekstu wysyłamy do widoku (podgląd i diff klastra). Tyle
+#: wystarcza, żeby rozpoznać dokument; całość leży w ``work`` dla tego, kto chce czytać.
+PREVIEW_TEXT_LIMIT = 4096
+
 #: run_id, pod którym scan_target zapisuje treści leżące już w repo produktu.
 GROUND_TRUTH_RUN_ID = status_report.GROUND_TRUTH_RUN_ID
 
@@ -489,24 +493,24 @@ def clusters(
     }
 
 
-def _read_text_head(path: str | None, max_bytes: int = 4096) -> str | None:
-    """Czyta początek wyekstrahowanego tekstu. Zwraca None gdy pliku nie ma."""
-    if not path:
-        return None
-    from pathlib import Path
-    p = Path(path)
-    if not p.is_file():
-        return None
-    try:
-        return p.read_text(encoding="utf-8", errors="replace")[:max_bytes]
-    except OSError:
-        return None
+def _read_text_head(
+    paths: config.Paths, path: str | None, max_bytes: int = PREVIEW_TEXT_LIMIT
+) -> str | None:
+    """Głowa tekstu przez wspólny helper — ścieżka jest WZGLĘDNA wobec ``work``.
+
+    Wcześniej ta funkcja sklejała ścieżkę z bazy wprost, więc diff klastra nigdy
+    nie pokazywał tekstu na realnych danych (a test tego nie łapał, bo wpisywał
+    ścieżkę bezwzględną). Ta sama wpadka co w podglądzie — teraz obie drogi do
+    materiałów prowadzą przez ``orglib.preview.text_head`` i jego containment.
+    """
+    return preview_lib.text_head(paths, path, max_bytes)
 
 
 def cluster_diff(
     conn: sqlite3.Connection,
     left_sha: str,
     right_sha: str,
+    paths: config.Paths,
     thresholds: Mapping[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """Dane do porównania dwóch treści z klastra: metadane + głowy tekstu."""
@@ -530,10 +534,10 @@ def cluster_diff(
     ).fetchone()
 
     left_text = _read_text_head(
-        left_text_path["extracted_text_path"] if left_text_path else None
+        paths, left_text_path["extracted_text_path"] if left_text_path else None
     )
     right_text = _read_text_head(
-        right_text_path["extracted_text_path"] if right_text_path else None
+        paths, right_text_path["extracted_text_path"] if right_text_path else None
     )
 
     relation = conn.execute(
@@ -686,10 +690,6 @@ def live_stats(
         "actions": action_counts,
     }
 
-
-#: Ile znaków głowy tekstu wysyłamy do widoku. Tyle wystarcza, żeby rozpoznać
-#: dokument; całość i tak leży w ``work`` dla tego, kto chce czytać.
-PREVIEW_TEXT_LIMIT = 4096
 
 
 def preview(

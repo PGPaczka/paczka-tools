@@ -114,6 +114,23 @@ renderera, nie osadzenia. Do rozstrzygnięcia przy kolejnej pracy nad grafem (C3
 - [x] S4.3 Wyszukiwanie przekrojowe + zapisywane widoki — 2026-09-19; GET /api/search (LIKE po filename, path, category, sha256); frontend searchItems w api.ts — ~~zapisywane widoki~~ porzucone (zbyt mało wartości bez S3)
 - [x] S4.4 Statystyki na żywo (odpowiednik `STATUS.md` bez generowania pliku) — 2026-09-19; GET /api/stats oparty o status_report.collect(); StatsPanel z sekcjami: ogólne, etapy, statusy, metody, kategorie, akcje, progi
 
+## Dokumentacja
+
+- [x] Przewodnik `studio/README.md` ze zrzutem każdego widoku, flagami launchera, receptami i pełnym API — 2026-09-22; zrzuty w `studio/docs/screens/` robione na KOPII prawdziwego indeksu, żeby decyzja pokazowa nie dotknęła roboczej bazy
+
+**Czego nie przewidywał plan (dokumentacja):** robienie zrzutów wykryło błąd, którego
+nie widziały ani testy, ani wcześniejsze przeglądy — **diff klastra (S2.3) nigdy nie
+pokazywał tekstu na realnych danych**. `_read_text_head` w `queries.py` sklejał
+`content.extracted_text_path` wprost, zamiast rozwiązywać go względem `work`, a jedyny
+test tej ścieżki wpisywał do bazy ścieżkę bezwzględną — dokładnie ta sama wpadka co
+w podglądzie (S1.3), w drugim miejscu. Teraz obie drogi do materiałów idą przez
+`orglib.preview.text_head` i jego containment, a mutacja `studio-preview-containment.yaml`
+obejmuje też testy klastrów. Przy okazji: długie nazwy plików nachodziły w diffie na
+sąsiednią kolumnę (przycięte).
+
+Wniosek na przyszłość: **zrzut ekranu na realnych danych jest tanim testem** — pokazuje
+to, czego kontrakt nie sprawdza, bo „pole jest, tylko puste”.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

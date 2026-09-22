@@ -221,30 +221,69 @@ def test_diff_includes_relation(client) -> None:
     assert body["relation"]["relation_type"] == "near_duplicate"
 
 
+def _workspace_for(index, tmp_path) -> config.Paths:
+    """Ścieżki workspace'u wokół bazy testowej (baza leży w `work`)."""
+    work = index.parent
+    return config.Paths(
+        sources=tmp_path / "sources", work=work, media=tmp_path / "media",
+        target_repo=tmp_path / "target", target_paczka=tmp_path / "target" / "paczka",
+        work_db=index, work_extracted_text=work / "extracted_text",
+        work_thumbnails=work / "thumbnails",
+    )
+
+
 def test_diff_with_text_files(index, tmp_path) -> None:
-    """When extracted text is available, diff returns it."""
-    text_dir = tmp_path / "texts"
-    text_dir.mkdir()
-    left_text = text_dir / "left.txt"
-    right_text = text_dir / "right.txt"
-    left_text.write_text("Treść pierwszego pliku.\nDruga linia.", encoding="utf-8")
-    right_text.write_text("Treść drugiego pliku.\nDruga linia zmieniona.", encoding="utf-8")
+    """Diff pokazuje tekst dla ścieżki zapisanej WZGLĘDEM `work` — tak robi to etap extract.
+
+    Pierwsza wersja tego testu wpisywała do bazy ścieżkę bezwzględną, czyli kontrakt,
+    którego potok nigdy nie produkuje. Był zielony, a na realnych danych diff pokazywał
+    „brak wyekstrahowanego tekstu” dla obu stron — zobaczone dopiero przy robieniu
+    zrzutów do README (2026-09-22). Ta sama wpadka co w podglądzie (S1.3).
+    """
+    work = index.parent
+    (work / "extracted_text").mkdir(exist_ok=True)
+    (work / "extracted_text" / f"{SHA['a']}.txt").write_text(
+        "Treść pierwszego pliku.\nDruga linia.", encoding="utf-8"
+    )
+    (work / "extracted_text" / f"{SHA['b']}.txt").write_text(
+        "Treść drugiego pliku.\nDruga linia zmieniona.", encoding="utf-8"
+    )
 
     conn = db.connect(index)
-    conn.execute("UPDATE content SET extracted_text_path = ? WHERE sha256 = ?",
-                 (str(left_text), SHA["a"]))
-    conn.execute("UPDATE content SET extracted_text_path = ? WHERE sha256 = ?",
-                 (str(right_text), SHA["b"]))
+    for name in ("a", "b"):
+        conn.execute("UPDATE content SET extracted_text_path = ? WHERE sha256 = ?",
+                     (f"extracted_text/{SHA[name]}.txt", SHA[name]))
     conn.commit()
     conn.close()
 
-    app = create_app(index, subjects=SUBJECTS, thresholds=THRESHOLDS)
+    app = create_app(index, paths=_workspace_for(index, tmp_path), subjects=SUBJECTS,
+                     thresholds=THRESHOLDS)
     with TestClient(app) as c:
         body = c.get(f"/api/clusters/diff?left={SHA['a']}&right={SHA['b']}").json()
         assert body["left_text"] is not None
         assert "pierwszego" in body["left_text"]
         assert body["right_text"] is not None
         assert "drugiego" in body["right_text"]
+
+
+def test_diff_does_not_read_outside_work(index, tmp_path) -> None:
+    """Wpis prowadzący poza `work` to błąd danych, nie prośba o odczyt."""
+    outside = tmp_path / "poza-work.txt"
+    outside.write_text("tego nie wolno pokazać", encoding="utf-8")
+    conn = db.connect(index)
+    conn.execute("UPDATE content SET extracted_text_path = ? WHERE sha256 = ?",
+                 (str(outside), SHA["a"]))
+    conn.execute("UPDATE content SET extracted_text_path = ? WHERE sha256 = ?",
+                 ("../poza-work.txt", SHA["b"]))
+    conn.commit()
+    conn.close()
+
+    app = create_app(index, paths=_workspace_for(index, tmp_path), subjects=SUBJECTS,
+                     thresholds=THRESHOLDS)
+    with TestClient(app) as c:
+        body = c.get(f"/api/clusters/diff?left={SHA['a']}&right={SHA['b']}").json()
+
+    assert body["left_text"] is None and body["right_text"] is None
 
 
 def test_diff_missing_sha_is_404(client) -> None:

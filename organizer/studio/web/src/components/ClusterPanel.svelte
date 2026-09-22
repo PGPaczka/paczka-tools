@@ -496,9 +496,17 @@
     display: flex;
     align-items: center;
     gap: 6px;
+    min-width: 0;
     font-size: 11px;
   }
+  /* Nazwy w tej paczce bywają bardzo długie („…_2015_cz2_ODP.docx(1).docx”) i bez
+     przycięcia wychodziły poza swoją kolumnę, nachodząc na drugą stronę diffa. */
   .diff-filename {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-weight: 600;
     font-size: 12px;
   }

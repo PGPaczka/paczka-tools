@@ -347,7 +347,7 @@ def create_app(
         conn: sqlite3.Connection = Depends(get_conn),
     ) -> dict[str, Any]:
         """Porównanie dwóch treści z klastra (S2.3): metadane + głowy tekstu."""
-        result = queries.cluster_diff(conn, left, right, thresholds=limits)
+        result = queries.cluster_diff(conn, left, right, resolved_paths, thresholds=limits)
         if result is None:
             raise HTTPException(status_code=404, detail="nie znaleziono jednej lub obu treści")
         return result

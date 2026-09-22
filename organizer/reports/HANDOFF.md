@@ -3,6 +3,8 @@
 ## Kontekst ręczny
 
 - **B10 (`apply`) i B11 (`verify`) zrobione 2026-09-22 — materiałów nadal nikt nie ruszał.** `just subject-apply SEM SKROT` jest domyślnie DRY-RUN; kopiuje dopiero z `--yes`, a `--expect-hash` przypina wykonanie do zaakceptowanego odcisku planu. Bramka B8 jest wykonywana ponownie w `apply` tym samym kodem (`orglib/plan_gate.py` wydzielone z `validate_plan.py`), więc uruchomienie walidatora wcześniej niczego nie „odblokowuje”. Kolizja treści pod ścieżką docelową zatrzymuje CAŁY przebieg, brak pliku źródłowego też; ta sama treść na miejscu to „już jest”. `apply` **nie commituje** — commit należy do człowieka po zielonym `verify`. Dry-run na realnym planie AKO: 2519 pozycji → 1497 do skopiowania, 0 kolizji, 0 brakujących źródeł, 2,1 s; bramka gałęzi odmówiła na żywo, bo repo docelowe stoi na `fix/nazwy-katalogow-przedmiotow`, a nie na `subject/AKO`.
+- **Przewodnik studia z obrazkami: `studio/README.md`** (2026-09-22) — zrzut każdego widoku w `studio/docs/screens/`, flagi launchera, recepty, zmienne środowiskowe i pełne API z parametrami. Zrzuty robione na KOPII prawdziwego indeksu (`--db`), żeby decyzja pokazowa nie dotknęła roboczej bazy; stąd `scratchpad/demo.sqlite` w nagłówku na obrazkach.
+- **Robienie zrzutów wykryło błąd, którego nie widziały testy:** diff klastra (S2.3) **nigdy nie pokazywał tekstu na realnych danych** — `_read_text_head` w `studio/api/queries.py` sklejał `content.extracted_text_path` wprost, zamiast rozwiązywać go względem `work`, a jedyny test wpisywał ścieżkę bezwzględną. To ta sama wpadka co w podglądzie (S1.3), w drugim miejscu. Obie drogi idą teraz przez `orglib.preview.text_head`. **Wniosek: zrzut ekranu na realnych danych jest tanim testem** — pokazuje to, czego kontrakt nie sprawdza, bo „pole jest, tylko puste”.
 - **S3 zrobione 2026-09-22 — studio domyka cały plan z `studio/PLAN.md`.** Zakładka **plan** (klawisz `p`): nagłówek planu z odciskiem, wynik bramki (`plan_gate.evaluate` — ten sam kod co `validate_plan`), diff wykonania (`plan_apply.plan_operations` — ten sam silnik co `apply`), drzewo docelowe ze stanem per plik, lista „bez miejsca”, „przenieś tu” z blokadą przy kolizji nazwy oraz uruchamianie etapów jako **podproces CLI** z logiem na żywo (SSE) i kodem wyjścia. **Bramka jest po stronie serwera**: `apply` przy planie odrzuconym to 409 i żaden podproces nie startuje; zgoda niesie `plan_hash`, więc dotyczy konkretnego planu. Mutacja `studio-apply-gate.yaml`.
 - Dwie pułapki z S3, obie tej samej klasy co wcześniejsze: (a) `runner` budował ścieżkę `scripts/` z `config.ORGANIZER_ROOT`, czyli ze stałej, którą testy przestawiają — **zasoby repo liczy się ze ścieżki modułu**; (b) nie każdy etap przyjmuje te same flagi (`review_report.py` nie zna `--db` ani `--plan`), więc argv trzeba konfrontować z PRAWDZIWYMI parserami, co robi teraz `test_every_stage_flag_is_accepted_by_the_real_script`.
 - **Nowe: `PACZKA_CONFIG_DIR`** wskazuje inny katalog konfiguracji niż repo. Powstało, bo etapu uruchamianego jako podproces nie da się monkeypatchować, a test chodzący po prawdziwym `paths.yaml` chodziłby po prawdziwych materiałach. Przydaje się też do wskazania innego workspace'u.
@@ -76,26 +78,19 @@
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-09-22T02:29:35+02:00
+- Odświeżono: 2026-09-22T10:30:14+02:00
 - Branch: `master`
-- Commit: `d0d041c`
+- Commit: `02342f2`
 - Git status:
   ```text
-  M docs/CLI.md
-   M reports/HANDOFF.md
-   M scripts/orglib/config.py
-   M studio/README.md
+  M studio/README.md
    M studio/TODO-studio.md
    M studio/api/app.py
-   M studio/web/src/App.svelte
-   M studio/web/src/lib/api.ts
-  ?? studio/api/planning.py
-  ?? studio/api/runner.py
-  ?? studio/web/src/components/PlanPanel.svelte
-  ?? studio/web/src/lib/plan.test.ts
-  ?? studio/web/src/lib/plan.ts
-  ?? tests/mutations/studio-apply-gate.yaml
-  ?? tests/test_studio_plan.py
+   M studio/api/queries.py
+   M studio/web/src/components/ClusterPanel.svelte
+   M tests/mutations/studio-preview-containment.yaml
+   M tests/test_studio_clusters.py
+  ?? studio/docs/
   ```
 - Pierwsze otwarte TODO: - [ ] B12. `scripts/provenance.py` — `reports/provenance.jsonl` + README per przedmiot do `paczka_meta/` + `00_SOURCES/linki.txt` z `source_packages`
 <!-- END AUTO -->
