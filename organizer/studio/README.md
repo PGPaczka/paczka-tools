@@ -21,9 +21,9 @@ uruchamia te same skrypty. Zabiera konsolę, nie dokłada nowego świata.
 ## Spis treści
 
 - [Start](#start) · [Recepty](#recepty) · [Flagi launchera](#flagi-launchera) · [Zmienne środowiskowe](#zmienne-środowiskowe)
-- Widoki: [pulpit](#pulpit) · [decyzje](#kolejka-decyzji) · [klastry](#klastry) · [plan](#plan-bramka-i-wykonanie) · [graf](#graf-jako-soczewka) · [historia](#historia) · [statystyki](#statystyki)
+- Widoki: [pulpit](#pulpit) · [decyzje](#kolejka-decyzji) · [klastry](#klastry) · [szukaj](#szukaj) · [plan](#plan-bramka-i-wykonanie) · [graf](#graf-jako-soczewka) · [historia](#historia) · [statystyki](#statystyki)
 - [Klawiatura](#klawiatura-w-jednym-miejscu) · [Wąski ekran](#wąski-ekran)
-- [Bezpieczeństwo](#bezpieczeństwo-czyli-czego-studio-nie-zrobi) · [API](#api) · [Baza](#baza-współdzielona-z-cli) · [Testy](#testy) · [Stan](#stan)
+- [Wydajność](#wydajność) · [Bezpieczeństwo](#bezpieczeństwo-czyli-czego-studio-nie-zrobi) · [API](#api) · [Baza](#baza-współdzielona-z-cli) · [Testy](#testy) · [Stan](#stan)
 
 ---
 
@@ -98,6 +98,25 @@ Układ to trzy kolumny: **kolejka etapów** (po lewej), **lista przedmiotów** i
 który zmienia się wraz z zakładką. Zakładki `plan` i `graf` chowają listę przedmiotów —
 potrzebują szerokości.
 
+| Zakładka | Do czego służy | Klawisz |
+|---|---|---|
+| *(pulpit)* | przedmiot: liczniki, kategorie, rozkład pewności, pozycje planu | `b` (powrót) |
+| **decyzje** | kolejka „jedna pozycja na ekranie”: podgląd + propozycja + decyzja | `d` |
+| **klastry** | grupy near-duplicate z miniaturami, wybór wersji kanonicznej | `c` |
+| **szukaj** | wyszukiwanie w całym indeksie, z miniaturami i skokiem do przedmiotu | `w` |
+| **plan** | drzewo docelowe, diff, wynik bramki i uruchamianie etapów | `p` |
+| **graf** | soczewka: osadzony viewer synapse, w obie strony po identyfikatorze | `g` |
+| **historia** | co zmieniłeś dziś, cofanie pojedynczej pozycji | `h` |
+| **statystyki** | odpowiednik `reports/STATUS.md` na żywo, bez generowania pliku | — |
+
+**Wybór przedmiotu jest trzystopniowy**: semestr → strumień/katedra (SEM5–7) →
+przedmiot. Wybór, zakładka i stan paneli **wracają po odświeżeniu strony**
+(`localStorage`), więc na tablecie nie zaczynasz od nowa.
+
+**Panele boczne zwijają się** do pionowych zakładek przy krawędzi (przyciski
+`⟨kolejka⟩` i `⟨lista⟩` w nagłówku) — na mniejszym ekranie cała szerokość idzie do
+panelu roboczego.
+
 ### Pulpit
 
 Wybrany przedmiot: kafelki (w planie / do obejrzenia / już w paczce / nieaktualne),
@@ -126,6 +145,8 @@ głowa tekstu z etapu extract — czyli decydujesz, patrząc na dokument, a nie 
 | `q` | kwarantanna |
 | `m` | media (poza paczkę) |
 | `o` | oznacz jako nieaktualne (`outdated`) |
+| `t` | zmień ścieżkę docelową tej pozycji |
+| `f` | decyzja dla całego katalogu źródłowego (najpierw podgląd, czego dotknie) |
 | `u` | cofnij ostatnią decyzję |
 | `←` / `→` | poprzednia / następna strona PDF |
 | `?` | pomoc (pełna ściąga na ekranie) |
@@ -141,8 +162,12 @@ ląduje w `manual_decisions`, w `classifications` (`classification_method='manua
 `run_id='ground_truth'` są chronione — próba nadpisania ręcznie ułożonego materiału
 kończy się odmową (HTTP 409), nie zapisem.
 
-Jest też **decyzja hurtem po katalogu źródłowym**: 2 570 treści to nie 2 570 decyzji,
-tylko kilkadziesiąt katalogów. Przed zapisem widzisz, czego dotknie.
+Jest też **decyzja hurtem po katalogu źródłowym** (`f`): 2 570 treści to nie 2 570
+decyzji, tylko kilkadziesiąt katalogów. Przed zapisem widzisz katalog, liczbę pozycji
+i próbkę nazw; treści z ground truth są pomijane, żeby nie nadpisać paczki.
+
+Kliknięcie podglądu (albo lupki `⤢`) otwiera **pełny ekran** — bo miniatura mówi
+„co to jest”, a dopiero duży obraz „czym te dwa skany się różnią”.
 
 ### Klastry
 
@@ -213,6 +238,12 @@ przy kolizji nazwy**.
 Zapis idzie zwykłą decyzją ręczną, więc **wchodzi do drzewa dopiero po przebudowaniu
 planu** — widok mówi to wprost po zapisaniu.
 
+### Szukaj
+
+Zakładka **szukaj** (klawisz `w`) przeszukuje **cały indeks**, nie tylko wybrany
+przedmiot: po nazwie, ścieżce źródłowej, kategorii i skrócie sha. Wyniki mają
+miniatury, decyzję potoku i przycisk „otwórz”, który przenosi do przedmiotu danej treści.
+
 ### Graf jako soczewka
 
 ```bash
@@ -229,6 +260,10 @@ viewera i generatora są w repo: `studio/graf/` — wciągnięte jako `git subtr
 - **studio → graf**: wybrany przedmiot otwiera graf na jego węźle (`/graf#sem3-ako`);
 - **graf → studio**: kliknięty węzeł pliku ląduje w pasku pod grafem jako konkretna treść —
   nazwa, kategoria, decyzja, pewność i ścieżka docelowa — z przyciskiem „otwórz przedmiot”.
+
+Na ekranie dotykowym **jeden palec przesuwa, dwa skalują** (sufit powiększenia
+podniesiony z 2,6 do 6 — przy czterech tysiącach węzłów węzeł ma kilka pikseli).
+Zoom przeglądarki nie jest zamiennikiem: skaluje gotowy raster, czyli rozmazuje.
 
 Tłumaczenie `sha256` ↔ `id` notatki stoi na kontrakcie vaulta: id notatki pliku kończy się
 `sha256[:8]` (`orglib/synapse_vault.ID_SHA_PREFIX`). Gdy skrót pasuje do kilku treści,
@@ -265,6 +300,7 @@ przedmiotów, statusy plików, metody klasyfikacji, kategorie i akcje. Liczone
 | `Enter` | wyszukiwarka | otwórz pierwszy wynik |
 | `Esc` | wszędzie | wyczyść filtry |
 | `d` | pulpit | kolejka decyzji |
+| `w` | pulpit | szukaj w całej paczce |
 | `c` | pulpit | klastry |
 | `p` | pulpit | plan |
 | `g` | pulpit | graf |
@@ -282,6 +318,24 @@ decydować.
 ![Wąski ekran](docs/screens/13-waski-ekran.png)
 
 ---
+
+## Wydajność
+
+Zmierzone na realnym indeksie (19 337 treści) i naprawione 2026-09-22, po zgłoszeniu
+„długo się wczytuje na tablecie”:
+
+| Odpowiedź | Było | Jest |
+|---|---:|---:|
+| `graph.json` (zakładka graf) | 4381 KiB | **241 KiB** |
+| drzewo planu przedmiotu | 721 KiB | **137 KiB** |
+| klastry przedmiotu | 432 KiB | **33 KiB** |
+| pulpit `/api/subjects` | 43 KiB | **3 KiB** |
+| strona PDF w podglądzie | 1006 KiB | **110 KiB** |
+
+Skąd to się bierze: **gzip** na całej aplikacji (JSON kompresuje się kilkunastokrotnie),
+**JPEG zamiast PNG** przy renderowaniu stron PDF i **`width` dopasowany do ekranu**, więc
+tablet nie pobiera renderu jak monitor. Miniatury w klastrach dochodzą leniwie,
+z licznikiem „podglądy: 5 / 9”, żeby było widać, że coś się dzieje.
 
 ## Bezpieczeństwo, czyli czego studio nie zrobi
 

@@ -21,8 +21,9 @@
   import StatsPanel from './components/StatsPanel.svelte';
   import GraphPanel from './components/GraphPanel.svelte';
   import PlanPanel from './components/PlanPanel.svelte';
+  import SearchPanel from './components/SearchPanel.svelte';
 
-  type Mode = 'browse' | 'decide' | 'clusters' | 'history' | 'stats' | 'graph' | 'plan';
+  type Mode = 'browse' | 'decide' | 'clusters' | 'history' | 'stats' | 'graph' | 'plan' | 'search';
 
   /** Ile pozycji dokłada „Pokaż więcej”. */
   const PAGE = 30;
@@ -58,9 +59,10 @@
   /** Grupy (strumień/katedra) dostępne w wybranym semestrze — drugi poziom wyboru.
    *  Pokazujemy je tylko wtedy, gdy naprawdę rozdzielają przedmioty. */
   const grupy = $derived.by(() => {
-    const rows = (dashboard?.subjects ?? []).filter(
-      (row) => semester === null || row.semester === semester,
-    );
+    // Dopiero po wybraniu semestru: bez niego „grupa” zlewa strumienie SEM5/6
+    // z katedrami SEM7 w jedną listę, która niczego nie zawęża.
+    if (semester === null) return [];
+    const rows = (dashboard?.subjects ?? []).filter((row) => row.semester === semester);
     const names = [...new Set(rows.map((row) => row.grupa))].sort();
     return names.length > 1 ? names : [];
   });
@@ -158,6 +160,11 @@
     if (event.key === 'g' && mode === 'browse') {
       event.preventDefault();
       mode = 'graph';
+      return;
+    }
+    if (event.key === 'w' && mode === 'browse') {
+      event.preventDefault();
+      mode = 'search';
       return;
     }
     if (event.key === 'p' && mode === 'browse') {
@@ -275,6 +282,7 @@
         mode === 'history' ? 'S4 · historia' :
         mode === 'graph' ? 'S4 · graf' :
         mode === 'plan' ? 'S3 · plan' :
+        mode === 'search' ? 'S4 · szukaj' :
         'S4 · statystyki'
       }</span>
     </div>
@@ -329,6 +337,14 @@
           title="h / b — historia"
         >
           historia
+        </button>
+        <button
+          class="mode-toggle"
+          class:active={mode === 'search'}
+          onclick={() => (mode = mode === 'search' ? 'browse' : 'search')}
+          title="w / b — wyszukiwanie w całej paczce"
+        >
+          szukaj
         </button>
         <button
           class="mode-toggle"
@@ -413,6 +429,8 @@
         />
       {:else if mode === 'history'}
         <HistoryPanel onChanged={loadDashboard} />
+      {:else if mode === 'search'}
+        <SearchPanel onOpenSubject={openSubjectFromGraph} />
       {:else if mode === 'plan'}
         <PlanPanel
           semester={selected?.semester}

@@ -6,6 +6,8 @@
     postDecisionBatch,
     getItems,
     getPreview,
+    getItemsByFolder,
+    postDecisionByFolder,
     previewImageUrl,
     type Item,
     type ItemsPage,
@@ -40,6 +42,15 @@
   // propozycja po prawej").
   /** Podgląd na cały ekran — miniatura mówi „co to”, pełny ekran mówi „czym się różni”. */
   let zoomed = $state(false);
+
+  /** Decyzja hurtem po katalogu (S1.6): najpierw pokaż, czego dotknie, potem zapisz. */
+  let bulk = $state<{ folder: string; total: number; names: string[] } | null>(null);
+  let bulkBusy = $state(false);
+
+  /** Zmiana ścieżki docelowej (klawisz `t`) — bez niej jedyną drogą byłoby
+   *  „przenieś tu” w zakładce plan, czyli wyjście z kolejki. */
+  let editingTarget = $state(false);
+  let targetDraft = $state('');
 
   let preview = $state<Preview | null>(null);
   let previewError = $state<string | null>(null);
@@ -105,6 +116,61 @@
     }
   }
 
+  async function openBulk(): Promise<void> {
+    const folder = current?.folder_path;
+    if (!folder) return;
+    error = null;
+    try {
+      const preview = await getItemsByFolder(folder);
+      bulk = {
+        folder,
+        total: preview.total,
+        names: preview.items.slice(0, 8).map((item) => item.filename ?? item.sha256.slice(0, 12)),
+      };
+    } catch (exc) {
+      error = exc instanceof Error ? exc.message : String(exc);
+    }
+  }
+
+  async function applyBulk(decisionType: string, extra: Record<string, unknown> = {}): Promise<void> {
+    if (!bulk || bulkBusy) return;
+    bulkBusy = true;
+    error = null;
+    try {
+      const result = await postDecisionByFolder(bulk.folder, decisionType, extra);
+      success = `katalog ${bulk.folder}: ${result.count} decyzji`;
+      bulk = null;
+      onDecided?.();
+      await loadNext();
+    } catch (exc) {
+      error = exc instanceof Error ? exc.message : String(exc);
+    } finally {
+      bulkBusy = false;
+    }
+  }
+
+  async function saveTarget(): Promise<void> {
+    if (!current || !targetDraft.trim()) return;
+    error = null;
+    try {
+      await postDecision({
+        sha256: current.sha256,
+        decision_type: 'classify',
+        semester: current.semester ?? semester ?? undefined,
+        subject_key: current.subject_key ?? skrot ?? undefined,
+        category: current.category ?? undefined,
+        target_relative_path: targetDraft.trim(),
+        action: 'copy',
+      });
+      editingTarget = false;
+      success = 'ścieżka docelowa zapisana';
+      onDecided?.();
+      await loadNext();
+    } catch (exc) {
+      error = exc instanceof Error ? exc.message : String(exc);
+    }
+  }
+
   async function undo(): Promise<void> {
     if (!history.length) return;
     error = null;
@@ -162,6 +228,15 @@
       case 'o':
         event.preventDefault();
         decide('outdated');
+        break;
+      case 't':
+        event.preventDefault();
+        targetDraft = current.target_relative_path ?? '';
+        editingTarget = true;
+        break;
+      case 'f':
+        event.preventDefault();
+        openBulk();
         break;
       case 'ArrowRight':
         if (preview?.pages && page < preview.pages) {
@@ -349,6 +424,54 @@
         </button>
       </div>
 
+      {#if editingTarget}
+        <div class="target-edit">
+          <label for="target-path">ścieżka docelowa:</label>
+          <input
+            id="target-path"
+            bind:value={targetDraft}
+            spellcheck="false"
+            onkeydown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); saveTarget(); }
+              if (e.key === 'Escape') { e.preventDefault(); editingTarget = false; }
+            }}
+          />
+          <button onclick={saveTarget}>zapisz</button>
+          <button class="ghost" onclick={() => (editingTarget = false)}>anuluj</button>
+        </div>
+      {/if}
+
+      {#if bulk}
+        <div class="bulk">
+          <div class="bulk-head">
+            <strong>cały katalog</strong>
+            <span class="mono dim">{bulk.folder}</span>
+            <span class="num">{bulk.total} pozycji</span>
+          </div>
+          <!-- Pokazujemy, czego decyzja dotknie, ZANIM cokolwiek zapiszemy. -->
+          <div class="bulk-names mono dim">
+            {bulk.names.join(' · ')}{bulk.total > bulk.names.length ? ' · …' : ''}
+          </div>
+          <div class="bulk-actions">
+            <button disabled={bulkBusy} onclick={() => applyBulk('skip')}>pomiń wszystko</button>
+            <button
+              disabled={bulkBusy}
+              onclick={() =>
+                applyBulk('classify', {
+                  semester: current?.semester ?? semester,
+                  subject_key: current?.subject_key ?? skrot,
+                  category: current?.category,
+                  action: 'copy',
+                })}
+            >
+              akceptuj wszystko ({current?.category ?? 'bez kategorii'})
+            </button>
+            <button class="ghost" disabled={bulkBusy} onclick={() => (bulk = null)}>anuluj</button>
+          </div>
+          <p class="dim">Pozycje z ground truth zostaną pominięte — nie nadpisujemy paczki.</p>
+        </div>
+      {/if}
+
       <div class="shortcuts dim">
         <kbd>←</kbd><kbd>→</kbd> strona &nbsp;
         <kbd>Enter</kbd> akceptuj &nbsp;
@@ -357,6 +480,8 @@
         <kbd>q</kbd> kwarantanna &nbsp;
         <kbd>m</kbd> media &nbsp;
         <kbd>o</kbd> outdated &nbsp;
+        <kbd>t</kbd> ścieżka &nbsp;
+        <kbd>f</kbd> katalog &nbsp;
         <kbd>u</kbd> cofnij &nbsp;
         <kbd>?</kbd> pomoc
       </div>
@@ -375,6 +500,8 @@
           <tr><td><kbd>q</kbd></td><td>Kwarantanna</td></tr>
           <tr><td><kbd>m</kbd></td><td>Media</td></tr>
           <tr><td><kbd>o</kbd></td><td>Oznacz jako outdated</td></tr>
+          <tr><td><kbd>t</kbd></td><td>Zmień ścieżkę docelową tej pozycji</td></tr>
+          <tr><td><kbd>f</kbd></td><td>Decyzja dla całego katalogu źródłowego</td></tr>
           <tr><td><kbd>u</kbd></td><td>Cofnij ostatnią decyzję</td></tr>
           <tr><td><kbd>?</kbd></td><td>Pokaż/ukryj tę pomoc</td></tr>
         </tbody>
@@ -602,6 +729,73 @@
     opacity: 0.3;
     cursor: default;
   }
+  .target-edit {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 8px 10px;
+    border: 1px solid var(--accent-dim);
+    border-radius: 7px;
+    background: var(--panel);
+  }
+  .target-edit input {
+    flex: 1;
+    min-width: 16rem;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg-deep);
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+  .target-edit button,
+  .bulk-actions button {
+    padding: 3px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--muted);
+  }
+  .target-edit button:hover,
+  .bulk-actions button:hover:not(:disabled) {
+    color: var(--text);
+    border-color: var(--accent-dim);
+  }
+  .ghost {
+    border-color: transparent !important;
+  }
+
+  .bulk {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px;
+    border: 1px solid var(--amber);
+    border-radius: 7px;
+    background: rgba(210, 153, 34, 0.06);
+  }
+  .bulk-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .bulk-names {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+  }
+  .bulk-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .bulk p {
+    margin: 0;
+    font-size: 11px;
+  }
+
   .shortcuts {
     font-size: 10px;
     text-align: center;

@@ -98,6 +98,8 @@ export interface Item {
   file_id: number | null;
   source_package: string | null;
   source_relative_path: string | null;
+  /** Katalog źródłowy tej kopii — podstawa decyzji hurtowej (S1.6). */
+  folder_path: string | null;
   filename: string | null;
   extension: string | null;
   size_bytes: number | null;

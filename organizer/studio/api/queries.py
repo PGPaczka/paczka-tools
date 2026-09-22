@@ -61,6 +61,7 @@ _ITEM_COLUMNS = """
     f.file_id                               AS file_id,
     f.source_package                        AS source_package,
     f.source_relative_path                  AS source_relative_path,
+    f.folder_path                           AS folder_path,
     f.filename                              AS filename,
     f.extension                             AS extension,
     f.size_bytes                            AS size_bytes,

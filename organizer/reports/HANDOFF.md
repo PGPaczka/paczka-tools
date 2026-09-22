@@ -3,6 +3,10 @@
 ## Kontekst ręczny
 
 - **B10 (`apply`) i B11 (`verify`) zrobione 2026-09-22 — materiałów nadal nikt nie ruszał.** `just subject-apply SEM SKROT` jest domyślnie DRY-RUN; kopiuje dopiero z `--yes`, a `--expect-hash` przypina wykonanie do zaakceptowanego odcisku planu. Bramka B8 jest wykonywana ponownie w `apply` tym samym kodem (`orglib/plan_gate.py` wydzielone z `validate_plan.py`), więc uruchomienie walidatora wcześniej niczego nie „odblokowuje”. Kolizja treści pod ścieżką docelową zatrzymuje CAŁY przebieg, brak pliku źródłowego też; ta sama treść na miejscu to „już jest”. `apply` **nie commituje** — commit należy do człowieka po zielonym `verify`. Dry-run na realnym planie AKO: 2519 pozycji → 1497 do skopiowania, 0 kolizji, 0 brakujących źródeł, 2,1 s; bramka gałęzi odmówiła na żywo, bo repo docelowe stoi na `fix/nazwy-katalogow-przedmiotow`, a nie na `subject/AKO`.
+- **Audyt wszystkich punktów S0–S4 przeprowadzony 2026-09-22 na życzenie użytkownika.** Metoda, którą warto powtarzać: dla każdej funkcji z `studio/web/src/lib/api.ts` policzyć, ile komponentów ją woła. Zero użyć miały `getItemsByFolder` i `postDecisionByFolder` (S1.6 — decyzja hurtem) oraz `searchItems` (S4.3 — wyszukiwanie przekrojowe); brakowało też klawisza `t` z S1.5. **Backend był, interfejsu nie było.** Wszystko uzupełnione: klawisz `f` otwiera pasek decyzji hurtowej z podglądem, `t` edytuje ścieżkę docelową, doszła zakładka `szukaj` (klawisz `w`). Reszta punktów potwierdzona jako realnie zrobiona; świadomie nieużywane zostają `getQueue` (kolejka bierze pozycje przez `/api/items`) i `getGraphNodeFor` (wejście do grafu przez węzeł przedmiotu).
+- **Wydajność studia zmierzona i poprawiona 2026-09-22** (zgłoszenie z tabletu „długo się wczytuje”): gzip na całej aplikacji + JPEG zamiast PNG dla stron PDF + `width` dopasowany do ekranu. `graph.json` 4381 → 241 KiB, drzewo planu 721 → 137 KiB, klastry 432 → 33 KiB, pulpit 43 → 3 KiB, strona PDF 1006 → 110 KiB. **Stronicowanie klastrów i drzewa okazało się niepotrzebne** — po kompresji mieszczą się w dziesiątkach kilobajtów; gdyby wróciło, następnym krokiem są nagłówki klastrów bez członków.
+- **Graf reaguje na dotyk** (jeden palec przesuwa, dwa skalują, sufit zoomu 2,6 → 6): `CanvasGraphRenderer` słuchał wyłącznie zdarzeń myszy, więc na tablecie przeglądarka skalowała całą stronę, co rozmazuje rastrowany canvas. Do tego zwijane panele boczne, trzystopniowy wybór (semestr → strumień/katedra → przedmiot), zapamiętywanie wyboru w `localStorage` i nagłówek przewijany w poziomie — przy 412 px zakładki `plan`, `graf` i `statystyki` były NIEKLIKALNE.
+- Usunięte „Open in Obsidian" z panelu notatki w grafie: notatki vaulta są generowane z indeksu, więc nie ma czego otwierać do edycji.
 - **Miniatury w klastrach (S2.2/S2.3) dorobione 2026-09-22 — zgłoszone przez użytkownika z telefonu.** Obie pozycje były odhaczone, a `ClusterPanel` nigdy nie wołał podglądu: karty pokazywały same metadane, więc „czy to zdjęcie jest duplikatem” nie dało się rozstrzygnąć okiem. Teraz siatka ma miniatury (240 px), a porównanie pary pokazuje **dwa obrazy obok siebie** (700 px) albo dwie głowy tekstu. Podgląd przyjmuje `width` (80–2000): jeden endpoint obsługuje siatkę, porównanie i kolejkę decyzji, bez trzeciego renderera.
 - **To była TRZECIA pozycja odhaczona przed czasem i wszystkie trzy dotyczyły podglądu** (S1.3, diff tekstu, miniatury klastrów) — czyli dokładnie tego, po co studio powstało. Wniosek na przyszłość: przy odhaczaniu widoku sprawdź, czy komponent NAPRAWDĘ woła endpoint, a nie tylko czy endpoint istnieje. `grep -c` po nazwie funkcji API w komponencie kosztuje sekundę.
 - **Kod grafu wjechał do repo: `organizer/studio/graf/`** (2026-09-22, decyzja użytkownika). Generator .NET + viewer Svelte wciągnięte przez `git subtree --squash` z gałęzi `feat/paczka-integration` klona synapse: 1,5 MB, 153 pliki. Powód: te zmiany żyły wyłącznie w lokalnym klonie i przepadłyby razem z nim, a `just studio-graf` wymagał cudzego repo obok. Przestawione: `just studio-graf`, `just synapse-view`, `vendor-check`, `VIEWER_DIST` w studiu i `tests/test_synapse_vendor_contract.py`. **`vendor/synapse` zostaje jako klon upstreamu** (dalej poza gitem) wyłącznie do synchronizacji: `git subtree pull/push --prefix=organizer/studio/graf organizer/vendor/synapse feat/paczka-integration`, a potem push z klona do `Billypl/synapse`.
@@ -82,21 +86,18 @@
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-09-22T23:18:16+02:00
+- Odświeżono: 2026-09-22T23:57:41+02:00
 - Branch: `master`
-- Commit: `ce3d933`
+- Commit: `ea19e70`
 - Git status:
   ```text
-  M scripts/orglib/preview.py
-   M studio/README.md
-   M studio/TODO-studio.md
-   M studio/api/app.py
+  M studio/TODO-studio.md
    M studio/api/queries.py
-   M studio/docs/screens/06-klastry-karta.png
-   M studio/web/src/components/ClusterPanel.svelte
-   M studio/web/src/lib/api.test.ts
+   M studio/web/src/App.svelte
+   M studio/web/src/components/DecisionPanel.svelte
    M studio/web/src/lib/api.ts
-   M tests/test_studio_preview.py
+   M tests/test_studio_api.py
+  ?? studio/web/src/components/SearchPanel.svelte
   ```
 - Pierwsze otwarte TODO: - [ ] B12. `scripts/provenance.py` — `reports/provenance.jsonl` + README per przedmiot do `paczka_meta/` + `00_SOURCES/linki.txt` z `source_packages`
 <!-- END AUTO -->

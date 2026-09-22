@@ -36,8 +36,8 @@ funkcji zapisu co CLI, więc CLI powstaje pierwsze.
 - [x] S1.2 `/api/decisions` (POST) — cienka warstwa nad funkcją z B14; strażnik na wiersze `run_id='ground_truth'` — 2026-09-19; POST + POST /batch + POST /undo; ground truth zwraca 409
 - [x] S1.3 Endpoint podglądu: miniatura z `20_WORK/thumbnails`, strona PDF renderowana PyMuPDF, głowa tekstu z `20_WORK/extracted_text`; wyłącznie pliki z indeksu, przez wspólny helper containmentu — **2026-09-22 (poprawione; 2026-09-19 było odhaczone przedwcześnie)**; logika w `orglib/preview.py` (ta sama, której używa raport B9 — jeden cache miniatur), endpointy `GET /api/preview/{sha}` i `GET /api/preview/{sha}/image` (strona PDF → PNG, obraz → miniatura JPEG), containment przez `config.resolve_within`
 - [x] S1.4 Widok kolejki: podgląd + propozycja + alternatywy + powód decyzji reguł — 2026-09-19 karta pozycji, **2026-09-22 podgląd**: strona dokumentu po lewej, decyzja po prawej (układ z zapytania kontenerowego — o kolumny decyduje szerokość panelu, nie okna), `←`/`→` przewraca strony PDF
-- [x] S1.5 Obsługa klawiaturą (`Enter`, `1..9`, `t`, `s`, `o`, `u`, `?`) i licznik „ile zostało” — 2026-09-19; 9 kategorii z klawiatury, overlay pomocy, `o` dla outdated
-- [x] S1.6 Decyzja hurtem po katalogu źródłowym — z podglądem, czego dotknie, przed zapisem — 2026-09-19; GET/POST /api/decisions/by-folder; ground truth elementy pomijane cicho zamiast odrzucenia całej partii
+- [x] S1.5 Obsługa klawiaturą (`Enter`, `1..9`, `t`, `s`, `o`, `u`, `?`) i licznik „ile zostało” — 2026-09-19 większość klawiszy, **2026-09-22 brakujący `t`** (zmiana ścieżki docelowej) i `f` (decyzja hurtem); licznik był od początku
+- [x] S1.6 Decyzja hurtem po katalogu źródłowym — z podglądem, czego dotknie, przed zapisem — 2026-09-19 backend (`GET/POST /api/decisions/by-folder`, ground truth pomijany cicho zamiast odrzucenia partii), **2026-09-22 interfejs** (klawisz `f`: pasek z katalogiem, liczbą pozycji i próbką nazw przed zapisem). Do 2026-09-22 endpointów nie wołał nikt.
 - [x] S1.7 Cofanie ostatniej decyzji (i całej operacji hurtowej) jako jedna akcja — 2026-09-19; POST /api/decisions/undo
 - [x] S1.8 Testy: kontrakt zapisu, odmowa nadpisania ground truth, containment ścieżek podglądu (także na ścieżce względnej i dowiązaniu), e2e „decyzja w UI → wiersz w bazie → linia w eksporcie” — 2026-09-19; 14 testów w test_studio_s1_extended.py, 10 w test_studio_decisions.py
 - [x] S1.9 Mutacja: usunięcie strażnika ground truth albo containmentu podglądu MUSI czerwienić testy — 2026-09-19; mutation guard w testach (3 typy: ground truth, batch atomicity, run_id preservation)
@@ -59,7 +59,7 @@ którego potok nie produkuje, jest gorszy niż brak testu** — daje spokój i u
 ## S2. Porównywarka klastrów
 
 - [x] S2.1 `/api/clusters` — klastry near-dupe (union-find z `orglib/review.py`, bez drugiej implementacji) — 2026-09-19; GET /api/clusters z filtrami semester/skrot/noise
-- [x] S2.2 Widok klastra: siatka kart z miniaturą i metadanymi, wskazanie wersji kanonicznej — 2026-09-19 karty i wybór kanonicznej, **2026-09-22 miniatury** (wcześniej karty pokazywały same metadane, mimo odhaczenia)
+- [x] S2.2 Widok klastra: siatka kart z miniaturą i metadanymi, wskazanie wersji kanonicznej — 2026-09-19 karty i wybór kanonicznej, **2026-09-22 miniatury + lupka (podgląd na cały ekran) + licznik doczytywania**
 - [x] S2.3 Diff tekstu side-by-side i dwie miniatury obok siebie — 2026-09-19 tekst, **2026-09-22 obrazy** (obie strony jako podgląd, gdy treść jest zdjęciem/PDF-em); podgląd prosi o konkretną szerokość, więc siatka bierze małe miniatury, a porównanie duże
 - [x] S2.4 Zapis rozstrzygnięcia klastra: kanoniczna zostaje, reszta `skip` / `older_version` — 2026-09-19; POST /api/clusters/resolve; decision_type='skip' (nie 'classify' z 'skip' action — to dawało 422)
 - [x] S2.5 Filtr szumu (wzorce nazw, np. `*.vcxproj.xml`) — konfigurowalny, nie zaszyty w kodzie — 2026-09-19; fnmatch patterns z config/thresholds.yaml + query param; merge obu źródeł
@@ -111,7 +111,7 @@ chowa listę przedmiotów.
 oddalony, że węzły są pyłkami — identycznie w studiu i poza nim, więc to zachowanie
 renderera, nie osadzenia. Do rozstrzygnięcia przy kolejnej pracy nad grafem (C3).
 - [x] S4.2 Historia decyzji: „co zmieniłem dziś”, cofnięcie pojedynczej pozycji — 2026-09-19; GET /api/decisions/history + DELETE /api/decisions/{sha256}; HistoryPanel z filtrem daty i undo per pozycja
-- [x] S4.3 Wyszukiwanie przekrojowe + zapisywane widoki — 2026-09-19; GET /api/search (LIKE po filename, path, category, sha256); frontend searchItems w api.ts — ~~zapisywane widoki~~ porzucone (zbyt mało wartości bez S3)
+- [x] S4.3 Wyszukiwanie przekrojowe + zapisywane widoki — 2026-09-19 backend (`GET /api/search`: LIKE po nazwie, ścieżce, kategorii, sha), **2026-09-22 zakładka `szukaj`** (klawisz `w`): miniatury, przedmiot, kategoria, akcja i skok do przedmiotu. Funkcja `searchItems` leżała w `api.ts` nieużywana — z interfejsu nie dało się szukać. ~~Zapisywane widoki~~ porzucone (zbyt mało wartości przy działającym filtrze semestr/grupa/przedmiot)
 - [x] S4.4 Statystyki na żywo (odpowiednik `STATUS.md` bez generowania pliku) — 2026-09-19; GET /api/stats oparty o status_report.collect(); StatsPanel z sekcjami: ogólne, etapy, statusy, metody, kategorie, akcje, progi
 
 ## Dokumentacja
@@ -140,10 +140,63 @@ pozycja odhaczona przed czasem (po S1.3 i diffie tekstowym) — wszystkie trzy d
 teraz `width`: siatka bierze miniatury 240 px, porównanie 700 px, a pełny render został dla
 kolejki decyzji.
 
+## Audyt wszystkich punktów (2026-09-22)
+
+Po trzech pozycjach odhaczonych przed czasem przeszedłem **każdy** punkt S0–S4
+mechanicznie: dla każdej funkcji z `lib/api.ts` policzyłem, ile komponentów ją woła.
+Ta jedna komenda znalazła wszystkie braki w kilka sekund:
+
+```bash
+for fn in $(grep -oE "^export (const|async function|function) [a-zA-Z]+" src/lib/api.ts | awk '{print $NF}'); do
+  echo "$fn: $(grep -rl "\b$fn\b" src/components src/App.svelte | wc -l)"
+done
+```
+
+Wynik: **zero użyć** miały `getItemsByFolder`, `postDecisionByFolder` (S1.6)
+i `searchItems` (S4.3) — backend był, interfejsu nie było. Do tego brakowało
+klawisza `t` z S1.5. Wszystko uzupełnione tego samego dnia.
+
+Reszta punktów potwierdzona jako naprawdę zrobiona: S0.1–S0.7, S1.1–S1.4, S1.7–S1.9,
+S2.1, S2.3–S2.6, S3.1–S3.6, S4.1, S4.2, S4.4. Świadomie nieużywane zostają
+`getQueue` (kolejka decyzji bierze pozycje przez `/api/items` z tymi samymi filtrami,
+więc drugi endpoint jest zbędny) i `getGraphNodeFor` (wejście do grafu prowadzi przez
+węzeł przedmiotu; deep link po treści czeka na realną potrzebę).
+
+**Wniosek do stosowania przy każdym kolejnym odhaczeniu:** „endpoint istnieje” to
+nie to samo co „funkcja działa”. Sprawdzaj wywołanie w komponencie.
+
 ## Kod grafu w repo (2026-09-22)
 
 - [x] Źródła synapse (generator .NET + viewer) wciągnięte jako `git subtree` do `studio/graf/` — decyzja użytkownika: skoro graf jest przerobiony pod nas, ma być wersjonowany z nami, a nie tylko w lokalnym klonie. 1,5 MB, 153 pliki; `just studio-graf`, `just synapse-view`, `VIEWER_DIST` i test kontraktu generatora przestawione na nową ścieżkę; `vendor/synapse` zostaje wyłącznie jako klon upstreamu do `git subtree pull/push`.
 - [x] Przy okazji domknięta cicha ścieżka: studio czyta dane grafu **wyłącznie** z `20_WORK/synapse/`. Wcześniej miało fallback na `public/graph.json` viewera — a vendorowany viewer ma tam własny, 17-kilobajtowy graf demo, więc brak naszego grafu skończyłby się pokazaniem cudzych danych zamiast komunikatu „zbuduj graf”.
+
+## Wydajność i praca na tablecie (2026-09-22)
+
+Zgłoszone z tabletu przez tailnet: „dosyć długo wszystko się wczytuje”. Zmierzone
+Playwrightem (liczba żądań, rozmiary, czasy) i naprawione u źródła:
+
+| Co | Było | Jest |
+|---|---:|---:|
+| `graph.json` | 4381 KiB | **241 KiB** (gzip) |
+| drzewo planu | 721 KiB | **137 KiB** (gzip) |
+| klastry przedmiotu | 432 KiB | **33 KiB** (gzip) |
+| pulpit (`/api/subjects`) | 43 KiB | **3 KiB** (gzip) |
+| strona PDF w podglądzie | 1006 KiB (PNG) | **110 KiB** (JPEG) |
+
+- gzip włączony dla całej aplikacji; ta wersja Starlette sama pomija
+  `text/event-stream` i obrazy, więc log etapu leci dalej na żywo, a JPEG nie jest
+  pakowany drugi raz;
+- podgląd przyjmuje `width`, a kolejka decyzji prosi o rozmiar dopasowany do ekranu;
+- **stronicowanie klastrów i drzewa planu okazało się niepotrzebne** — po kompresji
+  oba mieszczą się w kilkudziesięciu kilobajtach. Gdyby kiedyś przestały, kolejnym
+  krokiem jest wysyłanie nagłówków klastrów bez członków i dociąganie ich przy
+  rozwijaniu.
+
+Do tego dotyk i układ: gesty w grafie (jeden palec przesuwa, dwa skalują; sufit zoomu
+2,6 → 6), zwijane panele boczne jako pionowe zakładki, drugi poziom wyboru
+(strumień/katedra), zapamiętywanie wyboru w `localStorage` i nagłówek, który przewija
+się w poziomie zamiast chować zakładki poza ekran (na 412 px `plan`, `graf`
+i `statystyki` były nieklikalne).
 
 ## Zależności od potoku
 

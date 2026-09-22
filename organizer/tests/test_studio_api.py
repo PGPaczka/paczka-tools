@@ -241,6 +241,10 @@ def test_items_page_without_losing_rows(client) -> None:
 def test_item_row_carries_the_decision_and_one_representative_file(client) -> None:
     item = client.get(f"/api/items/{SHA['c']}").json()["item"]
 
+    # Katalog źródłowy jedzie razem z pozycją: bez niego widok nie ma jak zaproponować
+    # decyzji hurtowej „to samo dla rodzeństwa z tego katalogu" (S1.6).
+    assert item["folder_path"] == "P/SEM3"
+
     assert item["category"] == "kolokwia" and item["action"] == "copy"
     assert item["reason"] == "bo kolokwia" and item["needs_review"] == 1
     assert item["source_relative_path"] == "SEM3/p2.pdf" and item["copies"] == 1
