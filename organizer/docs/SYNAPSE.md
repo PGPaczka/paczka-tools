@@ -33,6 +33,23 @@ Przy okazji naprawione **cudze, wcześniejsze usterki**: projekt testów generat
 się nie kompilował (`pipeline.Run()` zwraca krotkę), a `GitHistoryReaderTests` porównywał
 daty commitów z maszyny autora fixture'ów.
 
+**2026-09-22 (`f84d116`) — deep link viewera nie działał wcale.** Otwarcie `/#<id notatki>`
+nie zaznaczało niczego, również poza studiem: `selectedId.subscribe` odpala się raz przy
+subskrypcji z wartością początkową (`null`), a handler traktował to jak nawigację i czyścił
+hash (`history.replaceState(…, ' ')`) jeszcze zanim `onMount` zdążył go odczytać. Pierwsza
+emisja store'a to stan, nie nawigacja — jest teraz pomijana. Bez tej poprawki nie działałaby
+soczewka grafu w studiu (S4.1), bo to właśnie fragmentem URL-a studio mówi, który węzeł
+zaznaczyć.
+
+**Osadzenie w studiu (S4.1).** `just studio-graf` buduje viewer z `--base=/graf/`
+(assety pod prefiksem, `/graph.json` i `/vault/...` zostają bezwzględne — serwuje je
+backend studia prosto z `20_WORK`). Studio nie kopiuje vaulta do `public/`: notatki idą
+z `work` przez helper containmentu. Tłumaczenie `sha256` ↔ `id` notatki: `orglib/graph_link.py`,
+po kontrakcie `synapse_vault.ID_SHA_PREFIX` (id notatki pliku kończy się `sha256[:8]`).
+
+**Znane, nierozstrzygnięte:** przy 4 317 węzłach viewer otwiera widok tak oddalony, że
+węzły są pyłkami — tak samo w studiu i poza nim, więc to zachowanie renderera, nie osadzenia.
+
 ## Model: trzy typy węzłów
 
 ```

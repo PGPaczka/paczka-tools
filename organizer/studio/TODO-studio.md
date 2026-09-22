@@ -78,7 +78,22 @@ Zależy od: **B10** (`apply.py`) i **B11** (`verify.py`).
 
 ## S4. Reszta
 
-- [ ] S4.1 `/graf` — osadzony viewer synapse, zaznaczanie węzła z poziomu studia i powrót deep-linkiem
+- [x] S4.1 `/graf` — osadzony viewer synapse, zaznaczanie węzła z poziomu studia i powrót deep-linkiem — 2026-09-22; recepta `just studio-graf` (vault → generator → `vite build --base=/graf/`), backend serwuje `/graf`, `/graph.json` i `/vault/...` prosto z `work`; tłumaczenie sha256 ↔ id notatki w `orglib/graph_link.py` po kontrakcie `ID_SHA_PREFIX`, 20 testów i mutacja containmentu vaulta
+
+**Czego nie przewidywał plan (S4.1):** deep link viewera **nie działał wcale** —
+też poza studiem. `selectedId.subscribe` odpala się raz przy subskrypcji z wartością
+początkową (`null`), a handler traktował to jak nawigację i czyścił hash
+(`history.replaceState(…, ' ')`) jeszcze zanim `onMount` zdążył go odczytać. Naprawione
+w `vendor/synapse` (`f84d116`, gałąź `feat/paczka-integration`, **lokalnie, niepushowane**).
+Drugie odkrycie, tym razem po stronie studia: podmiana samego `#` w atrybucie `src`
+istniejącej ramki nie nawiguje — pierwszy adres ustawiamy przed jej utworzeniem,
+kolejne przez `location.replace`. I trzecie, z obejrzenia na żywo: w trzeciej kolumnie
+viewer ma własne trzy panele i na sam rysunek zostawało ~250 px, więc tryb grafu
+chowa listę przedmiotów.
+
+**Znane ograniczenie (nie nasze):** przy 4 317 węzłach viewer otwiera widok tak
+oddalony, że węzły są pyłkami — identycznie w studiu i poza nim, więc to zachowanie
+renderera, nie osadzenia. Do rozstrzygnięcia przy kolejnej pracy nad grafem (C3).
 - [x] S4.2 Historia decyzji: „co zmieniłem dziś”, cofnięcie pojedynczej pozycji — 2026-09-19; GET /api/decisions/history + DELETE /api/decisions/{sha256}; HistoryPanel z filtrem daty i undo per pozycja
 - [x] S4.3 Wyszukiwanie przekrojowe + zapisywane widoki — 2026-09-19; GET /api/search (LIKE po filename, path, category, sha256); frontend searchItems w api.ts — ~~zapisywane widoki~~ porzucone (zbyt mało wartości bez S3)
 - [x] S4.4 Statystyki na żywo (odpowiednik `STATUS.md` bez generowania pliku) — 2026-09-19; GET /api/stats oparty o status_report.collect(); StatsPanel z sekcjami: ogólne, etapy, statusy, metody, kategorie, akcje, progi

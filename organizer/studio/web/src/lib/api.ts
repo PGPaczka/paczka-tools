@@ -414,3 +414,55 @@ export const searchItems = (q: string, limit = 50, signal?: AbortSignal) =>
 
 export const getStats = (signal?: AbortSignal) =>
   fetchJson<LiveStats>('/api/stats', signal);
+
+
+// --- S4.1: graf jako soczewka ---------------------------------------------
+
+export interface GraphStatus {
+  viewer_built: boolean;
+  graph_json: string | null;
+  notes: number;
+  hint: string;
+}
+
+export interface GraphNodeRef {
+  sha256: string;
+  nodes: string[];
+  url: string;
+}
+
+export interface GraphSubjectRef {
+  node: string;
+  url: string;
+}
+
+export interface GraphContentRef {
+  node: string;
+  candidates: string[];
+  sha256: string | null;
+  item: Item | null;
+}
+
+export const getGraphStatus = (signal?: AbortSignal) =>
+  fetchJson<GraphStatus>('/api/graph/status', signal);
+
+/** Węzeł grafu odpowiadający treści (kierunek: studio → graf). */
+export const getGraphNodeFor = (sha256: string, signal?: AbortSignal) =>
+  fetchJson<GraphNodeRef>(`/api/graph/node/${sha256}`, signal);
+
+/** Węzeł przedmiotu — wejście do grafu z listy przedmiotów. */
+export const getGraphSubject = (semester: number, skrot: string, grupa?: string, signal?: AbortSignal) =>
+  fetchJson<GraphSubjectRef>(
+    `/api/graph/subject/${semester}/${encodeURIComponent(skrot)}` +
+      (grupa ? `?grupa=${encodeURIComponent(grupa)}` : ''),
+    signal,
+  );
+
+/** Treść pokazywana przez węzeł (kierunek: graf → studio). */
+export const getGraphContent = (node: string, signal?: AbortSignal) =>
+  fetchJson<GraphContentRef>(`/api/graph/content/${encodeURIComponent(node)}`, signal);
+
+/** Adres osadzanego viewera z zaznaczonym węzłem. */
+export function graphUrl(node?: string | null): string {
+  return node ? `/graf/#${node}` : '/graf/';
+}

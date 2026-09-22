@@ -188,6 +188,21 @@ studio-dev port="8765" web_port="5173":
 studio-seed *args:
     {{ python }} -m studio.seed_demo {{ args }}
 
+# S4.1: graf jako soczewka studia — vault z indeksu, generator, viewer pod /graf.
+# Viewer budujemy z `--base=/graf/`, bo studio serwuje go pod tym prefiksem;
+# `/graph.json` i `/vault/...` zostają bezwzględne i wystawia je backend studia.
+# Wymaga klona Billypl/synapse w vendor/synapse i toolchainu .NET.
+studio-graf *args:
+    {{ python }} scripts/synapse_export.py {{ args }}
+    dotnet run --project vendor/synapse/Synapse.Generator/Synapse.Generator \
+      -c Release --nologo -- \
+      --vault ../../20_WORK/synapse/vault \
+      --out ../../20_WORK/synapse/graph.json \
+      --no-git
+    [ -d vendor/synapse/synapse-viewer/node_modules ] || npm --prefix vendor/synapse/synapse-viewer install
+    npm --prefix vendor/synapse/synapse-viewer run build -- --base=/graf/
+    @echo "graf gotowy: http://127.0.0.1:8765/graf/ (albo zakładka „graf” w studiu)"
+
 # Front do postaci, którą serwuje `just studio`.
 studio-build:
     [ -d studio/web/node_modules ] || npm --prefix studio/web install

@@ -1,0 +1,12 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+# Studio serwuje notatki vaulta viewerowi grafu (S4.1). Ta mutacja skleja ścieżkę
+# z URL-a wprost, bez bramki containmentu — czyli robi z /vault/... czytnik
+# dowolnego pliku spoza `work`, łącznie z bazą i materiałami.
+name: /vault serwuje wyłącznie notatki z drzewa `work` (S4.1)
+file: studio/api/app.py
+find: "        resolved = config.resolve_within(\n            resolved_paths.work,\
+  \ f\"synapse/vault/{note_path}\"\n        )"
+replace: '        resolved = resolved_paths.work / "synapse" / "vault" / note_path'
+tests:
+- tests/test_studio_graph.py

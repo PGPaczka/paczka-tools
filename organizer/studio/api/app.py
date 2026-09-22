@@ -17,11 +17,11 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, AsyncIterator, Iterator, Optional
 
-from fastapi import Body, Depends, FastAPI, HTTPException, Path as PathParam, Query
-from fastapi.responses import HTMLResponse, Response
+from fastapi import Body, Depends, FastAPI, HTTPException, Path as PathParam, Query, Request
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from orglib import config
+from orglib import config, graph_link
 from orglib.decisions import GroundTruthConflict, record_batch, record_decision, undo_last
 
 from . import ORGANIZER_ROOT, database, queries
@@ -29,6 +29,14 @@ from . import ORGANIZER_ROOT, database, queries
 #: Zbudowany front (``npm --prefix studio/web run build``). Gdy go nie ma,
 #: `/` tłumaczy, co uruchomić — zamiast odpowiadać 404 bez wyjaśnienia.
 WEB_DIST: Path = ORGANIZER_ROOT / "studio" / "web" / "dist"
+
+#: Zbudowany viewer synapse (S4.1). Katalog `vendor/` jest poza gitem, więc jego
+#: brak to normalny stan świeżego klona — `/graf` tłumaczy wtedy, co uruchomić.
+VIEWER_DIST: Path = ORGANIZER_ROOT / "vendor" / "synapse" / "synapse-viewer" / "dist"
+
+#: Artefakty generatora grafu: najpierw `work` (tam pisze `just studio-graf`),
+#: potem katalog viewera (tam pisze `just synapse-view` dla trybu samodzielnego).
+_GRAPH_ARTIFACTS = ("graph.json", "search-index.json")
 
 #: sha256 w ścieżce: 64 znaki hex. Wzorzec pilnuje, żeby do SQL nie trafiało
 #: nic, co nie jest identyfikatorem treści (odpowiedź 422, nie zapytanie).
@@ -44,6 +52,19 @@ _PLACEHOLDER = """<!doctype html>
   <li><code>npm --prefix studio/web run build</code> + <code>just studio</code> — wersja zbudowana.</li>
 </ul>
 <p>API odpowiada pod <a href="/api/health">/api/health</a>.</p>
+</body></html>"""
+
+
+_GRAF_PLACEHOLDER = """<!doctype html>
+<html lang="pl"><meta charset="utf-8"><title>Graf — Paczka Studio</title>
+<body style="font:16px/1.6 system-ui;max-width:42rem;margin:4rem auto;padding:0 1rem">
+<h1>Graf nie jest zbudowany</h1>
+<p>Studio osadza <strong>zbudowany viewer synapse</strong> z <code>vendor/synapse</code>
+(katalog jest poza gitem, więc w świeżym klonie go nie ma).</p>
+<pre><code>just studio-graf</code></pre>
+<p>Recepta eksportuje vault z indeksu, uruchamia generator i buduje viewer pod
+adres <code>/graf</code>. Wymaga klona <code>Billypl/synapse</code> w
+<code>vendor/synapse</code> i toolchainu .NET.</p>
 </body></html>"""
 
 
@@ -419,6 +440,135 @@ def create_app(
     ) -> dict[str, Any]:
         """Statystyki na żywo — odpowiednik STATUS.md (S4.4)."""
         return queries.live_stats(conn, catalog, limits)
+
+    # --- S4.1: graf jako soczewka ----------------------------------------
+    #
+    # Studio nie rysuje grafu drugi raz: serwuje ZBUDOWANY viewer z `vendor/synapse`
+    # i mówi mu, który węzeł zaznaczyć (`/graf#<id>`). Powrót działa w drugą stronę,
+    # bo viewer trzyma zaznaczenie w fragmencie URL-a, a iframe jest tego samego
+    # pochodzenia co studio — nie trzeba niczego zmieniać w cudzym repo.
+
+    def graph_artifact(name: str) -> Path | None:
+        for candidate in (
+            resolved_paths.work / "synapse" / name,
+            VIEWER_DIST.parent / "public" / name,
+        ):
+            if candidate.is_file():
+                return candidate
+        return None
+
+    def vault_index() -> dict[str, list[str]]:
+        """Mapa skrót sha → id notatek, przeliczana po zmianie vaulta."""
+        root = resolved_paths.work / "synapse" / "vault"
+        stamp = root.stat().st_mtime_ns if root.is_dir() else 0
+        cached = getattr(app.state, "vault_index", None)
+        if cached is None or cached[0] != stamp:
+            app.state.vault_index = (stamp, graph_link.scan_vault(root))
+        return app.state.vault_index[1]
+
+    @app.get("/api/graph/status", tags=["graph"])
+    def graph_status() -> dict[str, Any]:
+        """Czy jest czym pokazać graf i co uruchomić, gdy nie ma."""
+        graph = graph_artifact("graph.json")
+        index = vault_index()
+        return {
+            "viewer_built": (VIEWER_DIST / "index.html").is_file(),
+            "graph_json": None if graph is None else str(graph),
+            "notes": sum(len(ids) for ids in index.values()),
+            "hint": "just studio-graf",
+        }
+
+    @app.get("/api/graph/node/{sha256}", tags=["graph"])
+    def graph_node(
+        sha256: str = PathParam(pattern=SHA256_PATTERN),
+    ) -> dict[str, Any]:
+        """Węzeł grafu odpowiadający treści (albo 404, gdy vault jej nie zna)."""
+        nodes = graph_link.nodes_for_sha(vault_index(), sha256)
+        if not nodes:
+            raise HTTPException(
+                status_code=404,
+                detail=f"treści {sha256[:12]}… nie ma w vaulcie — odśwież graf (`just studio-graf`)",
+            )
+        return {"sha256": sha256, "nodes": nodes, "url": graph_link.deep_link(nodes[0])}
+
+    @app.get("/api/graph/subject/{semester}/{skrot}", tags=["graph"])
+    def graph_subject(
+        semester: int = PathParam(ge=1, le=7),
+        skrot: str = PathParam(min_length=1, max_length=64),
+        grupa: Optional[str] = Query(None),
+    ) -> dict[str, Any]:
+        """Węzeł przedmiotu — wejście do grafu z poziomu listy przedmiotów."""
+        from orglib.synapse_vault import subject_id
+
+        try:
+            subject = config.find_subject(semester, skrot, catalog, grupa=grupa)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        ambiguous = sum(
+            1 for other in catalog if other.skrot.casefold() == subject.skrot.casefold()
+        ) > 1
+        node = subject_id(subject.semester, subject.skrot, subject.grupa, ambiguous=ambiguous)
+        return {"node": node, "url": graph_link.deep_link(node)}
+
+    @app.get("/api/graph/content/{node_id}", tags=["graph"])
+    def graph_content(
+        node_id: str = PathParam(min_length=1, max_length=160),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ) -> dict[str, Any]:
+        """Treść pokazana przez węzeł grafu — droga powrotna do studia."""
+        candidates = graph_link.shas_for_node(conn, node_id)
+        if not candidates:
+            raise HTTPException(
+                status_code=404, detail=f"węzeł {node_id} nie wskazuje treści w indeksie"
+            )
+        detail = queries.item_detail(conn, candidates[0], limits) if len(candidates) == 1 else None
+        return {
+            "node": node_id,
+            "candidates": candidates,
+            "sha256": candidates[0] if len(candidates) == 1 else None,
+            "item": None if detail is None else detail["item"],
+        }
+
+    @app.get("/graph.json", include_in_schema=False)
+    @app.get("/search-index.json", include_in_schema=False)
+    def graph_data(request: Request) -> Response:
+        """Dane grafu tam, gdzie szuka ich viewer (ścieżki w nim są bezwzględne)."""
+        name = Path(request.url.path).name
+        if name not in _GRAPH_ARTIFACTS:
+            raise HTTPException(status_code=404, detail=name)
+        artifact = graph_artifact(name)
+        if artifact is None:
+            raise HTTPException(
+                status_code=404, detail=f"brak {name} — zbuduj graf (`just studio-graf`)"
+            )
+        return FileResponse(artifact, media_type="application/json")
+
+    @app.get("/vault/{note_path:path}", include_in_schema=False)
+    def vault_note(note_path: str) -> Response:
+        """Treść notatki vaulta dla panelu w viewerze — tylko odczyt, tylko z `work`."""
+        if not note_path.endswith(".md"):
+            raise HTTPException(status_code=404, detail="vault zawiera wyłącznie notatki .md")
+        resolved = config.resolve_within(
+            resolved_paths.work, f"synapse/vault/{note_path}"
+        )
+        if resolved is None or not resolved.is_file():
+            raise HTTPException(status_code=404, detail=f"brak notatki {note_path}")
+        return FileResponse(resolved, media_type="text/markdown; charset=utf-8")
+
+    if (VIEWER_DIST / "index.html").is_file():
+        # Montaż obsługuje `/graf/`; bez tego przekierowania samo `/graf` byłoby 404,
+        # a to jest adres, który człowiek wpisuje i który wysyła studio.
+        @app.get("/graf", include_in_schema=False)
+        def graf_root() -> RedirectResponse:
+            return RedirectResponse(url="/graf/")
+
+        app.mount("/graf", StaticFiles(directory=VIEWER_DIST, html=True), name="graf")
+    else:
+        @app.get("/graf", include_in_schema=False)
+        def graf_placeholder() -> HTMLResponse:
+            return HTMLResponse(_GRAF_PLACEHOLDER, status_code=503)
 
     if WEB_DIST.is_dir():
         app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="web")

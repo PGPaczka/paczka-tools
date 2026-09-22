@@ -150,6 +150,12 @@ def render_note(note: Note) -> str:
 # -- identyfikatory ---------------------------------------------------------
 
 
+#: Ile znaków sha256 wchodzi w id notatki. Ta liczba jest KONTRAKTEM: po niej
+#: studio odnajduje treść, którą pokazuje graf (`orglib/graph_link.py`), więc
+#: zmiana tutaj zmienia znaczenie wszystkich identyfikatorów w vaulcie.
+ID_SHA_PREFIX = 8
+
+
 def semester_id(semester: int) -> str:
     return f"sem{semester}"
 
@@ -167,14 +173,16 @@ def file_id(skrot: str, sha256: str, filename: str = "") -> str:
     parts = [slugify(skrot, limit=12)]
     if name and name != "bez-nazwy":
         parts.append(name)
-    parts.append(sha256[:8])
+    parts.append(sha256[:ID_SHA_PREFIX])
     return "-".join(parts)
 
 
 def unassigned_id(sha256: str, filename: str = "") -> str:
     """Cel relacji spoza paczki. Zostanie ghost node'em — widocznym, nie zgubionym."""
     name = slugify(filename, limit=24) if filename else ""
-    parts = ["nieprzypisane"] + ([name] if name and name != "bez-nazwy" else []) + [sha256[:8]]
+    parts = ["nieprzypisane"] + ([name] if name and name != "bez-nazwy" else []) + [
+        sha256[:ID_SHA_PREFIX]
+    ]
     return "-".join(parts)
 
 

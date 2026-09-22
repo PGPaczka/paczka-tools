@@ -18,8 +18,9 @@
   import ClusterPanel from './components/ClusterPanel.svelte';
   import HistoryPanel from './components/HistoryPanel.svelte';
   import StatsPanel from './components/StatsPanel.svelte';
+  import GraphPanel from './components/GraphPanel.svelte';
 
-  type Mode = 'browse' | 'decide' | 'clusters' | 'history' | 'stats';
+  type Mode = 'browse' | 'decide' | 'clusters' | 'history' | 'stats' | 'graph';
 
   /** Ile pozycji dokłada „Pokaż więcej”. */
   const PAGE = 30;
@@ -79,6 +80,21 @@
     page = null;
   }
 
+  /** Powrót z grafu: zaznacz przedmiot tej treści i wróć do przeglądarki. */
+  function openSubjectFromGraph(semesterValue: number, skrotValue: string): void {
+    const row = (dashboard?.subjects ?? []).find(
+      (item) => item.semester === semesterValue && item.skrot === skrotValue,
+    );
+    if (!row) return;
+    select(row);
+    mode = 'browse';
+    queueMicrotask(() => {
+      document
+        .querySelector(`[data-subject="${row.semester}/${row.grupa}/${row.skrot}"]`)
+        ?.scrollIntoView({ block: 'nearest' });
+    });
+  }
+
   function move(delta: number): void {
     const rows = filtered;
     if (!rows.length) return;
@@ -116,6 +132,11 @@
     if (event.key === 'h' && mode === 'browse') {
       event.preventDefault();
       mode = 'history';
+      return;
+    }
+    if (event.key === 'g' && mode === 'browse') {
+      event.preventDefault();
+      mode = 'graph';
       return;
     }
     if (event.key === 'b' && mode !== 'browse') {
@@ -198,6 +219,7 @@
         mode === 'decide' ? 'S1 · decyzje' :
         mode === 'clusters' ? 'S2 · klastry' :
         mode === 'history' ? 'S4 · historia' :
+        mode === 'graph' ? 'S4 · graf' :
         'S4 · statystyki'
       }</span>
     </div>
@@ -243,6 +265,14 @@
         </button>
         <button
           class="mode-toggle"
+          class:active={mode === 'graph'}
+          onclick={() => (mode = mode === 'graph' ? 'browse' : 'graph')}
+          title="g / b — graf jako soczewka"
+        >
+          graf
+        </button>
+        <button
+          class="mode-toggle"
           class:active={mode === 'stats'}
           onclick={() => (mode = mode === 'stats' ? 'browse' : 'stats')}
           title="statystyki"
@@ -260,8 +290,9 @@
   {:else if !dashboard}
     <div class="fatal"><p>Wczytuję indeks…</p></div>
   {:else}
-    <main>
+    <main class:lens={mode === 'graph'}>
       <QueuePanel {dashboard} {stage} onStage={(value) => (stage = value)} />
+      {#if mode !== 'graph'}
       <SubjectList
         bind:this={list}
         subjects={filtered}
@@ -271,6 +302,7 @@
         bind:semester
         {semesters}
       />
+      {/if}
       {#if mode === 'decide'}
         <DecisionPanel
           semester={selected?.semester}
@@ -285,6 +317,13 @@
         />
       {:else if mode === 'history'}
         <HistoryPanel onChanged={loadDashboard} />
+      {:else if mode === 'graph'}
+        <GraphPanel
+          semester={selected?.semester}
+          skrot={selected?.skrot}
+          grupa={selected?.grupa}
+          onOpenSubject={openSubjectFromGraph}
+        />
       {:else if mode === 'stats'}
         <StatsPanel />
       {:else}
@@ -376,6 +415,12 @@
     display: grid;
     grid-template-columns: 220px minmax(320px, 0.9fr) minmax(0, 1.3fr);
     min-height: 0;
+  }
+
+  /* Graf to soczewka na całą paczkę: viewer ma własne trzy panele, więc w wąskiej
+     kolumnie zostawał mu pasek na sam rysunek. Lista przedmiotów wraca klawiszem `b`. */
+  main.lens {
+    grid-template-columns: 220px minmax(0, 1fr);
   }
 
   .fatal {

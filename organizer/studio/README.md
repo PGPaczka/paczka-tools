@@ -56,6 +56,7 @@ zmienia się wraz z wybraną zakładką.
 | **decyzje** | kolejka „jedna pozycja na ekranie”: podgląd + propozycja + decyzja | `d` |
 | **klastry** | grupy near-duplicate, wybór wersji kanonicznej | `c` |
 | **historia** | co zmieniłeś dziś, cofanie pojedynczej decyzji | `h` |
+| **graf** | soczewka: osadzony viewer synapse, w obie strony po identyfikatorze | `g` |
 | **statystyki** | odpowiednik `reports/STATUS.md` na żywo, bez generowania pliku | — |
 
 Nawigacja po liście przedmiotów: `/` szuka, `j`/`k` (albo strzałki) przewija,
@@ -97,6 +98,32 @@ Filtr szumu (`*.vcxproj*`, `*.sln`, `__pycache__`…) jest w
 `config/thresholds.yaml: near_duplicate.noise_patterns` — bez niego największy
 klaster w paczce to pliki projektowe Visual Studio.
 
+### Graf jako soczewka
+
+```bash
+just studio-graf        # vault z indeksu → generator → viewer zbudowany pod /graf
+```
+
+Zakładka **graf** osadza **zbudowany viewer synapse** z `vendor/synapse` (studio
+niczego nie rysuje po swojemu) i łączy się z nim w obie strony po tym samym
+identyfikatorze treści:
+
+- **studio → graf**: wybrany przedmiot otwiera graf na jego węźle (`/graf#sem3-ako`);
+- **graf → studio**: kliknięty węzeł pliku ląduje w pasku pod grafem jako konkretna
+  treść — nazwa, kategoria, decyzja, pewność i ścieżka docelowa — z przyciskiem
+  „otwórz przedmiot”, który wraca do listy studia.
+
+Tłumaczenie `sha256` ↔ `id` notatki stoi na kontrakcie vaulta: id notatki pliku
+kończy się `sha256[:8]` (`orglib/synapse_vault.ID_SHA_PREFIX`). Gdy skrót pasuje do
+kilku treści, studio **pokazuje kandydatów zamiast wybierać** za człowieka.
+
+Katalog `vendor/` jest poza gitem, więc w świeżym klonie grafu po prostu nie ma —
+zakładka mówi wtedy, co uruchomić, zamiast pokazywać pustą ramkę.
+
+Notatki vaulta serwuje samo studio (`/vault/...`) prosto z `20_WORK/synapse/vault`,
+przez ten sam helper containmentu co podgląd; kopia w katalogu viewera nie jest
+potrzebna.
+
 ---
 
 ## Czego studio NIE robi
@@ -134,6 +161,10 @@ Odczyt:
 | `GET /api/search` | wyszukiwanie przekrojowe |
 | `GET /api/stats` | liczby jak w `STATUS.md`, liczone `status_report.collect` |
 | `GET /api/decisions/history` | historia ręcznych decyzji |
+| `GET /api/graph/status` | czy graf jest zbudowany i ile ma notatek |
+| `GET /api/graph/node/{sha256}` | węzeł grafu dla treści (studio → graf) |
+| `GET /api/graph/subject/{sem}/{skrot}` | węzeł przedmiotu |
+| `GET /api/graph/content/{node_id}` | treść pokazana przez węzeł (graf → studio) |
 
 Zapis (wyłącznie decyzje — nigdy materiały):
 
@@ -186,5 +217,4 @@ Zrobione: **S0** (szkielet, tylko odczyt), **S1** (kolejka decyzji z podglądem)
 **S2** (porównywarka klastrów), **S4.2–S4.4** (historia, wyszukiwanie, statystyki).
 
 Zostaje: **S3** — drzewo docelowe, diff planu, bramka i uruchamianie etapów z UI
-(odblokowane przez B10/B11) — oraz **S4.1**, czyli graf jako soczewka. Szczegóły
-i kolejność: `TODO-studio.md`.
+(odblokowane przez B10/B11). Szczegóły i kolejność: `TODO-studio.md`.
