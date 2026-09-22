@@ -1,0 +1,11 @@
+# Zapisana mutacja: psuje jedno zachowanie i wymaga, by testy to wykryły.
+# Uruchom: just mutate-check
+# Sedno S3: bramka przed `apply` jest po stronie SERWERA. Ta mutacja każe studiu
+# uruchomić etap mimo planu odrzuconego przez bramkę — czyli sprowadza całą
+# ochronę do wyszarzonego przycisku w przeglądarce.
+name: studio nie uruchomi apply dla planu odrzuconego przez bramkę (S3.6)
+file: studio/api/app.py
+find: '            if not state["can_apply"]:'
+replace: '            if False:'
+tests:
+- tests/test_studio_plan.py

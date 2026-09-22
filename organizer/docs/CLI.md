@@ -49,6 +49,13 @@ just db-init                       # pusty indeks w 20_WORK/organizer.sqlite
 Ścieżki do katalogów spoza repo są **wyłącznie** w `config/paths.yaml` — jeśli
 Twój układ katalogów jest inny, popraw ten plik, a nie skrypty.
 
+Na inny workspace (np. kopię do eksperymentów) wskazujesz całym katalogiem
+konfiguracji, bez dotykania repo:
+
+```bash
+PACZKA_CONFIG_DIR=/ścieżka/do/innego/config just status
+```
+
 ---
 
 ## 1. Pierwszy przebieg: poznaj, co masz

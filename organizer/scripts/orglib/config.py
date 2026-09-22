@@ -37,9 +37,27 @@ _GROUPED_SEMESTERS: frozenset[int] = frozenset({5, 6, 7})
 _DEFAULT_GRUPA: str = "Wspolne"
 
 
+#: Zmienna środowiskowa wskazująca INNY katalog konfiguracji niż repo.
+#: Potrzebna, bo etapy uruchamiane jako podproces (studio, S3.5) nie da się
+#: „monkeypatchować” — bez tego test takiego uruchomienia musiałby chodzić po
+#: prawdziwym `paths.yaml`, czyli po prawdziwych materiałach.
+CONFIG_DIR_ENV = "PACZKA_CONFIG_DIR"
+
+
+def active_config_dir() -> Path:
+    """Katalog konfiguracji: z ``PACZKA_CONFIG_DIR``, a domyślnie ``config/`` w repo.
+
+    Czytane przy KAŻDYM wywołaniu, nie przy imporcie: stała związana w momencie
+    importu nie daje się podmienić i właśnie na tym projekt już raz się nadział
+    (``DEFAULT_LEGACY_CHARSET``, patrz `reports/HANDOFF.md`).
+    """
+    override = os.environ.get(CONFIG_DIR_ENV)
+    return Path(override).expanduser() if override else CONFIG_DIR
+
+
 def load_yaml(name: str, config_dir: Path | None = None) -> dict[str, Any]:
     """Wczytuje ``config/<name>.yaml`` i zwraca słownik (pusty plik => ``{}``)."""
-    path = (config_dir or CONFIG_DIR) / f"{name}.yaml"
+    path = (config_dir or active_config_dir()) / f"{name}.yaml"
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     if data is None:
         return {}

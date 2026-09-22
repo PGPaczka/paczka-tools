@@ -3,12 +3,14 @@
 ## Kontekst ręczny
 
 - **B10 (`apply`) i B11 (`verify`) zrobione 2026-09-22 — materiałów nadal nikt nie ruszał.** `just subject-apply SEM SKROT` jest domyślnie DRY-RUN; kopiuje dopiero z `--yes`, a `--expect-hash` przypina wykonanie do zaakceptowanego odcisku planu. Bramka B8 jest wykonywana ponownie w `apply` tym samym kodem (`orglib/plan_gate.py` wydzielone z `validate_plan.py`), więc uruchomienie walidatora wcześniej niczego nie „odblokowuje”. Kolizja treści pod ścieżką docelową zatrzymuje CAŁY przebieg, brak pliku źródłowego też; ta sama treść na miejscu to „już jest”. `apply` **nie commituje** — commit należy do człowieka po zielonym `verify`. Dry-run na realnym planie AKO: 2519 pozycji → 1497 do skopiowania, 0 kolizji, 0 brakujących źródeł, 2,1 s; bramka gałęzi odmówiła na żywo, bo repo docelowe stoi na `fix/nazwy-katalogow-przedmiotow`, a nie na `subject/AKO`.
+- **S3 zrobione 2026-09-22 — studio domyka cały plan z `studio/PLAN.md`.** Zakładka **plan** (klawisz `p`): nagłówek planu z odciskiem, wynik bramki (`plan_gate.evaluate` — ten sam kod co `validate_plan`), diff wykonania (`plan_apply.plan_operations` — ten sam silnik co `apply`), drzewo docelowe ze stanem per plik, lista „bez miejsca”, „przenieś tu” z blokadą przy kolizji nazwy oraz uruchamianie etapów jako **podproces CLI** z logiem na żywo (SSE) i kodem wyjścia. **Bramka jest po stronie serwera**: `apply` przy planie odrzuconym to 409 i żaden podproces nie startuje; zgoda niesie `plan_hash`, więc dotyczy konkretnego planu. Mutacja `studio-apply-gate.yaml`.
+- Dwie pułapki z S3, obie tej samej klasy co wcześniejsze: (a) `runner` budował ścieżkę `scripts/` z `config.ORGANIZER_ROOT`, czyli ze stałej, którą testy przestawiają — **zasoby repo liczy się ze ścieżki modułu**; (b) nie każdy etap przyjmuje te same flagi (`review_report.py` nie zna `--db` ani `--plan`), więc argv trzeba konfrontować z PRAWDZIWYMI parserami, co robi teraz `test_every_stage_flag_is_accepted_by_the_real_script`.
+- **Nowe: `PACZKA_CONFIG_DIR`** wskazuje inny katalog konfiguracji niż repo. Powstało, bo etapu uruchamianego jako podproces nie da się monkeypatchować, a test chodzący po prawdziwym `paths.yaml` chodziłby po prawdziwych materiałach. Przydaje się też do wskazania innego workspace'u.
 - **S4.1 zrobione 2026-09-22: graf jest soczewką studia.** `just studio-graf` (vault → generator → `vite build --base=/graf/`), zakładka **graf** (klawisz `g`) osadza zbudowany viewer, backend serwuje `/graf`, `/graph.json` i `/vault/...` prosto z `work`. Działa w obie strony: wybrany przedmiot otwiera graf na swoim węźle, a kliknięty węzeł pliku wraca do studia jako konkretna treść z przyciskiem „otwórz przedmiot”. Tłumaczenie `sha256` ↔ `id` notatki: `orglib/graph_link.py` po kontrakcie `synapse_vault.ID_SHA_PREFIX`; wieloznaczny skrót pokazuje kandydatów, nie zgaduje.
 - **Przy S4.1 naprawiony CUDZY błąd w viewerze** (`vendor/synapse`, gałąź `feat/paczka-integration`, commit `f84d116`, **lokalnie, niepushowane**): deep link `/#<id>` nie działał w ogóle — pierwsza, pusta emisja `selectedId.subscribe` czyściła hash, zanim `onMount` zdążył go przeczytać. Bez tego soczewka nie mogła działać. Jeśli klon zniknie, ta poprawka przepada razem z resztą gałęzi.
 - Pułapka warta zapamiętania z S4.1: **klient HTTP normalizuje `..` w adresie, zanim żądanie wyjdzie** — test containmentu `/vault/../..` przechodził przy WYŁĄCZONEJ bramce. Ścieżki wyjścia trzeba w teście kodować (`%2e%2e`), inaczej dowodzi się zachowania httpx, a nie serwera. Mutacja `studio-vault-containment.yaml` tego pilnuje.
 - **Znane ograniczenie grafu (nie nasze):** przy 4 317 węzłach viewer otwiera widok tak oddalony, że węzły są pyłkami — identycznie w studiu i poza nim, więc to renderer, nie osadzenie. Do rozstrzygnięcia przy kolejnej pracy nad C3.
-- **Odblokowane: S3 w studiu** (drzewo docelowe, diff planu, bramka i apply z UI) — to jest następny krok w podprojekcie widoku. Uwaga dla niego: bramka po stronie serwera to `plan_gate.evaluate` + kod wyjścia 2 z `apply`, a nie ukrycie przycisku.
-- **Studio: S0, S1, S2 i całe S4 zrobione; została wyłącznie S3** (odblokowana przez B10/B11). Stan i uzasadnienia: `studio/TODO-studio.md`. Uruchamianie: `just studio` (zbudowany front), `just studio-dev` (backend `--reload` + Vite), `just studio --check` (preflight bez zajmowania portu). Serwer stoi wyłącznie na pętli zwrotnej — adres spoza niej to odmowa startu z kodem 2, z własną mutacją.
+- **Studio: cały plan z `studio/PLAN.md` domknięty — S0, S1, S2, S3 i S4.** Następny krok podprojektu to nie kolejna faza, tylko **pilotaż AKO (D1) przeprowadzony z tego widoku**: to on pokaże, czego brakuje naprawdę. Stan i uzasadnienia: `studio/TODO-studio.md`. Uruchamianie: `just studio` (zbudowany front), `just studio-dev` (backend `--reload` + Vite), `just studio --check` (preflight bez zajmowania portu). Serwer stoi wyłącznie na pętli zwrotnej — adres spoza niej to odmowa startu z kodem 2, z własną mutacją.
 - **S1.3 (podgląd) był odhaczony przedwcześnie — poprawione 2026-09-22.** Widok nigdy nie wołał `getPreview`, więc decyzja zapadała po samej nazwie pliku; endpoint sklejał `content.extracted_text_path` wobec katalogu roboczego procesu, choć etap extract zapisuje ją **względem `work`**, a jedyny test wpisywał do bazy ścieżkę bezwzględną (kontrakt, którego potok nie produkuje) — więc był zielony i utrwalał odczyt spoza `work`. Teraz: `orglib/preview.py` (wspólne z raportem B9 — jeden cache miniatur), `GET /api/preview/{sha}` + `/image` (strona PDF → PNG, obraz → miniatura), containment przez nowy wspólny helper `config.resolve_within`, 9 testów i mutacja `studio-preview-containment.yaml`. Sprawdzone oczami na realnych danych: strona wykładu AKO renderuje się w kolejce decyzji, `←`/`→` przewraca strony.
 - Zasada potwierdzona po raz kolejny: **test na kontrakcie, którego potok nie produkuje, jest gorszy niż brak testu.** Pisząc test na ścieżkę z bazy, weź jej kształt z tego, co zapisuje etap, a nie z tego, co wygodnie zbudować w `tmp_path`.
 - Cel bieżącej pracy: sekcja B TODO — skrypty cyklu per-przedmiot. Domknięte B3/B3a, **B6**, **B7 (plan + migracja schematu 1→2)**, **B8**, **B9 (review.html)** i **E3 (STATUS.md)**. Łańcuch B1→B3→B6→B7→B8→B9 przechodzi na realnych danych: `just subject-validate 3 AKO` kończy się kodem 0, a `reports/AKO/review.html` jest gotowe do obejrzenia. Materiałów nie ruszano.
@@ -74,24 +76,26 @@
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-09-22T02:11:42+02:00
+- Odświeżono: 2026-09-22T02:29:35+02:00
 - Branch: `master`
-- Commit: `2183ae6`
+- Commit: `d0d041c`
 - Git status:
   ```text
-  M docs/SYNAPSE.md
-   M justfile
+  M docs/CLI.md
    M reports/HANDOFF.md
-   M scripts/orglib/synapse_vault.py
+   M scripts/orglib/config.py
    M studio/README.md
    M studio/TODO-studio.md
    M studio/api/app.py
    M studio/web/src/App.svelte
    M studio/web/src/lib/api.ts
-  ?? scripts/orglib/graph_link.py
-  ?? studio/web/src/components/GraphPanel.svelte
-  ?? tests/mutations/studio-vault-containment.yaml
-  ?? tests/test_studio_graph.py
+  ?? studio/api/planning.py
+  ?? studio/api/runner.py
+  ?? studio/web/src/components/PlanPanel.svelte
+  ?? studio/web/src/lib/plan.test.ts
+  ?? studio/web/src/lib/plan.ts
+  ?? tests/mutations/studio-apply-gate.yaml
+  ?? tests/test_studio_plan.py
   ```
 - Pierwsze otwarte TODO: - [ ] B12. `scripts/provenance.py` — `reports/provenance.jsonl` + README per przedmiot do `paczka_meta/` + `00_SOURCES/linki.txt` z `source_packages`
 <!-- END AUTO -->

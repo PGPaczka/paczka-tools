@@ -56,6 +56,7 @@ zmienia się wraz z wybraną zakładką.
 | **decyzje** | kolejka „jedna pozycja na ekranie”: podgląd + propozycja + decyzja | `d` |
 | **klastry** | grupy near-duplicate, wybór wersji kanonicznej | `c` |
 | **historia** | co zmieniłeś dziś, cofanie pojedynczej decyzji | `h` |
+| **plan** | drzewo docelowe, diff, wynik bramki i uruchamianie etapów | `p` |
 | **graf** | soczewka: osadzony viewer synapse, w obie strony po identyfikatorze | `g` |
 | **statystyki** | odpowiednik `reports/STATUS.md` na żywo, bez generowania pliku | — |
 
@@ -97,6 +98,34 @@ albo relację `older_version`. Diff tekstu pokazuje, czym te wersje się różni
 Filtr szumu (`*.vcxproj*`, `*.sln`, `__pycache__`…) jest w
 `config/thresholds.yaml: near_duplicate.noise_patterns` — bez niego największy
 klaster w paczce to pliki projektowe Visual Studio.
+
+### Plan, bramka i wykonanie
+
+Zakładka **plan** pokazuje to, co trzeba wiedzieć **przed** ruszeniem materiałów:
+
+- **nagłówek planu**: odcisk (`plan_hash`), liczba pozycji i rozkład akcji;
+- **bramka**: błędy i ostrzeżenia z `validate_plan` oraz diff wykonania — ile plików
+  dojdzie, ile już jest, ile kolizji i brakujących źródeł. Pasek jest zielony tylko
+  wtedy, gdy plan naprawdę przechodzi;
+- **drzewo docelowe** przedmiotu: `+` dojdzie, `=` już jest, `·` ground truth,
+  `!` zatrzymuje `apply`;
+- **bez miejsca w drzewie**: pozycje `skip`, `quarantine` i te do obejrzenia;
+- **etapy** (`zbuduj plan`, `waliduj`, `review.html`, `apply (dry-run)`, `verify`,
+  `APPLY`) uruchamiane jako **podproces tego samego CLI**, z logiem na żywo i kodem
+  wyjścia. Studio nie ma własnej implementacji żadnego etapu.
+
+**Bramka jest po stronie serwera.** Przycisk `APPLY` bywa wyszarzony, ale to nie
+jest zabezpieczenie: żądanie wysłane z pominięciem interfejsu też dostaje odmowę
+(HTTP 409) i **żaden podproces nie startuje**. Do tego zgoda dotyczy konkretnego
+planu — żądanie musi nieść `plan_hash`, który widziałeś; plan przebudowany po
+akceptacji jest odmową, a nie „tym samym planem”. Pilnuje tego mutacja
+`tests/mutations/studio-apply-gate.yaml`.
+
+**„Przenieś tu” (S3.2)**: wybierz pozycję z listy „bez miejsca”, potem katalog
+w drzewie (`tu`). Studio pokazuje ścieżkę, pod którą pozycja wyląduje, i blokuje
+zapis, gdy pod tą nazwą już coś stoi. Zapis idzie zwykłą decyzją ręczną
+(`manual_decisions`, `confidence = 1.0`), więc **wchodzi do drzewa dopiero po
+przebudowaniu planu** — studio mówi to wprost po zapisaniu.
 
 ### Graf jako soczewka
 
@@ -161,6 +190,8 @@ Odczyt:
 | `GET /api/search` | wyszukiwanie przekrojowe |
 | `GET /api/stats` | liczby jak w `STATUS.md`, liczone `status_report.collect` |
 | `GET /api/decisions/history` | historia ręcznych decyzji |
+| `GET /api/plan/{sem}/{skrot}` | plan: nagłówek, ustalenia bramki, diff wykonania |
+| `GET /api/plan/{sem}/{skrot}/tree` | drzewo docelowe + pozycje bez miejsca |
 | `GET /api/graph/status` | czy graf jest zbudowany i ile ma notatek |
 | `GET /api/graph/node/{sha256}` | węzeł grafu dla treści (studio → graf) |
 | `GET /api/graph/subject/{sem}/{skrot}` | węzeł przedmiotu |
@@ -176,6 +207,7 @@ Zapis (wyłącznie decyzje — nigdy materiały):
 | `POST /api/decisions/undo` | cofnięcie ostatniej |
 | `DELETE /api/decisions/{sha256}` | cofnięcie jednej pozycji |
 | `POST /api/clusters/resolve` | rozstrzygnięcie klastra |
+| `POST /api/plan/{sem}/{skrot}/run` | etap potoku jako podproces CLI, log strumieniem SSE |
 
 ---
 
@@ -214,7 +246,9 @@ realne wady wyszły dopiero w przeglądarce, nie w kodzie ani w testach.
 ## Stan
 
 Zrobione: **S0** (szkielet, tylko odczyt), **S1** (kolejka decyzji z podglądem),
-**S2** (porównywarka klastrów), **S4.2–S4.4** (historia, wyszukiwanie, statystyki).
+**S2** (porównywarka klastrów), **S3** (plan, bramka, apply) i **S4** (graf, historia,
+wyszukiwanie, statystyki) — czyli cały plan z `PLAN.md`.
 
-Zostaje: **S3** — drzewo docelowe, diff planu, bramka i uruchamianie etapów z UI
-(odblokowane przez B10/B11). Szczegóły i kolejność: `TODO-studio.md`.
+Co dalej, gdyby przyszła ochota: pilotaż AKO od początku do końca z tego widoku
+(D1 w `../TODO.md`) i to, co z niego wyjdzie. Szczegóły i historia decyzji:
+`TODO-studio.md`.

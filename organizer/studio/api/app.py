@@ -18,13 +18,20 @@ from pathlib import Path
 from typing import Any, AsyncIterator, Iterator, Optional
 
 from fastapi import Body, Depends, FastAPI, HTTPException, Path as PathParam, Query, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    RedirectResponse,
+    Response,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 
 from orglib import config, graph_link
+from orglib.classify import load_rules
 from orglib.decisions import GroundTruthConflict, record_batch, record_decision, undo_last
 
-from . import ORGANIZER_ROOT, database, queries
+from . import ORGANIZER_ROOT, database, planning, queries, runner
 
 #: Zbudowany front (``npm --prefix studio/web run build``). Gdy go nie ma,
 #: `/` tłumaczy, co uruchomić — zamiast odpowiadać 404 bez wyjaśnienia.
@@ -440,6 +447,109 @@ def create_app(
     ) -> dict[str, Any]:
         """Statystyki na żywo — odpowiednik STATUS.md (S4.4)."""
         return queries.live_stats(conn, catalog, limits)
+
+    # --- S3: plan, bramka i wykonanie ------------------------------------
+    #
+    # Bramka jest po stronie SERWERA. Widok może sobie wyszarzyć przycisk, ale to
+    # nie jest zabezpieczenie: żądanie `apply` przy planie odrzuconym przez bramkę
+    # kończy się tutaj kodem 409 i **żaden podproces nie startuje**
+    # (`studio/AGENTS.md`, reguła 6).
+
+    def _subject_or_http(semester: int, skrot: str, grupa: Optional[str]) -> config.Subject:
+        try:
+            return config.find_subject(semester, skrot, catalog, grupa=grupa)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+    @app.get("/api/plan/{semester}/{skrot}", tags=["plan"])
+    def get_plan(
+        semester: int = PathParam(ge=1, le=7),
+        skrot: str = PathParam(min_length=1, max_length=64),
+        grupa: Optional[str] = Query(None),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ) -> dict[str, Any]:
+        """Plan przedmiotu: nagłówek, ustalenia bramki i co `apply` zrobiłby z dyskiem."""
+        subject = _subject_or_http(semester, skrot, grupa)
+        return planning.overview(
+            conn, subject, catalog, resolved_paths,
+            rules=load_rules(), thresholds=limits,
+        )
+
+    @app.get("/api/plan/{semester}/{skrot}/tree", tags=["plan"])
+    def get_plan_tree(
+        semester: int = PathParam(ge=1, le=7),
+        skrot: str = PathParam(min_length=1, max_length=64),
+        grupa: Optional[str] = Query(None),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ) -> dict[str, Any]:
+        """Drzewo docelowe przedmiotu + lista tego, co nie ma jeszcze miejsca."""
+        subject = _subject_or_http(semester, skrot, grupa)
+        return planning.target_tree(conn, subject, catalog, resolved_paths)
+
+    @app.post("/api/plan/{semester}/{skrot}/run", tags=["plan"])
+    def run_stage(
+        semester: int = PathParam(ge=1, le=7),
+        skrot: str = PathParam(min_length=1, max_length=64),
+        grupa: Optional[str] = Query(None),
+        body: dict[str, Any] = Body(...),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ) -> StreamingResponse:
+        """Uruchamia etap potoku jako podproces CLI i strumieniuje jego wyjście (SSE)."""
+        subject = _subject_or_http(semester, skrot, grupa)
+        stage = str(body.get("stage") or "")
+        if stage not in runner.STAGE_SCRIPTS:
+            raise HTTPException(
+                status_code=422,
+                detail=f"nieznany etap {stage!r}; dozwolone: {sorted(runner.STAGE_SCRIPTS)}",
+            )
+
+        plan_path = planning.find_plan(subject, catalog)
+        digest: str | None = None
+
+        if stage in runner.WRITING_STAGES:
+            if body.get("confirm") is not True:
+                raise HTTPException(
+                    status_code=409,
+                    detail="apply wymaga jawnego potwierdzenia konkretnego planu",
+                )
+            state = planning.overview(
+                conn, subject, catalog, resolved_paths,
+                rules=load_rules(), thresholds=limits,
+            )
+            if state["plan"] is None:
+                raise HTTPException(status_code=409, detail=state["reason"])
+            digest = str(state["plan"]["plan_hash"])
+            if str(body.get("plan_hash") or "") != digest:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "zgoda dotyczy innego planu niż ten na dysku "
+                        f"(zaakceptowany {str(body.get('plan_hash') or '—')[:12]}…, "
+                        f"bieżący {digest[:12]}…) — obejrzyj plan jeszcze raz"
+                    ),
+                )
+            if not state["can_apply"]:
+                # To jest TA bramka. Nie startujemy niczego.
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "message": f"plan nie przechodzi bramki: {state['reason']}",
+                        "validation": state["validation"],
+                        "diff": state["diff"],
+                    },
+                )
+
+        argv = runner.build_argv(
+            stage, subject=subject, db_path=database_path,
+            plan_path=plan_path, plan_hash=digest, grupa=grupa,
+        )
+        return StreamingResponse(
+            runner.stream(argv),
+            media_type="text/event-stream",
+            headers={"cache-control": "no-store", "x-accel-buffering": "no"},
+        )
 
     # --- S4.1: graf jako soczewka ----------------------------------------
     #

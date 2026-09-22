@@ -69,12 +69,28 @@ którego potok nie produkuje, jest gorszy niż brak testu** — daje spokój i u
 
 Zależy od: **B10** (`apply.py`) i **B11** (`verify.py`).
 
-- [ ] S3.1 Widok drzewa docelowego przedmiotu + lista tego, co nie ma jeszcze miejsca
-- [ ] S3.2 „Przenieś tu” = decyzja ręczna, z podświetleniem kolizji nazw
-- [ ] S3.3 Diff planu: co dojdzie, co się nadpisze, co pominięte
-- [ ] S3.4 Wynik `validate_plan` w UI; **kod wyjścia 2 unieruchamia `apply`** — przycisk martwy, nie ostrzegawczy
-- [ ] S3.5 Uruchamianie etapów jako podproces CLI ze streamem logów (SSE), z jawnym potwierdzeniem przed `apply`
-- [ ] S3.6 Testy: bramka jest nie do obejścia z UI (żądanie `apply` przy nieważnym planie odrzucone po stronie serwera, nie tylko ukryte w interfejsie)
+- [x] S3.1 Widok drzewa docelowego przedmiotu + lista tego, co nie ma jeszcze miejsca — 2026-09-22; `GET /api/plan/{sem}/{skrot}/tree`, stan pliku liczy ten sam silnik co `apply` (`plan_apply`), więc `+`/`=`/`!` w drzewie znaczy dokładnie to, co zrobi wykonanie; ground truth osobnym stanem
+- [x] S3.2 „Przenieś tu” = decyzja ręczna, z podświetleniem kolizji nazw — 2026-09-22; zapis zwykłym `POST /api/decisions` (ta sama funkcja co CLI), kolizja blokuje przycisk; widok mówi wprost, że decyzja wchodzi do drzewa dopiero po przebudowaniu planu
+- [x] S3.3 Diff planu: co dojdzie, co się nadpisze, co pominięte — 2026-09-22; liczone z `plan_apply.plan_operations` (nowe/już jest/kolizja/brak źródła/poza paczką), bez drugiej implementacji
+- [x] S3.4 Wynik `validate_plan` w UI; **kod wyjścia 2 unieruchamia `apply`** — przycisk martwy, nie ostrzegawczy — 2026-09-22; ustalenia z `plan_gate.evaluate` (ten sam kod co CLI), `can_apply` liczy serwer
+- [x] S3.5 Uruchamianie etapów jako podproces CLI ze streamem logów (SSE), z jawnym potwierdzeniem przed `apply` — 2026-09-22; `POST /api/plan/{sem}/{skrot}/run`, argv wyłącznie z zamkniętej listy etapów, log leci ramkami SSE, kod wyjścia jest wynikiem; `apply` wymaga `confirm` i `plan_hash`
+- [x] S3.6 Testy: bramka jest nie do obejścia z UI (żądanie `apply` przy nieważnym planie odrzucone po stronie serwera, nie tylko ukryte w interfejsie) — 2026-09-22; 16 testów w `tests/test_studio_plan.py` (w tym `apply` przez PRAWDZIWY podproces na syntetycznym repo git) + mutacja `studio-apply-gate.yaml`
+
+**Czego nie przewidywał plan (S3):** dwie rzeczy wyszły dopiero przy uruchamianiu
+etapów. Po pierwsze, `runner` budował ścieżkę skryptu z `config.ORGANIZER_ROOT` —
+stałej, którą testy przestawiają, żeby przekierować raporty — więc podproces szukał
+`scripts/` w katalogu tymczasowym. To ta sama pomyłka co wcześniej ze schematem
+linii planu: **zasoby repo liczy się ze ścieżki modułu, nie ze stałej konfiguracyjnej**.
+Po drugie, nie każdy etap przyjmuje te same flagi: `review_report.py` nie zna ani
+`--db`, ani `--plan`, więc etap `review` startował i natychmiast odbijał się od
+parsera. Stąd jawna mapa flag per etap i test konfrontujący argv z PRAWDZIWYMI
+parserami (`test_every_stage_flag_is_accepted_by_the_real_script`) — dokładnie ta
+klasa błędu, co historyczne `--ignore-user-config`.
+
+Przy okazji powstało `PACZKA_CONFIG_DIR`: bez wskazania innego katalogu konfiguracji
+nie da się przetestować etapu uruchamianego jako podproces (monkeypatch działa tylko
+w procesie testu), a test chodzący po prawdziwym `paths.yaml` chodziłby po prawdziwych
+materiałach.
 
 ## S4. Reszta
 

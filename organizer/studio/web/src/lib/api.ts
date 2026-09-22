@@ -466,3 +466,144 @@ export const getGraphContent = (node: string, signal?: AbortSignal) =>
 export function graphUrl(node?: string | null): string {
   return node ? `/graf/#${node}` : '/graf/';
 }
+
+
+// --- S3: plan, bramka i wykonanie ------------------------------------------
+
+export interface PlanFinding {
+  level: string;
+  code: string;
+  message: string;
+  source_sha256: string | null;
+  target_rel: string | null;
+}
+
+export interface PlanOverview {
+  subject: { semester: number; skrot: string; nazwa: string; grupa: string; target_dir: string };
+  plan: {
+    path: string;
+    plan_hash: string;
+    declared_hash: string;
+    created_at: string;
+    items: number;
+    actions: Record<string, number>;
+    needs_review: number;
+  } | null;
+  validation?: {
+    errors: number;
+    warnings: number;
+    blocking: number;
+    findings: PlanFinding[];
+    truncated: number;
+  };
+  diff?: {
+    files: number;
+    folders: number;
+    new: number;
+    present: number;
+    conflict: number;
+    missing_source: number;
+    outside: number;
+    blockers: Array<{ state: string; target_rel: string; detail: string; sha256: string }>;
+  };
+  can_apply: boolean;
+  reason: string;
+}
+
+export interface TreeFile {
+  name: string;
+  path: string;
+  state: 'new' | 'present' | 'conflict' | 'missing_source' | 'outside' | 'ground_truth';
+  sha256: string;
+  detail: string;
+}
+
+export interface PlanTree {
+  target_dir: string;
+  folders: Array<{ path: string; files: TreeFile[]; states: Record<string, number> }>;
+  files: number;
+  homeless: Array<{
+    sha256: string;
+    /** Nazwa pliku — „przenieś tu” składa z niej ścieżkę docelową. */
+    filename: string;
+    action: string | null;
+    category: string | null;
+    reason: string | null;
+    confidence: number | null;
+    needs_review: boolean;
+    target_rel: string | null;
+  }>;
+}
+
+/** Etapy, które studio umie uruchomić jako podproces CLI. */
+export type Stage = 'plan' | 'validate' | 'review' | 'apply-dry' | 'apply' | 'verify';
+
+export const getPlan = (semester: number, skrot: string, grupa?: string, signal?: AbortSignal) =>
+  fetchJson<PlanOverview>(
+    `/api/plan/${semester}/${encodeURIComponent(skrot)}` + (grupa ? `?grupa=${encodeURIComponent(grupa)}` : ''),
+    signal,
+  );
+
+export const getPlanTree = (semester: number, skrot: string, grupa?: string, signal?: AbortSignal) =>
+  fetchJson<PlanTree>(
+    `/api/plan/${semester}/${encodeURIComponent(skrot)}/tree` +
+      (grupa ? `?grupa=${encodeURIComponent(grupa)}` : ''),
+    signal,
+  );
+
+/**
+ * Uruchamia etap i oddaje jego wyjście linia po linii, na żywo.
+ *
+ * Strumień idzie POST-em (EventSource umie tylko GET), a odmowa bramki wraca
+ * zwykłym kodem 409 ZANIM cokolwiek wystartuje — widok ma ją pokazać, a nie
+ * tłumaczyć „coś poszło nie tak”.
+ */
+export async function runStage(
+  semester: number,
+  skrot: string,
+  body: { stage: Stage; plan_hash?: string; confirm?: boolean },
+  onLine: (line: string) => void,
+  grupa?: string,
+): Promise<number> {
+  const response = await fetch(
+    `/api/plan/${semester}/${encodeURIComponent(skrot)}/run` +
+      (grupa ? `?grupa=${encodeURIComponent(grupa)}` : ''),
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  );
+  if (!response.ok) {
+    let detail: unknown = `${response.status} ${response.statusText}`;
+    try {
+      detail = (await response.json()).detail ?? detail;
+    } catch {
+      /* odpowiedź bez JSON-a */
+    }
+    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail, null, 1));
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('przeglądarka nie oddała strumienia');
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let code = -1;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const chunks = buffer.split('\n\n');
+    buffer = chunks.pop() ?? '';
+    for (const chunk of chunks) {
+      const event = /^event: (\w+)/m.exec(chunk)?.[1];
+      const data = /^data: (.*)$/m.exec(chunk)?.[1];
+      if (!event || !data) continue;
+      const payload = JSON.parse(data);
+      if (event === 'line') onLine(payload.text);
+      else if (event === 'start') onLine(`$ ${payload.argv.slice(1).join(' ')}`);
+      else if (event === 'done') code = payload.code;
+    }
+  }
+  return code;
+}

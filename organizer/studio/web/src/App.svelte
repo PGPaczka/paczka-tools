@@ -19,8 +19,9 @@
   import HistoryPanel from './components/HistoryPanel.svelte';
   import StatsPanel from './components/StatsPanel.svelte';
   import GraphPanel from './components/GraphPanel.svelte';
+  import PlanPanel from './components/PlanPanel.svelte';
 
-  type Mode = 'browse' | 'decide' | 'clusters' | 'history' | 'stats' | 'graph';
+  type Mode = 'browse' | 'decide' | 'clusters' | 'history' | 'stats' | 'graph' | 'plan';
 
   /** Ile pozycji dokłada „Pokaż więcej”. */
   const PAGE = 30;
@@ -139,6 +140,11 @@
       mode = 'graph';
       return;
     }
+    if (event.key === 'p' && mode === 'browse') {
+      event.preventDefault();
+      mode = 'plan';
+      return;
+    }
     if (event.key === 'b' && mode !== 'browse') {
       event.preventDefault();
       mode = 'browse';
@@ -220,6 +226,7 @@
         mode === 'clusters' ? 'S2 · klastry' :
         mode === 'history' ? 'S4 · historia' :
         mode === 'graph' ? 'S4 · graf' :
+        mode === 'plan' ? 'S3 · plan' :
         'S4 · statystyki'
       }</span>
     </div>
@@ -262,6 +269,14 @@
           title="h / b — historia"
         >
           historia
+        </button>
+        <button
+          class="mode-toggle"
+          class:active={mode === 'plan'}
+          onclick={() => (mode = mode === 'plan' ? 'browse' : 'plan')}
+          title="p / b — plan, bramka i apply"
+        >
+          plan
         </button>
         <button
           class="mode-toggle"
@@ -317,6 +332,13 @@
         />
       {:else if mode === 'history'}
         <HistoryPanel onChanged={loadDashboard} />
+      {:else if mode === 'plan'}
+        <PlanPanel
+          semester={selected?.semester}
+          skrot={selected?.skrot}
+          grupa={selected?.grupa}
+          onChanged={loadDashboard}
+        />
       {:else if mode === 'graph'}
         <GraphPanel
           semester={selected?.semester}
