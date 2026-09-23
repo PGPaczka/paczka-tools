@@ -72,3 +72,19 @@ export function defaultPanels(width: number): { queueOpen: boolean; listOpen: bo
   if (width <= TABLET) return { queueOpen: false, listOpen: true };
   return { queueOpen: true, listOpen: true };
 }
+
+/**
+ * Treść wskazana w adresie: `/?sha=<sha256>`.
+ *
+ * Tą drogą wchodzi się do studia z grafu — notatka pliku ma taki odnośnik, więc
+ * kliknięcie w niego ma otworzyć TĘ treść, a nie ogólny widok. Wartość jest surowa
+ * i pochodzi z adresu, więc przepuszczamy tylko to, co wygląda jak sha256.
+ */
+export function shaFromUrl(search: string): string | null {
+  try {
+    const value = new URLSearchParams(search).get('sha');
+    return value && /^[0-9a-f]{8,64}$/.test(value) ? value : null;
+  } catch {
+    return null;
+  }
+}

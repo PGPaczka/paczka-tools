@@ -26,11 +26,11 @@ import shutil
 import sqlite3
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Mapping, Optional
 
 import typer
 
-from orglib import config, db
+from orglib import config, db, preview
 from orglib.synapse_vault import (
     EDGE_BELONGS_TO,
     LEVEL_NEEDS_HUMAN,
@@ -68,8 +68,14 @@ def _date(value: Any) -> str:
 
 def load_index(
     conn: sqlite3.Connection,
-) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]], dict[str, list[sqlite3.Row]], dict[str, str]]:
-    """Decyzje, relacje, kopie plików i rodzaje treści — cztery zapytania, bez pętli po plikach."""
+) -> tuple[
+    dict[str, dict[str, Any]],
+    list[dict[str, Any]],
+    dict[str, list[sqlite3.Row]],
+    dict[str, str],
+    dict[str, str],
+]:
+    """Decyzje, relacje, kopie plików, rodzaje treści i ścieżki tekstu — bez pętli po plikach."""
     decisions = {
         str(row["sha256"]): dict(row)
         for row in conn.execute("SELECT * FROM classifications")
@@ -86,11 +92,36 @@ def load_index(
         "FROM files WHERE sha256 IS NOT NULL ORDER BY source_package, source_relative_path"
     ):
         files[str(row["sha256"])].append(row)
-    kinds = {
-        str(row["sha256"]): str(row["content_kind"] or "other")
-        for row in conn.execute("SELECT sha256, content_kind FROM content")
-    }
-    return decisions, relations, files, kinds
+    kinds: dict[str, str] = {}
+    text_paths: dict[str, str] = {}
+    for row in conn.execute("SELECT sha256, content_kind, extracted_text_path FROM content"):
+        sha = str(row["sha256"])
+        kinds[sha] = str(row["content_kind"] or "other")
+        if row["extracted_text_path"]:
+            text_paths[sha] = str(row["extracted_text_path"])
+    return decisions, relations, files, kinds, text_paths
+
+
+#: Ile znaków tekstu wchodzi do notatki jako podgląd. Kilka linijek wystarczy, żeby
+#: rozpoznać materiał; więcej robi z notatki kopię pliku.
+PREVIEW_TEXT_CHARS = 400
+
+
+def preview_block(sha: str, kind: str, text_head: str | None) -> list[str]:
+    """Podgląd treści w notatce: obraz, kilka linijek tekstu, i odnośnik do studia.
+
+    Kliknięcie węzła w grafie ma POKAZAĆ materiał, a nie tylko go opisać (zgłoszone
+    2026-09-24). Adresy są względne, więc działają wtedy i tylko wtedy, gdy viewera
+    serwuje studio — czyli tam, gdzie te dane w ogóle mają sens.
+    """
+    lines: list[str] = []
+    if kind in preview.PAGE_KINDS or kind in preview.IMAGE_KINDS:
+        lines += [f"![podgląd](/api/preview/{sha}/image?width=720)", ""]
+    elif text_head:
+        skrocony = text_head.strip().splitlines()[:8]
+        lines += ["```", *skrocony, "```", ""]
+    lines += [f"[Otwórz w studiu](/?sha={sha})", ""]
+    return lines
 
 
 def content_name(copies: list[sqlite3.Row], decision: dict[str, Any] | None, sha: str) -> str:
@@ -118,6 +149,7 @@ def build_notes(
     auto_apply: float,
     include_unassigned: bool,
     scope: tuple[int, str] | None = None,
+    text_heads: Mapping[str, str] | None = None,
 ) -> list[Note]:
     """Cały vault jako lista notatek. Czysta funkcja nad wynikiem zapytań."""
     ambiguous = {
@@ -177,6 +209,7 @@ def build_notes(
         if decision["needs_review"]:
             tags.append("do-przegladu")
 
+        podglad = preview_block(sha, kind, (text_heads or {}).get(sha))
         provenance = "\n".join(
             f"- `{row['source_package']}/{row['source_relative_path']}`" for row in copies[:12]
         ) or "_brak kopii w indeksie_"
@@ -184,6 +217,7 @@ def build_notes(
         body = "\n".join([
             f"**{filename}** · `{kind}` · {size / 1024:.0f} kB",
             "",
+            *podglad,
             f"- Decyzja: **{action or 'brak'}** → `{decision['target_relative_path']}`",
             f"- Kategoria: `{category}` · pewność **{confidence:.2f}** "
             f"· metoda `{decision['classification_method']}`",
@@ -460,14 +494,23 @@ def export(
                 raise ValueError(
                     f"nieobsługiwana schema_version={version}; oczekiwano {db.SCHEMA_VERSION}"
                 )
-            decisions, relations, files, kinds = load_index(conn)
+            decisions, relations, files, kinds, text_paths = load_index(conn)
         finally:
             conn.close()
+
+        # Głowy tekstu czytamy TUTAJ, żeby `build_notes` zostało czystą funkcją nad
+        # wynikiem zapytań. Tylko dla treści, które nie mają podglądu obrazkowego.
+        text_heads = {
+            sha: head
+            for sha, path in text_paths.items()
+            if kinds.get(sha) not in preview.PAGE_KINDS and kinds.get(sha) not in preview.IMAGE_KINDS
+            and (head := preview.text_head(paths, path, PREVIEW_TEXT_CHARS))
+        }
 
         notes = build_notes(
             subjects=subjects, decisions=decisions, relations=relations, files=files,
             kinds=kinds, auto_apply=auto_apply, include_unassigned=include_unassigned,
-            scope=scope,
+            scope=scope, text_heads=text_heads,
         )
         for note in notes:
             note.validate()

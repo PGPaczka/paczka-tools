@@ -221,6 +221,10 @@ export interface LabelBox {
  * a nazwa ma sto. Zmierzone: do zoomu 0,6 nie pojawiała się ani jedna. Pliki dostają
  * więc tyle podpisów, ile się mieści, w stałej kolejności — im bliżej, tym więcej,
  * a te już podpisane zostają podpisane.
+ *
+ * Kaskada jest jednokierunkowa: poziom, który się NIE zmieścił, zatrzymuje wszystkie
+ * drobniejsze. Inaczej nazwy plików zajmowały miejsce po nieupchniętej kategorii
+ * i widok czytało się od końca — sto nazw plików bez nazwy skupiska, do którego należą.
  */
 export interface LabelLevel<T> {
   items: T[]
@@ -250,7 +254,14 @@ export function placeLabelsByLevel<T extends LabelBox>(
           !placed.some((other) => hits(item, other)) &&
           !items.some((other, otherIndex) => otherIndex !== index && hits(item, other)),
       )
-      if (fits) placed.push(...items)
+      if (!fits) {
+        // Poziom, który się nie zmieścił, ZATRZYMUJE kaskadę. Bez tego nazwy plików
+        // wchodziły w miejsce nieupchniętej kategorii i widok czytało się od końca:
+        // najpierw sto nazw plików, a dopiero po dalszym przybliżeniu nazwa skupiska,
+        // do którego należą (zgłoszone 2026-09-24).
+        break
+      }
+      placed.push(...items)
       continue
     }
 

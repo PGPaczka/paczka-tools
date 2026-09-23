@@ -93,6 +93,12 @@ pliku nie są eksportowane.
 | `tags` | `semestr`, `semN` | `semN`, skrót (`ako`), grupa, formy, katedra | `semN`, skrót, `kategoria-…` | `semN`, skrót, `rodzaj-…`, `kategoria-…`, `akcja-…`, `metoda-…`, `rok-…`, `w-paczce` |
 | `relations` | — | `belongs_to` → semestr | `belongs_to` → przedmiot | `belongs_to` → **kategoria** + relacje z B6 |
 
+Treść notatki pliku niesie **podgląd**: obraz albo pierwszą stronę PDF-a
+(`![podgląd](/api/preview/<sha>/image?width=720)`), a dla plików tekstowych kilka
+pierwszych linijek. Na końcu jest odnośnik `[Otwórz w studiu](/?sha=<sha>)`. Adresy są
+względne, więc działają wtedy, gdy viewera serwuje studio — czyli tam, gdzie te dane mają
+sens; w upstreamowym demo po prostu ich nie ma.
+
 Nazwa pliku bierze się z kopii źródłowej, a gdy jej nie ma — ze **ścieżki docelowej**
 z decyzji. Ground truth opisuje materiały leżące już w paczce, których nikt nie indeksował
 jako plików źródłowych: 890 takich treści nazywało się w grafie skrótem sha.

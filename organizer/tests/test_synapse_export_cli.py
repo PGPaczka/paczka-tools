@@ -125,6 +125,45 @@ def test_content_without_a_source_row_is_named_after_its_target(workspace):
     assert 'title: "Wyklad_12_Cache.pdf"' in head
 
 
+def test_file_note_carries_a_preview_and_a_link_back_to_studio(workspace):
+    """Kliknięcie węzła w grafie ma POKAZAĆ materiał, nie opisać go.
+
+    Zgłoszone 2026-09-24: obraz albo pierwsza strona PDF-a, dla tekstu kilka linijek,
+    i odnośnik prowadzący do tej treści w studiu.
+    """
+    conn = db.connect(workspace.work_db)
+    # Ścieżka jak w kontrakcie B2: WZGLĘDEM `work`, nie wobec katalogu z fixture'u.
+    katalog = workspace.work / "extracted_text"
+    katalog.mkdir(parents=True, exist_ok=True)
+    (katalog / f"{SHA['d']}.txt").write_text(
+        "Pierwsza linia notatki\nDruga linia\n", encoding="utf-8"
+    )
+    conn.execute(
+        "UPDATE content SET content_kind = 'text', extracted_text_path = ? WHERE sha256 = ?",
+        (f"extracted_text/{SHA['d']}.txt", SHA["d"]),
+    )
+    db.upsert_classification(conn, {
+        "sha256": SHA["d"], "semester": 3, "subject_key": "AKO", "category": "opracowania",
+        "target_relative_path": "paczka/SEM3/AKO_X/opracowania/notatka.txt", "is_outdated": 0,
+        "classification_method": "manual", "confidence": 1.0, "run_id": "ground_truth",
+        "decided_at": "2026-09-20T00:00:00Z",
+    })
+    conn.commit()
+    conn.close()
+
+    assert runner.invoke(cli.app, []).exit_code == 0
+    notes = notes_of(vault(workspace))
+
+    pdf = next(p for name, p in notes.items() if name.startswith("ako-") and "plik1" in name)
+    _, tresc = frontmatter(pdf)
+    assert f"/api/preview/{SHA['b']}/image" in tresc, "PDF pokazuje pierwszą stronę"
+    assert f"/?sha={SHA['b']}" in tresc, "odnośnik do tej treści w studiu"
+
+    tekstowa = next(p for name, p in notes.items() if name.startswith("ako-") and "plik3" in name)  # noqa: E501
+    _, tresc = frontmatter(tekstowa)
+    assert "Pierwsza linia notatki" in tresc, "dla tekstu pierwsze linijki"
+
+
 def test_files_hang_off_a_category_node_not_off_the_subject(workspace):
     """Między przedmiotem a plikami stoi kategoria — decyzja użytkownika 2026-09-23.
 

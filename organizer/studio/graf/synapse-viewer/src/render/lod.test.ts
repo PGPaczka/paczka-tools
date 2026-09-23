@@ -251,3 +251,34 @@ describe('poziom plików', () => {
     ).toEqual(['AKO'])
   })
 })
+
+describe('kaskada poziomów', () => {
+  const box = (x: number, y: number, priority: number, id: string) =>
+    ({ x, y, w: 100, h: 16, priority, id })
+
+  it('poziom, który się nie zmieścił, zatrzymuje drobniejsze', () => {
+    // Zgłoszone: przy oddaleniu widać było nazwy plików, a nazwa ich kategorii
+    // dopiero po przybliżeniu — czyli dokładnie odwrotnie, niż się czyta graf.
+    const kategorie = [box(0, 0, 1.3, 'kat-a'), box(10, 0, 1.3, 'kat-b')]
+    const pliki = [box(0, 300, 1, 'plik')]
+
+    expect(
+      placeLabelsByLevel([
+        { items: pliki, strict: false },
+        { items: kategorie, strict: true },
+      ]),
+    ).toEqual([])
+  })
+
+  it('gdy kategorie się mieszczą, pliki dochodzą normalnie', () => {
+    const kategorie = [box(0, 0, 1.3, 'kat-a'), box(0, 200, 1.3, 'kat-b')]
+    const pliki = [box(0, 400, 1, 'plik')]
+
+    expect(
+      placeLabelsByLevel([
+        { items: pliki, strict: false },
+        { items: kategorie, strict: true },
+      ]).map((i) => i.id),
+    ).toEqual(['kat-a', 'kat-b', 'plik'])
+  })
+})

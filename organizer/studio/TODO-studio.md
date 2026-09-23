@@ -446,6 +446,20 @@ kotwicy ma sens tylko razem z jej POZYCJĄ liczoną względem rodzica.
 Podgląd `?diag=1` pokazuje teraz także **liczbę postawionych podpisów** — bez niej te
 progi znowu byłyby zgadywaniem.
 
+## Kaskada podpisów i podgląd w notatce (2026-09-24)
+
+- **Podpisy czytało się od końca:** przy oddaleniu widać było nazwy plików, a nazwa ich
+  kategorii dopiero po przybliżeniu. Powód: poziom kontenerów jest rygorystyczny, więc
+  gdy nie mieścił się w całości, milkł — i zwalniał miejsce plikom, które są zachłanne.
+  Kaskada jest teraz jednokierunkowa: poziom, który się nie zmieścił, **zatrzymuje
+  wszystkie drobniejsze**. Zmierzone w zakresie kategorii: podpis kategorii od razu,
+  nazwy plików od zoomu 0,277.
+- **Kliknięcie węzła pokazuje materiał.** Notatka pliku niesie obraz albo pierwszą stronę
+  PDF-a (`/api/preview/<sha>/image`), a dla tekstu kilka pierwszych linijek; na końcu
+  odnośnik `Otwórz w studiu` (`/?sha=…`), który otwiera wyszukiwanie na tej treści.
+  Głowy tekstu czyta `export()`, nie `build_notes` — ta druga zostaje czystą funkcją nad
+  wynikiem zapytań.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

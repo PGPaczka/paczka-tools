@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { clearPrefs, defaultPanels, loadPrefs, savePrefs } from './prefs';
+import { clearPrefs, defaultPanels, loadPrefs, savePrefs, shaFromUrl } from './prefs';
 
 describe('prefs', () => {
   beforeEach(() => localStorage.clear());
@@ -48,5 +48,22 @@ describe('panele boczne na starcie', () => {
 
   it('na szerokim ekranie oba panele są otwarte', () => {
     expect(defaultPanels(1440)).toEqual({ queueOpen: true, listOpen: true });
+  });
+});
+
+describe('treść wskazana w adresie', () => {
+  it('czyta sha z parametru', () => {
+    expect(shaFromUrl('?sha=' + 'a'.repeat(64))).toBe('a'.repeat(64));
+  });
+
+  it('przyjmuje skrót, bo tyle bywa w odnośniku', () => {
+    expect(shaFromUrl('?sha=09c8e27e')).toBe('09c8e27e');
+  });
+
+  it('odrzuca wartość, która nie jest sha', () => {
+    // Parametr przychodzi z adresu, czyli spoza aplikacji — nie ufamy mu.
+    expect(shaFromUrl('?sha=../../etc/passwd')).toBeNull();
+    expect(shaFromUrl('?sha=')).toBeNull();
+    expect(shaFromUrl('')).toBeNull();
   });
 });

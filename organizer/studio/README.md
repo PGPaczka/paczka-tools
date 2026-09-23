@@ -322,10 +322,15 @@ Wybór kategorii odsłania jej pliki — 147 egzaminów AKO zamiast 2,5 tysiąca
 **Kręgosłup hierarchii jest widoczny zawsze.** Połączenia między kontenerami (semestr →
 przedmioty, przedmiot → kategorie) nie podlegają cięciu długości ani poziomowi szczegółu:
 jest ich kilkanaście, a to one mówią, z czego składa się to, na co patrzysz. Same kontenery
-rysują się na wierzchu, z poświatą i nie schodzą poniżej sześciu pikseli. Podpisy rozstrzyga jedno
+rysują się na wierzchu, z poświatą i nie schodzą poniżej sześciu pikseli. Kliknięcie węzła pliku pokazuje **sam materiał**: obraz, pierwszą stronę PDF-a albo
+kilka pierwszych linijek tekstu, plus odnośnik „Otwórz w studiu" prowadzący do tej treści
+(`/?sha=…` otwiera wyszukiwanie na niej).
+
+Podpisy rozstrzyga jedno
 pytanie: **czy cały poziom się mieści**. Nazwy są mierzone przed rysowaniem i wchodzą
 poziomami, od najgrubszego (semestry → przedmioty → kategorie → pliki); jeśli choć jedna
-nazwa z poziomu nachodziłaby na inną, milknie cały poziom. Podpisanie części przedmiotów,
+nazwa z poziomu nachodziłaby na inną, milknie cały poziom — i zatrzymuje wszystkie
+drobniejsze, więc nazwy plików nie pojawiają się przed nazwą skupiska, do którego należą. Podpisanie części przedmiotów,
 a części nie, wygląda na usterkę i każe zgadywać, czemu akurat tych. Dzięki temu przy
 wybranym jednym przedmiocie widać wszystkie siedem kategorii nawet przy pełnym oddaleniu
 (leżą daleko od siebie), a w gęstwinie przedmiotów ten poziom milknie w całości i wraca

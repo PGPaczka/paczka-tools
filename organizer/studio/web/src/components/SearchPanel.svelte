@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import { searchItems, previewImageUrl, type Item } from '../lib/api';
   import { bytes, percent } from '../lib/format';
   import Lightbox from './Lightbox.svelte';
@@ -6,11 +7,15 @@
   interface Props {
     /** Otwórz przedmiot znalezionej pozycji (powrót do zwykłej pracy). */
     onOpenSubject?: (semester: number, skrot: string) => void;
+    /** Zapytanie na start — tędy wchodzi treść wskazana z grafu (`/?sha=…`). */
+    initialQuery?: string;
   }
 
-  let { onOpenSubject }: Props = $props();
+  let { onOpenSubject, initialQuery = '' }: Props = $props();
 
-  let query = $state('');
+  // Celowo kopia z chwili montażu: pole jest dalej edytowane przez człowieka, więc
+  // wiązanie go z propsem kasowałoby to, co wpisał, przy każdym przerysowaniu.
+  let query = $state(untrack(() => initialQuery));
   let items = $state<Item[]>([]);
   let total = $state(0);
   let loading = $state(false);
@@ -36,6 +41,11 @@
     }
     timer = setTimeout(run, 350);
   }
+
+  // Z grafu przychodzi konkretna treść, więc szukamy od razu, bez czekania na pisanie.
+  $effect(() => {
+    if (initialQuery.length >= 2 && !searched) void run();
+  });
 
   async function run(): Promise<void> {
     const q = query.trim();

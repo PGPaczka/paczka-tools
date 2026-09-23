@@ -11,7 +11,14 @@
     type SubjectRow,
   } from './lib/api';
   import { count } from './lib/format';
-  import { loadPrefs, savePrefs, type Prefs, defaultPanels, NARROW } from './lib/prefs';
+  import {
+    loadPrefs,
+    savePrefs,
+    shaFromUrl,
+    type Prefs,
+    defaultPanels,
+    NARROW,
+  } from './lib/prefs';
   import QueuePanel from './components/QueuePanel.svelte';
   import SubjectList from './components/SubjectList.svelte';
   import SubjectPanel from './components/SubjectPanel.svelte';
@@ -37,6 +44,13 @@
 
   let stage = $state<string | null>(saved.stage ?? null);
   let query = $state('');
+  /** Zapytanie wyszukiwarki; z adresu wchodzi tu sha wskazanej treści. */
+  let searchQuery = $state(fromUrlSha());
+
+  function fromUrlSha(): string {
+    if (typeof window === 'undefined') return '';
+    return shaFromUrl(window.location.search) ?? '';
+  }
   let semester = $state<number | null>(saved.semester ?? null);
 
   let selected = $state<SubjectRow | null>(null);
@@ -48,7 +62,9 @@
   let page = $state<ItemsPage | null>(null);
   let loadingItems = $state(false);
 
-  let mode = $state<Mode>((saved.mode as Mode) ?? 'browse');
+  /** Wejście z grafu: `/?sha=<sha256>` otwiera wyszukiwanie na tej jednej treści. */
+  const fromUrl = typeof window === 'undefined' ? null : shaFromUrl(window.location.search);
+  let mode = $state<Mode>(fromUrl ? 'search' : ((saved.mode as Mode) ?? 'browse'));
   /** Strumień/katedra — drugi poziom wyboru dla SEM5–7. */
   let grupa = $state<string | null>(saved.grupa ?? null);
   /** Czy ekran jest na tyle wąski, że panele muszą być nakładką, a nie kolumną. */
@@ -459,7 +475,7 @@
       {:else if mode === 'history'}
         <HistoryPanel onChanged={loadDashboard} />
       {:else if mode === 'search'}
-        <SearchPanel onOpenSubject={openSubjectFromGraph} />
+        <SearchPanel onOpenSubject={openSubjectFromGraph} initialQuery={searchQuery} />
       {:else if mode === 'plan'}
         <PlanPanel
           semester={selected?.semester}
