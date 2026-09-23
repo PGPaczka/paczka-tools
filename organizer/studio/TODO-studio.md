@@ -375,11 +375,12 @@ Dwie uwagi z ręki, obie o tym samym — ile tekstu naraz ma sens:
 - **przedmiot podpisany jest skrótem**, nie pełną nazwą. `AKO — Architektura
   Komputerów` przy węźle zasłaniało sąsiadów; pełna nazwa zostaje aliasem (więc
   wyszukiwarka jej nie traci) i pierwszą linią treści notatki;
-- **kategorie dostają podpis dopiero przy przybliżeniu.** Przy maksymalnym oddaleniu
-  na jeden przedmiot wystarczy jego nazwa — siedem podpisów kategorii wokół jednego
-  punktu to szum, dopóki nie widać, co jest czym. Reguła: najgrubszy poziom na ekranie
-  ma podpis zawsze, drobniejsze od 3,5 px promienia. Dokładnie tak, jak już działo się
-  z plikami wewnątrz kategorii.
+- **podpisy kontenerów zależą od tego, ILU ich jest na ekranie.** Trzy wersje tej
+  reguły, każda poprawiona po obejrzeniu wyniku: wariant „zawsze" dał ścianę 232 nazw
+  w widoku całej paczki; próg zależny od przybliżenia wyczyścił ścianę, ale zabierał
+  nazwy kategorii także wtedy, gdy wybrany był jeden przedmiot i tych nazw było siedem.
+  Ostatecznie: do 24 kontenerów na ekranie podpisane są wszystkie, niezależnie od
+  oddalenia; powyżej — najgrubszy poziom zawsze, drobniejsze od 3,5 px promienia.
 
 ## Zależności od potoku
 

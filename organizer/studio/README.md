@@ -323,9 +323,10 @@ Wybór kategorii odsłania jej pliki — 147 egzaminów AKO zamiast 2,5 tysiąca
 przedmioty, przedmiot → kategorie) nie podlegają cięciu długości ani poziomowi szczegółu:
 jest ich kilkanaście, a to one mówią, z czego składa się to, na co patrzysz. Same kontenery
 rysują się na wierzchu, z poświatą i nie schodzą poniżej sześciu pikseli. Podpisy dochodzą
-warstwami: przy pełnym oddaleniu widać najgrubszy poziom (semestry, a w zakresie przedmiotu
-— sam przedmiot), a nazwy kategorii pojawiają się dopiero, gdy przybliżysz na tyle, żeby
-dało się je rozróżnić. Przedmiot podpisany jest **skrótem** (`AKO`), nie pełną nazwą —
+warstwami, a decyduje o tym LICZBA kontenerów na ekranie: gdy jest ich niewiele (wybrany
+jeden przedmiot to osiem — on i jego kategorie), nazwy są widoczne przy każdym oddaleniu,
+bo to one są całą treścią tego widoku. Dopiero w tłumie — widok całej paczki to 232
+kontenery — drobniejsze poziomy milkną i wracają przy przybliżeniu. Przedmiot podpisany jest **skrótem** (`AKO`), nie pełną nazwą —
 ta zostaje w aliasach i w panelu szczegółów. Podpisy rysowane są w przestrzeni ekranu, więc nie kurczą się razem
 z grafem (wcześniej przy widoku całej paczki miały pół piksela i po prostu znikały).
 
