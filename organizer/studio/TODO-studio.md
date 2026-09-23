@@ -224,6 +224,45 @@ złapały testy — więc każda dostała test przed poprawką.
   jedno kliknięcie wybiera przedmiot razem z materiałami. Wejście do przedmiotu samo
   odsłania typ `file`.
 
+## Płynność grafu przy 2,5 tys. węzłów (2026-09-23)
+
+Zgłoszone z ręki: „jak odpalę ako + files, to bardzo laguje cały canvas". Zmierzone
+Playwrightem przy dławieniu CPU ×4 (czyli mniej więcej tablet), 2565 widocznych węzłów:
+
+| Co | Było | Jest |
+|---|---:|---:|
+| przesuwanie po ułożeniu | 6,4 kl./s | **38,8 kl./s** |
+| przesuwanie w trakcie układania | ~5 kl./s | **40 kl./s** |
+| układanie w ogóle się kończy | nie w 40 s | **~15 s** (≈4 s bez dławienia) |
+| przesuwanie na desktopie | 25 kl./s | **52–60 kl./s** |
+
+Co to powodowało — same rzeczy niewidoczne w kodzie rysującym:
+
+- `graph.nodes.find()` **wewnątrz pętli po krawędziach** (grot strzałki potrzebował
+  promienia celu): przy 4 tys. węzłów i tylu samo krawędziach to jedenaście milionów
+  porównań NA KLATKĘ. Teraz indeks `Map`, budowany raz na graf;
+- `getPositions()` sklejało świeżą tablicę 2565 obiektów przy każdym rysowaniu **i przy
+  każdym ruchu myszy**; teraz jedna tablica aktualizowana w miejscu, z licznikiem wersji;
+- quadtree do trafiania w węzeł budowany przy KAŻDYM ruchu wskaźnika — teraz tylko wtedy,
+  gdy pozycje faktycznie się zmieniły;
+- sortowanie wszystkich węzłów co klatkę po to, by dwa narysować na wierzchu;
+- każda krawędź miała własną ścieżkę i własny `stroke()` — teraz jeden wsad na wygląd;
+- symulacja chłodziła się 220 tyknięć niezależnie od rozmiaru (przy 2,5 tys. węzłów to
+  kilkadziesiąt sekund zajętego canvasu) — duży układ stygnie w ~65;
+- rysowanie przy każdym tyknięciu symulacji plus odświeżanie minimapy: teraz najwyżej
+  co 45 ms i co 200 ms;
+- **dotknięcie płótna wstrzymuje układanie**, puszczenie wznawia. Ręka ma pierwszeństwo
+  przed fizyką;
+- węzeł, który ma na ekranie mniej niż cztery piksele, rysuje się jako kropka w jednej
+  wsadowej ścieżce na kolor — pierścień, kropka wewnętrzna i obwódka i tak lądowały na
+  tym samym pikselu. Groty strzałek pojawiają się dopiero, gdy są mniejsze od węzła.
+
+Wnioski na przyszłość: **najpierw profil, potem optymalizacja** — pierwsze pomiary
+wskazywały na rasteryzację, a dopiero profil CPU pokazał, że 57% czasu idzie poza JS,
+i dopiero test A/B (rysowanie bez krawędzi / bez węzłów) ustawił kolejność prac. I drugi:
+pomiar zrobiony w trakcie układania kłamie — wcześniejsze „4 kl./s" mierzyło symulację,
+nie przesuwanie.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

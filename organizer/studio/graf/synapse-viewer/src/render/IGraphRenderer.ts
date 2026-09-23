@@ -9,6 +9,12 @@ export interface NodePosition {
 export interface RendererOptions {
   canvas: HTMLCanvasElement
   getPositions: () => NodePosition[]
+  /**
+   * Bumped whenever the positions change. It lets the renderer cache what is derived
+   * from them — the hit-testing quadtree above all, which was rebuilt over the whole
+   * vault on every single mouse move.
+   */
+  getPositionsVersion?: () => number
   getGraph: () => KnowledgeGraph
   getSelected: () => string | null
   getHovered: () => string | null

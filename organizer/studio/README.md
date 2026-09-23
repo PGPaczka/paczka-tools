@@ -278,6 +278,14 @@ podniesiony z 2,6 do 6 — przy czterech tysiącach węzłów węzeł ma kilka p
 obniżona do 0,04, bo paczka otwiera się przy 0,06 i trzeba umieć wrócić do całości).
 Zoom przeglądarki nie jest zamiennikiem: skaluje gotowy raster, czyli rozmazuje.
 
+Przy dużym zakresie (np. przedmiot z 2,5 tys. plików) graf rysuje się **w takim
+szczególe, jaki widać**: węzeł mniejszy niż cztery piksele jest kropką, groty strzałek
+pojawiają się dopiero przy odpowiednim powiększeniu, krawędzie o tym samym wyglądzie idą
+jedną ścieżką, a to, co poza ekranem, nie jest rysowane wcale. Układanie grafu **ustępuje
+ręce** — dotknięcie płótna wstrzymuje symulację, puszczenie wznawia. Zmierzone przy
+dławieniu CPU ×4: przesuwanie 6,4 → 38,8 kl./s, a układ, który wcześniej nie kończył się
+przez 40 s, staje w ~15 s.
+
 **Zakres: semestr → przedmiot.** Dwa pola na górze panelu filtrów wybierają, nad czym
 pracujesz; lista przedmiotów zawęża się do wybranego semestru, a wejście w przedmiot samo
 odsłania typ `file`. Oba filtry działają na tagach, które niesie **każdy poziom** (`sem3`,

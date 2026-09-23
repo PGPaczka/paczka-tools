@@ -35,6 +35,23 @@ export interface SimLink extends SimulationLinkDatum<SimNode> {
  *
  * @returns control handle — { stop, restart, setNodeFixed, reheat }
  */
+/** Above this many nodes a layout is no longer a sketch to watch, but a cost to pay. */
+export const LARGE_LAYOUT_NODES = 800
+
+/**
+ * How fast the layout cools down.
+ *
+ * The prototype's 0.025 means ~220 ticks, which is right for a vault of a few dozen
+ * notes and wrong for a filtered subject of two and a half thousand: each tick computes
+ * repulsion, springs and collisions over all of them, so the canvas stayed busy for the
+ * best part of a minute and dragging it felt like glue (zgłoszone z tabletu 2026-09-23).
+ * A large layout cools in ~65 ticks instead — by then the anchors have long since decided
+ * the arrangement, and what is left is drift nobody can see.
+ */
+export function alphaDecayFor(nodeCount: number): number {
+  return nodeCount > LARGE_LAYOUT_NODES ? 0.08 : 0.025
+}
+
 export function createSimulation(
   nodes: SimNode[],
   links: SimLink[],
@@ -81,7 +98,7 @@ export function createSimulation(
   }
 
   const sim = d3Simulation<SimNode, SimLink>(simNodes)
-    .alphaDecay(0.025) // matches prototype's alpha *= 0.975 per tick
+    .alphaDecay(alphaDecayFor(simNodes.length))
     .alphaMin(0.004) // matches prototype stop threshold
     .force('charge', forceManyBody<SimNode>().strength(-repulsion))
     .force(

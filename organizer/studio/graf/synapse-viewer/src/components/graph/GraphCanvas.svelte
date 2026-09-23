@@ -15,6 +15,37 @@
 
   let positions = new Map<string, { x: number; y: number }>()
 
+  /**
+   * Pozycje w postaci, w której czyta je renderer — JEDNA tablica, aktualizowana
+   * w miejscu.
+   *
+   * Wcześniej `getPositions()` budowało ją od zera przy każdym rysowaniu ORAZ przy
+   * każdym ruchu wskaźnika: dwa i pół tysiąca świeżych obiektów na klatkę. To jest
+   * ten rodzaj kosztu, którego nie widać w kodzie rysującym, a który zjada tablet.
+   */
+  let positionList: { id: string; x: number; y: number }[] = []
+  let positionIndex = new Map<string, { id: string; x: number; y: number }>()
+  /** Rośnie, gdy pozycje się zmieniły — po tym renderer wie, kiedy przebudować quadtree. */
+  let positionsVersion = 0
+
+  function syncPositions(source: Map<string, { x: number; y: number }>): void {
+    if (positionIndex.size !== source.size) {
+      positionList = []
+      positionIndex = new Map()
+      for (const [id, p] of source) {
+        const entry = { id, x: p.x, y: p.y }
+        positionList.push(entry)
+        positionIndex.set(id, entry)
+      }
+    } else {
+      for (const entry of positionList) {
+        const p = source.get(entry.id)
+        if (p) { entry.x = p.x; entry.y = p.y }
+      }
+    }
+    positionsVersion++
+  }
+
   let renderer: CanvasGraphRenderer | null = null
   let sim: ReturnType<typeof createSimulation> | null = null
 
@@ -39,6 +70,13 @@
     let fitTickCount = 0
     const FIT_ALPHAS = [0.5, 0.08]
     let fitAlphaIdx = 0
+
+    /** Najkrótszy odstęp między rysowaniami w trakcie układania (ok. 22 kl./s). */
+    const RENDER_INTERVAL_MS = 45
+    /** Minimapa to drugi canvas z tymi samymi tysiącami kropek — wystarczy 5 razy na sekundę. */
+    const MINIMAP_INTERVAL_MS = 200
+    let lastRenderAt = 0
+    let lastMinimapAt = 0
 
     // Nodes currently in the simulation — drag handlers pin them by reference, so this
     // has to follow the relayout rather than close over one particular run.
@@ -116,8 +154,19 @@
         get(settings).linkDist,
         (newPositions, alpha) => {
           positions = newPositions
-          minimapPositions.set(positions)
-          renderer?.scheduleRender()
+          syncPositions(positions)
+          // Układanie trwa dziesiątki tyknięć, a oko i tak nie zobaczy różnicy między
+          // sąsiednimi. Rysujemy najwyżej co RENDER_INTERVAL_MS, minimapę odświeżamy
+          // jeszcze rzadziej — inaczej canvas jest zajęty w 100% i nie da się nim ruszyć.
+          const now = performance.now()
+          if (now - lastRenderAt >= RENDER_INTERVAL_MS || alpha <= 0.02) {
+            lastRenderAt = now
+            renderer?.scheduleRender()
+          }
+          if (now - lastMinimapAt >= MINIMAP_INTERVAL_MS || alpha <= 0.02) {
+            lastMinimapAt = now
+            minimapPositions.set(positions)
+          }
           if (!userHasMoved) {
             fitTickCount++
             if (fitTickCount === 1) {
@@ -131,17 +180,45 @@
         // Final fit once the simulation has converged — more accurate than fitting at an
         // arbitrary alpha threshold, and avoids an orphan drifting after the early fit.
         () => {
+          // Ostatnie słowo należy do stanu końcowego: jedno pełne odrysowanie i minimapa.
+          syncPositions(positions)
+          minimapPositions.set(positions)
+          renderer?.scheduleRender()
           if (!userHasMoved) renderer?.fitToNodes()
         },
       )
     }
+
+    /**
+     * Układanie ustępuje pierwszeństwa ręce.
+     *
+     * Symulacja dużego przedmiotu liczy się kilka sekund i przez ten czas zajmuje
+     * canvas w całości — przesuwanie grafu w tym momencie to właśnie ten „lag".
+     * Dotknięcie płótna wstrzymuje ją, puszczenie wznawia z tą samą energią, więc
+     * układ dochodzi do końca, tylko nie kosztem tego, co człowiek właśnie robi.
+     */
+    let layoutPaused = false
+    const pauseLayout = (): void => {
+      if (!sim || layoutPaused || sim.getAlpha() <= 0.005) return
+      layoutPaused = true
+      sim.stop()
+    }
+    const resumeLayout = (): void => {
+      if (!layoutPaused) return
+      layoutPaused = false
+      sim?.restart()
+    }
+    canvas.addEventListener('pointerdown', pauseLayout)
+    window.addEventListener('pointerup', resumeLayout)
+    window.addEventListener('pointercancel', resumeLayout)
 
     startSimulation(get(visibleNodeIds))
 
     renderer = new CanvasGraphRenderer()
     renderer.mount({
       canvas,
-      getPositions: () => [...positions.entries()].map(([id, p]) => ({ id, x: p.x, y: p.y })),
+      getPositions: () => positionList,
+      getPositionsVersion: () => positionsVersion,
       getGraph: () => get(graph)!,
       getSelected: () => get(selectedId),
       getHovered: () => get(hoveredId),
@@ -167,6 +244,7 @@
         // immediately without waiting for the next simulation tick.
         const pos = positions.get(id)
         if (pos) { pos.x = worldX; pos.y = worldY }
+        syncPositions(positions)
         // Higher alpha (0.06 vs old 0.01) keeps enough energy for adjacent nodes
         // to visibly follow the dragged node while the mouse is still moving.
         sim?.reheat(0.06)
@@ -267,6 +345,9 @@
     })
 
     return () => {
+      canvas.removeEventListener('pointerdown', pauseLayout)
+      window.removeEventListener('pointerup', resumeLayout)
+      window.removeEventListener('pointercancel', resumeLayout)
       ro.disconnect()
       window.removeEventListener('mousemove', onWindowMouseMove)
       window.removeEventListener('mouseup', onWindowMouseUp)

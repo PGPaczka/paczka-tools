@@ -2,7 +2,9 @@ import { Viewport } from './Viewport'
 import { buildQuadtree, hitTest } from './hitTesting'
 import { categoryColor } from '../domain/color/categoryColor'
 import { edgeStyle, edgeWidth, nodeTypeScale } from '../domain/graph/edgeStyle'
+import { DOT_RADIUS_PX, detailLevel, discInBounds, segmentOffscreen, visibleWorldBounds } from './lod'
 import type { IGraphRenderer, RendererOptions, NodePosition } from './IGraphRenderer'
+import type { GraphNode, KnowledgeGraph } from '../domain/graph/GraphModel'
 
 const BG_COLOR = '#0d1117'
 const EDGE_COLOR = '#30363d'
@@ -16,6 +18,18 @@ const LABEL_COLOR = '#e6edf3'
 const LABEL_COLOR_DIM = '#6e7681'
 /** Above this many visible nodes, only big or pointed-at nodes keep their label. */
 const LABEL_DENSITY_LIMIT = 400
+/** Largest radius any node can take — the zoom test for detail is made against it. */
+const MAX_NODE_RADIUS = (9 + 3 * 2.2) * 1.9
+
+/** Edges that look alike are stroked as one path; this is one such group. */
+interface EdgeBatch {
+  color: string
+  width: number
+  dash: number[]
+  alpha: number
+  /** Flat x1,y1,x2,y2 quadruples — a flat array keeps this off the allocator's back. */
+  segments: number[]
+}
 
 /**
  * Display radius. The level term is the prototype's formula; the type term makes a
@@ -62,6 +76,20 @@ export class CanvasGraphRenderer implements IGraphRenderer {
   private ctx: CanvasRenderingContext2D | null = null
   private rafId: number | null = null
   private renderScheduled = false
+
+  /**
+   * Node lookup, rebuilt only when the graph itself changes.
+   *
+   * It replaces a `graph.nodes.find()` inside the edge loop: with four thousand nodes
+   * and as many directed edges that was eleven million comparisons PER FRAME, which is
+   * most of what made a filtered subject drag while panning.
+   */
+  private nodeIndex: Map<string, GraphNode> = new Map()
+  private nodeIndexFor: KnowledgeGraph | null = null
+
+  /** Hit-testing quadtree, kept until the positions it was built from change. */
+  private quadtree: ReturnType<typeof buildQuadtree> | null = null
+  private quadtreeVersion = -1
 
   // Fit animation state
   private animating = false
@@ -246,18 +274,34 @@ export class CanvasGraphRenderer implements IGraphRenderer {
 
   private getRadius = (id: string): number => {
     if (!this.options) return 9
-    const graph = this.options.getGraph()
-    const node = graph.nodes.find((n) => n.id === id)
+    // Through the index, not `nodes.find`: hit testing asks for the radius of every
+    // candidate under the cursor, and a linear scan of four thousand nodes per ask
+    // turned hovering into work.
+    const node = this.nodeIndexOf(this.options.getGraph()).get(id)
     if (!node || node.kind === 'ghost') return 7
     // Must stay in step with the drawn radius, or the outer ring of a big node
     // (semester, subject) would not be clickable.
     return nodeRadius(node.level, node.type)
   }
 
+  /** Node lookup for this graph, rebuilt only when the graph itself changes. */
+  private nodeIndexOf(graph: KnowledgeGraph): Map<string, GraphNode> {
+    if (this.nodeIndexFor !== graph) {
+      this.nodeIndex = new Map(graph.nodes.map((node) => [node.id, node]))
+      this.nodeIndexFor = graph
+    }
+    return this.nodeIndex
+  }
+
   private hitAtCanvas(canvasX: number, canvasY: number): string | null {
     if (!this.options) return null
-    const positions = this.options.getPositions()
-    const qt = buildQuadtree(positions, this.getRadius)
+    // The quadtree is rebuilt when the layout moves, not when the pointer does.
+    const version = this.options.getPositionsVersion?.() ?? -1
+    if (this.quadtree === null || version !== this.quadtreeVersion || version === -1) {
+      this.quadtree = buildQuadtree(this.options.getPositions(), this.getRadius)
+      this.quadtreeVersion = version
+    }
+    const qt = this.quadtree
     const world = this.viewport.toWorld(canvasX, canvasY)
     const selected = this.options.getSelected()
     const hovered = this.options.getHovered()
@@ -465,6 +509,7 @@ export class CanvasGraphRenderer implements IGraphRenderer {
 
     const positions = this.options.getPositions()
     const graph = this.options.getGraph()
+    this.nodeIndexOf(graph)
     const selected = this.options.getSelected()
     const hovered = this.options.getHovered()
     const visibleIds = this.options.getVisibleIds()
@@ -493,77 +538,99 @@ export class CanvasGraphRenderer implements IGraphRenderer {
       }
     }
 
+    // Only what is on screen gets drawn, and only in the detail the zoom can show.
+    const bounds = visibleWorldBounds(tx, ty, scale, cssW, cssH)
+    const detail = detailLevel(scale, MAX_NODE_RADIUS)
+
     // --- Draw edges ---
+    // Batched by appearance: one path per (colour, dash, width) instead of one path,
+    // one state change and one stroke per edge. At subject scope that is ~2500 strokes
+    // collapsed into a handful.
     const visibleKinds = this.options.getVisibleEdgeKinds?.() ?? new Set<string>()
+    const batches = new Map<string, EdgeBatch>()
+    const arrows: { src: NodePosition; tgt: NodePosition; radius: number; color: string }[] = []
     ctx.save()
     for (const edge of graph.edges) {
       if (visibleKinds.size > 0 && !visibleKinds.has(edge.kind ?? 'link')) continue
 
-      const src = posMap.get(edge.source)
-      const tgt = posMap.get(edge.target)
-      if (!src || !tgt) continue
-
-      const bothVisible = visibleIds.has(edge.source) && visibleIds.has(edge.target)
       // Filtered-out edges are not drawn at all. Keeping them at a low alpha left a
       // grey haze around the filtered subgraph, which is exactly what made a filtered
       // view look like dust instead of an answer.
-      if (!bothVisible) continue
+      if (!visibleIds.has(edge.source) || !visibleIds.has(edge.target)) continue
+
+      const src = posMap.get(edge.source)
+      const tgt = posMap.get(edge.target)
+      if (!src || !tgt) continue
+      if (segmentOffscreen(bounds, src.x, src.y, tgt.x, tgt.y)) continue
+
       // Highlight only edges where the focused node is a direct endpoint.
       // Cross-edges between neighbours would misleadingly look like those neighbours are also focused.
       const isHighlighted = hasFocus && (edge.source === dimFocusId || edge.target === dimFocusId)
-
-      let alpha: number
-      if (!bothVisible) {
-        alpha = 0.04
-      } else if (hasFocus) {
-        alpha = isHighlighted ? 0.9 : 0.08
-      } else {
-        alpha = 0.85
-      }
+      const alpha = hasFocus ? (isHighlighted ? 0.9 : 0.08) : 0.85
 
       // The KIND of relation is the point of the graph, so it survives focus dimming:
       // a highlighted edge brightens, it does not lose its identity.
       const style = edgeStyle(edge.kind)
-      const width = edgeWidth(edge)
+      const color = isHighlighted && hasFocus ? SELECTED_COLOR : style.color
+      const width = isHighlighted && hasFocus ? edgeWidth(edge) * 1.6 : edgeWidth(edge)
 
-      ctx.globalAlpha = alpha
-      ctx.strokeStyle = isHighlighted && hasFocus ? SELECTED_COLOR : style.color
-      ctx.lineWidth = isHighlighted && hasFocus ? width * 1.6 : width
-      ctx.setLineDash(style.dash)
-      ctx.beginPath()
-      ctx.moveTo(src.x, src.y)
-      ctx.lineTo(tgt.x, tgt.y)
-      ctx.stroke()
-      ctx.setLineDash([])
+      const key = `${color}|${width}|${style.dash.join(',')}|${alpha}`
+      let batch = batches.get(key)
+      if (batch === undefined) {
+        batch = { color, width, dash: style.dash, alpha, segments: [] }
+        batches.set(key, batch)
+      }
+      batch.segments.push(src.x, src.y, tgt.x, tgt.y)
 
-      if (style.arrow && bothVisible) {
-        const targetNode = graph.nodes.find((n) => n.id === edge.target)
+      if (style.arrow && detail.arrows) {
+        const targetNode = this.nodeIndex.get(edge.target)
         const targetRadius =
           targetNode && targetNode.kind === 'real'
             ? nodeRadius(targetNode.level, targetNode.type)
             : 7
-        drawArrowHead(
-          ctx,
-          src,
-          tgt,
-          targetRadius,
-          isHighlighted && hasFocus ? SELECTED_COLOR : style.color,
-        )
+        arrows.push({ src, tgt, radius: targetRadius, color })
       }
+    }
+    for (const batch of batches.values()) {
+      ctx.globalAlpha = batch.alpha
+      ctx.strokeStyle = batch.color
+      ctx.lineWidth = batch.width
+      ctx.setLineDash(batch.dash)
+      ctx.beginPath()
+      for (let i = 0; i < batch.segments.length; i += 4) {
+        ctx.moveTo(batch.segments[i], batch.segments[i + 1])
+        ctx.lineTo(batch.segments[i + 2], batch.segments[i + 3])
+      }
+      ctx.stroke()
+    }
+    ctx.setLineDash([])
+    // Arrow heads carry direction, so they keep their own pass — but only at a zoom
+    // where a six-pixel head is not bigger than the node it points at.
+    for (const arrow of arrows) {
+      drawArrowHead(ctx, arrow.src, arrow.tgt, arrow.radius, arrow.color)
     }
     ctx.restore()
 
-    // Render nodes: selected/hovered on top
-    const sortedNodes = [...graph.nodes].sort((a, b) => {
-      const pa = a.id === selected ? 2 : a.id === hovered ? 1 : 0
-      const pb = b.id === selected ? 2 : b.id === hovered ? 1 : 0
-      return pa - pb
-    })
+    // Render nodes: selected/hovered on top. Sorting four thousand nodes on every frame
+    // cost a copy and a sort for the sake of at most two of them, so the two are simply
+    // drawn last.
+    const onTop: GraphNode[] = []
+    const drawOrder: GraphNode[] = []
+    for (const node of graph.nodes) {
+      if (node.id === selected || node.id === hovered) onTop.push(node)
+      else drawOrder.push(node)
+    }
 
     // --- Draw nodes ---
-    for (const node of sortedNodes) {
+    // At a zoom where a node is a couple of pixels wide, its ring, inner dot and
+    // secondary stroke all land on the same pixel — so nodes are collected by colour
+    // and drawn as one path each. Two and a half thousand fills become a handful.
+    const dots = new Map<string, number[]>()
+
+    for (const node of drawOrder.concat(onTop)) {
       const pos = posMap.get(node.id)
       if (!pos) continue
+      if (!discInBounds(bounds, pos.x, pos.y, MAX_NODE_RADIUS)) continue
 
       const isVisible = visibleIds.has(node.id)
       // A node excluded by a filter disappears. It used to be drawn at alpha 0.08,
@@ -575,6 +642,33 @@ export class CanvasGraphRenderer implements IGraphRenderer {
       const isHovered = node.id === hovered
       const isDim = hasFocus && !adjacent.has(node.id)
       const alpha = isDim ? 0.22 : 1
+
+      // Próg liczony dla TEGO węzła: plik przy skali, w której semestr jest jeszcze
+      // czytelnym kółkiem, ma już półtora piksela i cały jego rysunek ląduje na jednym.
+      const radius = node.kind === 'ghost' ? 7 : nodeRadius(node.level, node.type)
+      if (radius * scale < DOT_RADIUS_PX && !isSelected && !isHovered) {
+        // Kolor niesie znaczenie także przy oddaleniu (to po nim widać skupiska
+        // semestrów), więc grupujemy PO KOLORZE, a nie rysujemy wszystkiego na szaro.
+        const color =
+          node.kind === 'ghost'
+            ? GHOST_STROKE
+            : colorPriority === 'status'
+              ? node.status === 'in-progress'
+                ? AMBER
+                : node.status === 'completed'
+                  ? GREEN
+                  : GRAY
+              : categoryColor(node.category, overrides)
+        const key = isDim ? `${color}|dim` : color
+        let bucket = dots.get(key)
+        if (bucket === undefined) {
+          bucket = []
+          dots.set(key, bucket)
+        }
+        // Poniżej piksela kropka znika w zaokrągleniu — trzymamy minimum widoczności.
+        bucket.push(pos.x, pos.y, Math.max(radius, 1.2 / scale))
+        continue
+      }
 
       ctx.save()
       ctx.globalAlpha = alpha
@@ -707,6 +801,22 @@ export class CanvasGraphRenderer implements IGraphRenderer {
         ctx.restore()
       }
     }
+
+    for (const [key, bucket] of dots) {
+      const [color, dim] = key.split('|')
+      ctx.globalAlpha = dim ? 0.22 : 1
+      ctx.fillStyle = color
+      ctx.beginPath()
+      for (let i = 0; i < bucket.length; i += 3) {
+        const x = bucket[i]
+        const y = bucket[i + 1]
+        const r = bucket[i + 2]
+        ctx.moveTo(x + r, y)
+        ctx.arc(x, y, r, 0, Math.PI * 2)
+      }
+      ctx.fill()
+    }
+    ctx.globalAlpha = 1
 
     ctx.setTransform(1, 0, 0, 1, 0, 0)
 
