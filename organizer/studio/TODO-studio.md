@@ -384,6 +384,27 @@ Dwie uwagi z ręki, obie o tym samym — ile tekstu naraz ma sens:
   przed rysowaniem, układane w kolejności ważności, a te, które nachodziłyby na już
   położone, odpadają. Progi i budżety zniknęły z kodu.
 
+## Poziomy podpisów i rozdzielanie przedmiotów (2026-09-23)
+
+Dwie uwagi z ręki po obejrzeniu poprzedniej wersji:
+
+- **„Na danym poziomie chcę widzieć WSZYSTKIE etykiety".** Układanie po kolizjach
+  pojedynczo podpisywało część przedmiotów, a część nie — co wygląda na usterkę i każe
+  zgadywać, czemu akurat te. Teraz decyzja zapada dla całego poziomu: wchodzi w całości
+  albo wcale, od najgrubszego. Przy wybranym przedmiocie widać jego siedem kategorii
+  nawet przy pełnym oddaleniu, a w gęstwinie poziom milknie cały i wraca po przybliżeniu.
+- **„Wiele przedmiotów bardzo się miesza, choć nie ma między nimi połączeń".** To był
+  błąd układu, nie rysowania: symulacja kotwiczyła węzły po polu `category`, a u pliku
+  znaczy ono rodzaj materiału (`egzamin`, `laboratoria`) i jest wspólne dla całej paczki.
+  Egzaminy dziesięciu przedmiotów miały więc jedną kotwicę. Teraz węzeł ciąży do swojego
+  RODZICA w hierarchii (`belongs_to`), a vault bez hierarchii zachowuje stare zachowanie.
+  Przy wielu grupach kotwice idą po tarczy (słonecznik) zamiast po jednym okręgu — dwieście
+  kotwic na okręgu leżało kilka pikseli od siebie i skupiska wracały do siebie.
+
+Przy okazji **cztery czerwone testy viewera zgasły**: `categoryAnchors` (3) i `Viewport`
+(1) sprawdzały nieaktualne oczekiwania — wołały funkcję bez środka układu, oczekując
+środka ekranu, i pilnowały starej podłogi dopasowania. Suite viewera jest zielony.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

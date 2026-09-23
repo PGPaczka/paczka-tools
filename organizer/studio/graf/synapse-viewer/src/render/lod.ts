@@ -188,29 +188,37 @@ export interface LabelBox {
 }
 
 /**
- * Które podpisy naprawdę się mieszczą.
+ * Które POZIOMY podpisów się mieszczą — w całości albo wcale.
  *
  * Progi rozmiaru i budżety były przybliżeniem tego, o co naprawdę chodzi: czy nazwy
  * NACHODZĄ NA SIEBIE. Przy jednym przedmiocie siedem kategorii leży daleko od siebie
  * i wszystkie nazwy da się przeczytać nawet z daleka; w gęstwinie dziesięć kategorii
- * skupionych wokół jednego węzła zlepia się w nieczytelną plamę przy tym samym
- * przybliżeniu. Żaden próg zoomu tego nie rozróżni, a zwykłe sprawdzenie prostokątów —
- * tak, i przy okazji samo się reguluje: im więcej miejsca, tym więcej nazw.
+ * skupionych wokół jednego węzła zlepia się w plamę przy tym samym przybliżeniu.
  *
- * Kolejność ma znaczenie: pierwszeństwo dostaje to, co grubsze w hierarchii (i to, co
- * człowiek właśnie wskazał), więc w tłoku zostaje szkielet, a nie przypadkowy plik.
+ * Decyzja zapada jednak dla CAŁEGO POZIOMU naraz, nie dla pojedynczej nazwy. Podpisanie
+ * części przedmiotów, a części nie, wygląda na usterkę i każe zgadywać, czemu akurat te —
+ * a odpowiedź „bo tamtym zabrakło miejsca" nic nie znaczy dla czytającego. Poziom wchodzi
+ * w całości albo wcale, od najgrubszego: semestry, potem przedmioty, potem kategorie,
+ * na końcu pliki.
  */
-export function placeLabels<T extends LabelBox>(items: T[], gap = 2): T[] {
+export function placeLabelsByLevel<T extends LabelBox>(levels: T[][], gap = 2): T[] {
   const placed: T[] = []
-  for (const item of [...items].sort((a, b) => b.priority - a.priority)) {
-    const collides = placed.some(
-      (other) =>
-        item.x < other.x + other.w + gap &&
-        item.x + item.w + gap > other.x &&
-        item.y < other.y + other.h + gap &&
-        item.y + item.h + gap > other.y,
+  const hits = (a: LabelBox, b: LabelBox): boolean =>
+    a.x < b.x + b.w + gap &&
+    a.x + a.w + gap > b.x &&
+    a.y < b.y + b.h + gap &&
+    a.y + a.h + gap > b.y
+
+  for (const level of [...levels].sort(
+    (a, b) => (b[0]?.priority ?? 0) - (a[0]?.priority ?? 0),
+  )) {
+    if (level.length === 0) continue
+    const fits = level.every(
+      (item, index) =>
+        !placed.some((other) => hits(item, other)) &&
+        !level.some((other, otherIndex) => otherIndex !== index && hits(item, other)),
     )
-    if (!collides) placed.push(item)
+    if (fits) placed.push(...level)
   }
   return placed
 }

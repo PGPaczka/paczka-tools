@@ -323,12 +323,20 @@ Wybór kategorii odsłania jej pliki — 147 egzaminów AKO zamiast 2,5 tysiąca
 przedmioty, przedmiot → kategorie) nie podlegają cięciu długości ani poziomowi szczegółu:
 jest ich kilkanaście, a to one mówią, z czego składa się to, na co patrzysz. Same kontenery
 rysują się na wierzchu, z poświatą i nie schodzą poniżej sześciu pikseli. Podpisy rozstrzyga jedno
-pytanie: **czy się mieszczą**. Nazwy są mierzone przed rysowaniem i układane w kolejności
-ważności (semestr → przedmiot → kategoria → plik, a wskazany węzeł przed wszystkim);
-ta, która nachodziłaby na już położoną, odpada. Dzięki temu przy wybranym jednym
-przedmiocie widać wszystkie siedem kategorii nawet przy pełnym oddaleniu — leżą daleko od
-siebie — a w gęstwinie przedmiotów te same nazwy milkną i wracają dopiero przy
-przybliżeniu, gdy jest dla nich miejsce. Przedmiot podpisany jest **skrótem** (`AKO`), nie pełną nazwą —
+pytanie: **czy cały poziom się mieści**. Nazwy są mierzone przed rysowaniem i wchodzą
+poziomami, od najgrubszego (semestry → przedmioty → kategorie → pliki); jeśli choć jedna
+nazwa z poziomu nachodziłaby na inną, milknie cały poziom. Podpisanie części przedmiotów,
+a części nie, wygląda na usterkę i każe zgadywać, czemu akurat tych. Dzięki temu przy
+wybranym jednym przedmiocie widać wszystkie siedem kategorii nawet przy pełnym oddaleniu
+(leżą daleko od siebie), a w gęstwinie przedmiotów ten poziom milknie w całości i wraca
+przy przybliżeniu.
+
+**Układ trzyma się hierarchii, nie rodzaju materiału.** Węzeł ciąży do swojego rodzica
+(`belongs_to`), a nie do pola `category` — to ostatnie u pliku znaczy „egzamin",
+„laboratoria" i jest wspólne dla całej paczki, więc kotwiczenie po nim ściągało egzaminy
+dziesięciu różnych przedmiotów w jedno miejsce i graf wyglądał na wymieszany, choć między
+tymi plikami nie ma ani jednej krawędzi. Przy wielu skupiskach kotwice rozkładają się po
+tarczy (słonecznik), a nie po jednym okręgu, żeby gęstość została stała. Przedmiot podpisany jest **skrótem** (`AKO`), nie pełną nazwą —
 ta zostaje w aliasach i w panelu szczegółów. Podpisy rysowane są w przestrzeni ekranu, więc nie kurczą się razem
 z grafem (wcześniej przy widoku całej paczki miały pół piksela i po prostu znikały).
 

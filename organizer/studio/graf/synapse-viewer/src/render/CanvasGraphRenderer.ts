@@ -9,7 +9,7 @@ import {
   detailLevel,
   discInBounds,
   maxEdgePx,
-  placeLabels,
+  placeLabelsByLevel,
   renderScale,
   segmentOffscreen,
   shouldLabel,
@@ -940,8 +940,18 @@ export class CanvasGraphRenderer implements IGraphRenderer {
         return { label, fontSize, x: sx - w / 2, y: sy, w, h, priority: label.priority }
       })
 
+      // Grupujemy po poziomie hierarchii: wskazany węzeł osobno (zawsze wchodzi),
+      // potem semestry, przedmioty, kategorie, pliki — każdy w całości albo wcale.
+      const byLevel = new Map<number, typeof boxes>()
+      for (const box of boxes) {
+        const level = box.priority
+        const group = byLevel.get(level)
+        if (group === undefined) byLevel.set(level, [box])
+        else group.push(box)
+      }
+
       font = ''
-      for (const box of placeLabels(boxes)) {
+      for (const box of placeLabelsByLevel([...byLevel.values()])) {
         const wanted =
           `${box.label.bold ? 700 : 500} ${box.fontSize}px Inter, system-ui, sans-serif`
         if (wanted !== font) {

@@ -111,9 +111,25 @@
       const shown = current.nodes.filter((n) => showAll || visibleIds.has(n.id))
       const shownIds = new Set(shown.map((n) => n.id))
 
+      // Do czego ciąży węzeł: do swojego RODZICA w hierarchii, a nie do rodzaju treści.
+      // Bez tego egzaminy dziesięciu różnych przedmiotów lądowały w jednym skupisku —
+      // bo `category` pliku to `egzamin`, wspólne dla całej paczki.
+      const parentOf = new Map<string, string>()
+      for (const edge of current.edges) {
+        if ((edge.kind ?? 'link') === 'belongs_to') parentOf.set(edge.source, edge.target)
+      }
+      const anchorOf = (id: string, fallback: string): string => {
+        const parent = parentOf.get(id)
+        if (parent !== undefined) return parent
+        // Kontener najwyższego poziomu kotwiczy sam na sobie; vault bez hierarchii
+        // zachowuje stare zachowanie — kotwicą jest kategoria.
+        return parentOf.size > 0 ? id : fallback
+      }
+
       simNodes = shown.map((n) => ({
         id: n.id,
         category: n.kind === 'real' ? n.category : 'Ghost',
+        anchor: anchorOf(n.id, n.kind === 'real' ? n.category : 'Ghost'),
         level: n.kind === 'real' ? n.level : null,
       }))
       const simLinks: SimLink[] = current.edges
@@ -125,7 +141,7 @@
       const catSet = new Set<string>()
       const catOrder: string[] = []
       for (const n of simNodes) {
-        if (!catSet.has(n.category)) { catSet.add(n.category); catOrder.push(n.category) }
+        if (!catSet.has(n.anchor)) { catSet.add(n.anchor); catOrder.push(n.anchor) }
       }
       const anchorMap = categoryAnchors(catOrder, cssW, cssH, 0, 0)
 
@@ -135,7 +151,7 @@
           n.x = previous.x
           n.y = previous.y
         } else {
-          const a = anchorMap.get(n.category) ?? { x: 0, y: 0 }
+          const a = anchorMap.get(n.anchor) ?? { x: 0, y: 0 }
           const angle = frac(n.id) * Math.PI * 2
           const r = 25 + frac(n.id + '~') * 55
           n.x = a.x + Math.cos(angle) * r

@@ -4,7 +4,7 @@ import {
   adaptRenderScale,
   containerRadius,
   detailLevel,
-  placeLabels,
+  placeLabelsByLevel,
   discInBounds,
   maxEdgePx,
   renderScale,
@@ -156,33 +156,43 @@ describe('rozmiar kontenera', () => {
   })
 })
 
-describe('układanie podpisów', () => {
+describe('układanie podpisów poziomami', () => {
   const box = (x: number, y: number, priority: number, id: string) =>
     ({ x, y, w: 100, h: 16, priority, id })
 
-  it('gdy jest miejsce, mieszczą się wszystkie', () => {
-    const wynik = placeLabels([box(0, 0, 1, 'a'), box(0, 200, 1, 'b')])
+  it('gdy poziom się mieści, wchodzi w całości', () => {
+    const przedmioty = [box(0, 0, 1.7, 'a'), box(0, 200, 1.7, 'b')]
 
-    expect(wynik).toHaveLength(2)
+    expect(placeLabelsByLevel([przedmioty])).toHaveLength(2)
   })
 
-  it('przy nachodzeniu wygrywa grubszy poziom hierarchii', () => {
-    // Dokładnie ten przypadek ze zrzutu: nazwy kategorii zlepione wokół przedmiotu.
-    const wynik = placeLabels([box(10, 0, 1.3, 'kategoria'), box(0, 0, 1.7, 'przedmiot')])
+  it('gdy choć jedna nazwa nie ma miejsca, milknie CAŁY poziom', () => {
+    // Podpisanie części przedmiotów, a części nie, wygląda na usterkę i każe zgadywać,
+    // czemu akurat te (zgłoszone z ręki 2026-09-23).
+    const przedmioty = [box(0, 0, 1.7, 'a'), box(10, 0, 1.7, 'b'), box(0, 300, 1.7, 'c')]
 
-    expect(wynik.map((i) => i.id)).toEqual(['przedmiot'])
+    expect(placeLabelsByLevel([przedmioty])).toEqual([])
   })
 
-  it('kolejność nie zależy od tego, w jakiej przyszły', () => {
-    const rosnaco = placeLabels([box(0, 0, 1.3, 'kategoria'), box(10, 0, 2.2, 'semestr')])
-    const malejaco = placeLabels([box(10, 0, 2.2, 'semestr'), box(0, 0, 1.3, 'kategoria')])
+  it('grubszy poziom wchodzi pierwszy i blokuje drobniejszy', () => {
+    const semestry = [box(0, 0, 2.2, 'sem')]
+    const kategorie = [box(10, 0, 1.3, 'kat')]
 
-    expect(rosnaco.map((i) => i.id)).toEqual(malejaco.map((i) => i.id))
+    expect(placeLabelsByLevel([kategorie, semestry]).map((i) => i.id)).toEqual(['sem'])
   })
 
-  it('odstęp liczy się do sąsiada, nie tylko do jego ramki', () => {
-    const stykajace = placeLabels([box(0, 0, 1, 'a'), box(101, 0, 1, 'b')], 4)
+  it('drobniejszy poziom wchodzi, gdy nie koliduje z grubszym', () => {
+    const semestry = [box(0, 0, 2.2, 'sem')]
+    const kategorie = [box(0, 300, 1.3, 'kat')]
 
-    expect(stykajace).toHaveLength(1)
+    expect(placeLabelsByLevel([kategorie, semestry])).toHaveLength(2)
+  })
+
+  it('kolejność wejścia nie zmienia wyniku', () => {
+    const a = [box(0, 0, 2.2, 'sem')]
+    const b = [box(10, 0, 1.7, 'przedmiot')]
+
+    expect(placeLabelsByLevel([a, b]).map((i) => i.id))
+      .toEqual(placeLabelsByLevel([b, a]).map((i) => i.id))
   })
 })

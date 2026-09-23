@@ -55,10 +55,13 @@ An unresolved relation target becomes a ghost node, exactly like a dangling wiki
 - Frontmatter key names are configurable (`Configuration/generator.config.json`), so a vault
   is never forced to rename its fields.
 
-## Known-failing tests (pre-existing, unrelated to the integration work)
+## Known-failing tests
 
-`synapse-viewer`: `src/domain/graph/categoryAnchors.test.ts` (3) and
-`src/render/Viewport.test.ts` (1).
+None — the suite is green as of 2026-09-23. The four that used to fail
+(`categoryAnchors` ×3, `Viewport` ×1) were **stale expectations, not broken code**: they
+called `categoryAnchors` without a centre while expecting the viewport centre, and the
+`fitView` floor had been lowered for large vaults. Both were rewritten against what the
+code actually does.
 
 ## Who else generates vaults for this
 

@@ -12,6 +12,17 @@ import { categoryAnchors } from './categoryAnchors'
 export interface SimNode extends SimulationNodeDatum {
   id: string
   category: string
+  /**
+   * Do czego ten węzeł ciąży w układzie.
+   *
+   * NIE jest to `category`: w paczce kursów kategoria pliku to rodzaj materiału
+   * (`egzamin`, `laboratoria`), wspólny dla wszystkich przedmiotów — więc kotwiczenie po
+   * niej ściągało egzaminy z dziesięciu różnych przedmiotów w jedno miejsce i graf
+   * wyglądał na wymieszany, choć między tymi plikami nie ma ani jednej krawędzi.
+   * Właściwą odpowiedzią jest RODZIC w hierarchii (`belongs_to`), a gdy vault jej nie ma —
+   * kategoria, tak jak dotąd.
+   */
+  anchor: string
   level: number | null
 }
 
@@ -66,9 +77,9 @@ export function createSimulation(
   const catSet = new Set<string>()
   const catOrder: string[] = []
   for (const node of nodes) {
-    if (!catSet.has(node.category)) {
-      catSet.add(node.category)
-      catOrder.push(node.category)
+    if (!catSet.has(node.anchor)) {
+      catSet.add(node.anchor)
+      catOrder.push(node.anchor)
     }
   }
 
@@ -90,7 +101,7 @@ export function createSimulation(
     for (const node of simNodes) {
       // Honour fixed positions (e.g. user-dragged nodes)
       if (node.fx != null) continue
-      const anchor = anchors.get(node.category)
+      const anchor = anchors.get(node.anchor)
       if (!anchor) continue
       node.vx = (node.vx ?? 0) + (anchor.x - (node.x ?? 0)) * 0.0085 * alpha
       node.vy = (node.vy ?? 0) + (anchor.y - (node.y ?? 0)) * 0.0085 * alpha
