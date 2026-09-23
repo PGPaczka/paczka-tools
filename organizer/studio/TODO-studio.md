@@ -405,6 +405,22 @@ Przy okazji **cztery czerwone testy viewera zgasły**: `categoryAnchors` (3) i `
 (1) sprawdzały nieaktualne oczekiwania — wołały funkcję bez środka układu, oczekując
 środka ekranu, i pilnowały starej podłogi dopasowania. Suite viewera jest zielony.
 
+## Kotwice zagnieżdżone w hierarchii (2026-09-23)
+
+Poprzednia poprawka („kotwicz po rodzicu, nie po kategorii") rozdzieliła przedmioty,
+ale zrobiła to w pół drogi: kotwice dostawały SLOTY na jednej tarczy, w kolejności
+napotkania. Kategoria AKO lądowała więc w losowym miejscu — daleko od samego AKO —
+i jej szprycha przecinała pół grafu. Zgłoszone z drugiego ekranu: „podkategorie są
+wystrzelone w kosmos daleko od przedmiotu".
+
+Teraz pozycje kotwic liczy `hierarchyAnchors`: semestry wokół środka, przedmioty wokół
+swojego semestru, kategorie wokół swojego przedmiotu, pliki przy swojej kategorii. Łuk
+dziecka jest proporcjonalny do jego wagi (liczby potomków), więc duży przedmiot dostaje
+tyle miejsca, ile zajmuje. Vault bez hierarchii dalej używa `categoryAnchors`.
+
+Wniosek: „kotwicz po rodzicu" było dobrą regułą z niedokończoną implementacją — klucz
+kotwicy ma sens tylko razem z jej POZYCJĄ liczoną względem rodzica.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

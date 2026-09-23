@@ -5,6 +5,7 @@
   import { createSimulation } from '../../domain/graph/forceSimulation'
   import type { SimNode, SimLink } from '../../domain/graph/forceSimulation'
   import { categoryAnchors } from '../../domain/graph/categoryAnchors'
+  import { hierarchyAnchors } from '../../domain/graph/hierarchyAnchors'
   import { graph, visibleNodeIds, filters } from '../../stores/graphStore'
   import { selectedId, hoveredId } from '../../stores/selectionStore'
   import { minimapPositions, minimapViewport } from '../../stores/minimapStore'
@@ -111,19 +112,21 @@
       const shown = current.nodes.filter((n) => showAll || visibleIds.has(n.id))
       const shownIds = new Set(shown.map((n) => n.id))
 
-      // Do czego ciąży węzeł: do swojego RODZICA w hierarchii, a nie do rodzaju treści.
-      // Bez tego egzaminy dziesięciu różnych przedmiotów lądowały w jednym skupisku —
-      // bo `category` pliku to `egzamin`, wspólne dla całej paczki.
+      // Do czego ciąży węzeł: do swojego miejsca w HIERARCHII, a nie do rodzaju treści.
+      // `category` pliku to `egzamin` — wspólne dla całej paczki — więc kotwiczenie po
+      // nim ściągało egzaminy dziesięciu przedmiotów w jedno skupisko.
       const parentOf = new Map<string, string>()
       for (const edge of current.edges) {
         if ((edge.kind ?? 'link') === 'belongs_to') parentOf.set(edge.source, edge.target)
       }
+      const hasHierarchy = parentOf.size > 0
+      // Kontener to węzeł, który coś trzyma. Plik kotwiczy przy swoim rodzicu,
+      // kontener — na własnej pozycji, policzonej względem RODZICA.
+      const containers = new Set(parentOf.values())
       const anchorOf = (id: string, fallback: string): string => {
-        const parent = parentOf.get(id)
-        if (parent !== undefined) return parent
-        // Kontener najwyższego poziomu kotwiczy sam na sobie; vault bez hierarchii
-        // zachowuje stare zachowanie — kotwicą jest kategoria.
-        return parentOf.size > 0 ? id : fallback
+        if (!hasHierarchy) return fallback
+        if (containers.has(id)) return id
+        return parentOf.get(id) ?? id
       }
 
       simNodes = shown.map((n) => ({
@@ -138,12 +141,37 @@
 
       // Pre-seed node positions at category anchor locations so nodes start near their
       // natural resting places, avoiding d3's tangled phyllotaxis cluster near (0,0).
-      const catSet = new Set<string>()
-      const catOrder: string[] = []
-      for (const n of simNodes) {
-        if (!catSet.has(n.anchor)) { catSet.add(n.anchor); catOrder.push(n.anchor) }
+      let anchorMap: Map<string, { x: number; y: number }>
+      if (hasHierarchy) {
+        // Waga kontenera to liczba węzłów, które pod nim wiszą — po niej dzieli się
+        // łuk między rodzeństwo, żeby przedmiot z 2,5 tys. plików nie stał ramię
+        // w ramię z takim, który ma dwanaście.
+        const weight = new Map<string, number>()
+        for (const n of simNodes) {
+          let at: string | undefined = parentOf.get(n.id)
+          const seen = new Set<string>([n.id])
+          while (at !== undefined && !seen.has(at)) {
+            weight.set(at, (weight.get(at) ?? 0) + 1)
+            seen.add(at)
+            at = parentOf.get(at)
+          }
+        }
+        const anchorNodes = [...containers]
+          .filter((id) => shownIds.has(id))
+          .map((id) => ({
+            id,
+            parent: parentOf.get(id) ?? null,
+            weight: weight.get(id) ?? 1,
+          }))
+        anchorMap = hierarchyAnchors(anchorNodes)
+      } else {
+        const catSet = new Set<string>()
+        const catOrder: string[] = []
+        for (const n of simNodes) {
+          if (!catSet.has(n.anchor)) { catSet.add(n.anchor); catOrder.push(n.anchor) }
+        }
+        anchorMap = categoryAnchors(catOrder, cssW, cssH, 0, 0)
       }
-      const anchorMap = categoryAnchors(catOrder, cssW, cssH, 0, 0)
 
       simNodes.forEach((n) => {
         const previous = positions.get(n.id)
@@ -173,7 +201,7 @@
         cssH,
         get(settings).repulsion,
         get(settings).linkDist,
-        (newPositions, alpha) => {
+        (newPositions: Map<string, { x: number; y: number }>, alpha: number) => {
           positions = newPositions
           syncPositions(positions)
           // Układanie trwa dziesiątki tyknięć, a oko i tak nie zobaczy różnicy między
@@ -207,6 +235,7 @@
           renderer?.scheduleRender()
           if (!userHasMoved) renderer?.fitToNodes()
         },
+        anchorMap,
       )
     }
 

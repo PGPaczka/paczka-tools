@@ -72,6 +72,13 @@ export function createSimulation(
   linkDist: number,
   onTick: (positions: Map<string, { x: number; y: number }>, alpha: number) => void,
   onEnd?: () => void,
+  /**
+   * Gotowe pozycje kotwic (klucz `SimNode.anchor` → punkt). Gdy ich nie ma, kotwice
+   * liczy `categoryAnchors` jak dotąd — czyli vault bez hierarchii zachowuje się jak
+   * przedtem. Z hierarchią pozycje muszą przyjść z ZEWNĄTRZ, bo tylko tam wiadomo,
+   * że kategoria ma stać przy swoim przedmiocie, a nie w dowolnym wolnym slocie.
+   */
+  anchorPositions?: Map<string, { x: number; y: number }>,
 ) {
   // Gather unique categories in encounter order (first-seen determines angle slot)
   const catSet = new Set<string>()
@@ -86,7 +93,7 @@ export function createSimulation(
   // Anchors centred at world-origin (0,0); forceCenter also targets (0,0).
   // The viewport is offset so the canvas centre sits at world (0,0), keeping
   // world-space coordinates small and viewport-independent.
-  const anchors = categoryAnchors(catOrder, vw, vh, 0, 0)
+  const anchors = anchorPositions ?? categoryAnchors(catOrder, vw, vh, 0, 0)
 
   // Use the caller's nodes directly so d3's in-place mutations (x, y, vx, vy, fx, fy)
   // are visible on the same objects the caller holds — essential for drag to work.

@@ -331,8 +331,12 @@ wybranym jednym przedmiocie widać wszystkie siedem kategorii nawet przy pełnym
 (leżą daleko od siebie), a w gęstwinie przedmiotów ten poziom milknie w całości i wraca
 przy przybliżeniu.
 
-**Układ trzyma się hierarchii, nie rodzaju materiału.** Węzeł ciąży do swojego rodzica
-(`belongs_to`), a nie do pola `category` — to ostatnie u pliku znaczy „egzamin",
+**Układ trzyma się hierarchii, nie rodzaju materiału.** Kotwice są ZAGNIEŻDŻONE:
+semestry rozkładają się wokół środka, przedmioty wokół swojego semestru, kategorie wokół
+swojego przedmiotu, a pliki przy swojej kategorii. Łuk przypadający dziecku jest
+proporcjonalny do tego, ile ono trzyma, więc przedmiot z 2,5 tys. plików nie stoi ramię
+w ramię z takim, który ma dwanaście. Węzeł ciąży więc do swojego miejsca w drzewie,
+a nie do pola `category` — to ostatnie u pliku znaczy „egzamin",
 „laboratoria" i jest wspólne dla całej paczki, więc kotwiczenie po nim ściągało egzaminy
 dziesięciu różnych przedmiotów w jedno miejsce i graf wyglądał na wymieszany, choć między
 tymi plikami nie ma ani jednej krawędzi. Przy wielu skupiskach kotwice rozkładają się po
