@@ -7,8 +7,10 @@ import {
   adaptRenderScale,
   detailLevel,
   discInBounds,
+  maxEdgePx,
   renderScale,
   segmentOffscreen,
+  shouldLabel,
   visibleWorldBounds,
 } from './lod'
 import type { IGraphRenderer, RendererOptions, NodePosition, RenderStats } from './IGraphRenderer'
@@ -24,8 +26,6 @@ const GRAY = '#7d8590'
 const LABEL_BG = 'rgba(13,17,23,0.82)'
 const LABEL_COLOR = '#e6edf3'
 const LABEL_COLOR_DIM = '#6e7681'
-/** Above this many visible nodes, only big or pointed-at nodes keep their label. */
-const LABEL_DENSITY_LIMIT = 400
 /** Largest radius any node can take — the zoom test for detail is made against it. */
 const MAX_NODE_RADIUS = (9 + 3 * 2.2) * 1.9
 
@@ -103,6 +103,8 @@ export class CanvasGraphRenderer implements IGraphRenderer {
   private lastFrameAt = 0
   /** Bieżąca gęstość rysowania — dostrajana do tego, co urządzenie wyrabia. */
   private currentDpr = 0
+  /** Jedno dodatkowe rysowanie po uspokojeniu, żeby obraz wrócił do pełnej ostrości. */
+  private sharpenTimer: ReturnType<typeof setTimeout> | null = null
 
   getStats(): RenderStats {
     return { ...this.stats }
@@ -204,6 +206,10 @@ export class CanvasGraphRenderer implements IGraphRenderer {
       this.canvas.removeEventListener('touchmove', this.onTouchMove)
       this.canvas.removeEventListener('touchend', this.onTouchEnd)
       this.canvas.removeEventListener('touchcancel', this.onTouchEnd)
+    }
+    if (this.sharpenTimer !== null) {
+      clearTimeout(this.sharpenTimer)
+      this.sharpenTimer = null
     }
     this.options = null
     this.canvas = null
@@ -579,6 +585,18 @@ export class CanvasGraphRenderer implements IGraphRenderer {
     const bounds = visibleWorldBounds(tx, ty, scale, cssW, cssH)
     const detail = detailLevel(scale, MAX_NODE_RADIUS)
 
+    // Ile węzłów jest NA EKRANIE — nie ile przepuścił filtr. Po tej liczbie idą dwie
+    // decyzje: czy rysować krawędzie uciekające poza ekran i czy starczy miejsca na
+    // etykiety. Licząc po filtrze, przedmiot z 2,5 tys. plików był „gęsty" zawsze,
+    // także wtedy, gdy na ekranie widać trzysta węzłów z nazwami do przeczytania.
+    const onScreen = new Set<string>()
+    for (const p of positions) {
+      if (visibleIds.has(p.id) && discInBounds(bounds, p.x, p.y, MAX_NODE_RADIUS)) {
+        onScreen.add(p.id)
+      }
+    }
+    const edgeLimitPx = maxEdgePx(detail.richNodes, cssW, cssH)
+
     // --- Draw edges ---
     // Batched by appearance: one path per (colour, dash, width) instead of one path,
     // one state change and one stroke per edge. At subject scope that is ~2500 strokes
@@ -600,6 +618,7 @@ export class CanvasGraphRenderer implements IGraphRenderer {
       const tgt = posMap.get(edge.target)
       if (!src || !tgt) continue
       if (segmentOffscreen(bounds, src.x, src.y, tgt.x, tgt.y)) continue
+      if (Math.hypot(tgt.x - src.x, tgt.y - src.y) * scale > edgeLimitPx) continue
 
       // Highlight only edges where the focused node is a direct endpoint.
       // Cross-edges between neighbours would misleadingly look like those neighbours are also focused.
@@ -665,6 +684,9 @@ export class CanvasGraphRenderer implements IGraphRenderer {
     // secondary stroke all land on the same pixel — so nodes are collected by colour
     // and drawn as one path each. Two and a half thousand fills become a handful.
     const dots = new Map<string, number[]>()
+    const labels: {
+      x: number; y: number; text: string; focused: boolean; bold: boolean; dimmed: boolean
+    }[] = []
     let nodesDrawn = 0
 
     for (const node of drawOrder.concat(onTop)) {
@@ -799,47 +821,18 @@ export class CanvasGraphRenderer implements IGraphRenderer {
       ctx.restore()
 
       // --- Labels ---
-      if (node.kind === 'real' && isVisible) {
-        const r = nodeRadius(node.level, node.type)
-        // Prototype rule: show label when r>11 OR hovered OR selected OR nothing focused
-        // Level of detail: with thousands of visible nodes, labels turn into a grey mat
-        // and cost a text measurement each. Keep them for the big nodes (the skeleton)
-        // and for whatever the reader is pointing at.
-        const dense = visibleIds.size > LABEL_DENSITY_LIMIT
-        const showLabel = dense
-          ? r > 14 || isHovered || isSelected
-          : r > 11 || isHovered || isSelected || !hasFocus
-        if (!showLabel) continue
-
-        const isDimmed = hasFocus && !adjacent.has(node.id)
-        const fontSize = isHovered || isSelected ? 12 : 10.5
-        const label = node.title
-
-        ctx.save()
-        ctx.font = `${isSelected ? 700 : 500} ${fontSize}px Inter, system-ui, sans-serif`
-        ctx.textAlign = 'center'
-        ctx.textBaseline = 'top'
-
-        const textW = ctx.measureText(label).width
-        const padH = 5
-        const padV = 3
-        const boxW = textW + padH * 2
-        const boxH = fontSize + padV * 2
-        const bx = pos.x - boxW / 2
-        const by = pos.y + r + 5
-
-        // Background pill
-        ctx.globalAlpha = isDimmed ? 0 : 0.82
-        ctx.fillStyle = LABEL_BG
-        ctx.beginPath()
-        ctx.roundRect(bx, by, boxW, boxH, 4)
-        ctx.fill()
-
-        // Label text
-        ctx.globalAlpha = isDimmed ? 0.3 : 1
-        ctx.fillStyle = isDimmed ? LABEL_COLOR_DIM : LABEL_COLOR
-        ctx.fillText(label, pos.x, by + padV)
-        ctx.restore()
+      // Zbierane, nie rysowane od razu: ustawienie `ctx.font` jest jedną z droższych
+      // operacji kontekstu, a tak wystarczy raz na klatkę zamiast raz na etykietę.
+      // Przy okazji żadna etykieta nie chowa się pod węzłem narysowanym później.
+      if (node.kind === 'real' && isVisible && shouldLabel(radius * scale, onScreen.size, isHovered || isSelected)) {
+        labels.push({
+          x: pos.x,
+          y: pos.y + radius + 5,
+          text: node.title,
+          focused: isHovered || isSelected,
+          bold: isSelected,
+          dimmed: hasFocus && !adjacent.has(node.id),
+        })
       }
     }
 
@@ -858,6 +851,36 @@ export class CanvasGraphRenderer implements IGraphRenderer {
       ctx.fill()
     }
     ctx.globalAlpha = 1
+
+    // --- Labels, in one pass ---
+    if (labels.length > 0) {
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'top'
+      const padH = 5
+      const padV = 3
+      let font = ''
+      for (const label of labels) {
+        const fontSize = label.focused ? 12 : 10.5
+        const wanted = `${label.bold ? 700 : 500} ${fontSize}px Inter, system-ui, sans-serif`
+        if (wanted !== font) {
+          ctx.font = wanted
+          font = wanted
+        }
+        const boxW = ctx.measureText(label.text).width + padH * 2
+        const boxH = fontSize + padV * 2
+
+        ctx.globalAlpha = label.dimmed ? 0 : 0.82
+        ctx.fillStyle = LABEL_BG
+        ctx.beginPath()
+        ctx.roundRect(label.x - boxW / 2, label.y, boxW, boxH, 4)
+        ctx.fill()
+
+        ctx.globalAlpha = label.dimmed ? 0.3 : 1
+        ctx.fillStyle = label.dimmed ? LABEL_COLOR_DIM : LABEL_COLOR
+        ctx.fillText(label.text, label.x, label.y + padV)
+      }
+      ctx.globalAlpha = 1
+    }
 
     ctx.setTransform(1, 0, 0, 1, 0, 0)
 
@@ -881,6 +904,17 @@ export class CanvasGraphRenderer implements IGraphRenderer {
       renderDpr: dpr,
       deviceDpr,
       scale: Math.round(scale * 1000) / 1000,
+    }
+
+    // Obniżona gęstość to cena za ruch, nie trwałe pogorszenie: gdy ruch ustanie,
+    // rysujemy jeszcze raz w pełnej ostrości. Bez tego obraz zostawał rozmyty, bo po
+    // puszczeniu palca nic już nie zleca kolejnej klatki.
+    if (this.sharpenTimer !== null) clearTimeout(this.sharpenTimer)
+    if (dpr < renderScale(deviceDpr)) {
+      this.sharpenTimer = setTimeout(() => {
+        this.sharpenTimer = null
+        this.scheduleRender()
+      }, 650)
     }
 
     this.options.onViewportChange?.({

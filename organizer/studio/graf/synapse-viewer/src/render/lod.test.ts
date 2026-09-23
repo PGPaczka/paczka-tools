@@ -4,8 +4,10 @@ import {
   adaptRenderScale,
   detailLevel,
   discInBounds,
+  maxEdgePx,
   renderScale,
   segmentOffscreen,
+  shouldLabel,
   visibleWorldBounds,
 } from './lod'
 
@@ -90,5 +92,46 @@ describe('dostrajanie gęstości do urządzenia', () => {
     // Obniżona gęstość ma być ceną za ruch, nie trwałym pogorszeniem obrazu.
     expect(adaptRenderScale(1, 16, 3, true)).toBe(2)
     expect(adaptRenderScale(1, 16, 1, true)).toBe(1)
+  })
+})
+
+describe('etykiety', () => {
+  it('po przybliżeniu pliki dostają nazwy', () => {
+    // Sedno zgłoszenia: przy 359 węzłach na ekranie i promieniu 9 px nazw nie było,
+    // bo próg patrzył na 2565 węzłów przepuszczonych przez filtr, a nie na ekran.
+    expect(shouldLabel(9, 359, false)).toBe(true)
+  })
+
+  it('przy tłoku zostają tylko duże węzły — inaczej robi się szary dywan', () => {
+    expect(shouldLabel(9, 2565, false)).toBe(false)
+    expect(shouldLabel(20, 2565, false)).toBe(true)
+  })
+
+  it('węzeł wskazany palcem ma nazwę zawsze', () => {
+    expect(shouldLabel(1, 4000, true)).toBe(true)
+  })
+
+  it('kropka mniejsza od własnej etykiety jej nie dostaje', () => {
+    expect(shouldLabel(3, 50, false)).toBe(false)
+  })
+})
+
+describe('długie krawędzie', () => {
+  it('przy oddaleniu rysują się wszystkie — to one pokazują kształt całości', () => {
+    expect(maxEdgePx(false, 412, 915)).toBe(Number.POSITIVE_INFINITY)
+  })
+
+  it('po przybliżeniu odpada to, czego drugiego końca i tak nie widać', () => {
+    const limit = maxEdgePx(true, 412, 915)
+    const przekatna = Math.hypot(412, 915)
+
+    expect(limit).toBeGreaterThan(przekatna)
+    expect(limit).toBeLessThan(przekatna * 2)
+  })
+
+  it('bliska relacja między sąsiednimi plikami zostaje', () => {
+    // 200 px przy ekranie telefonu to dwa węzły obok siebie — dokładnie to, po co
+    // ktoś przybliża graf.
+    expect(200).toBeLessThan(maxEdgePx(true, 412, 915))
   })
 })

@@ -288,6 +288,25 @@ i jeden prostokąt. Z minimapy został **1 element DOM zamiast ~9800**.
 Wniosek, którego nie dało się wyczytać z kodu grafu: **mierz stronę, nie komponent.**
 Graf był szybki (3 ms), a dławił go sąsiad rysujący ten sam zbiór danych drugi raz.
 
+**Drugie zgłoszenie z Pixela — po przybliżeniu.** Odczyt z `?diag=1`: 359 węzłów na
+ekranie, ale **2564 krawędzie** i 6 kl./s. Układ jest gwiazdą: każdy plik ma szprychę do
+węzła przedmiotu, więc po przybliżeniu rysowały się tysiące linii długich na kilka
+ekranów — koszt był w ich RASTERYZACJI (miliony pikseli), nie w liczbie. Teraz przy
+przybliżeniu odpada to, czego drugiego końca i tak nie widać (dłuższe niż 1,5 przekątnej
+ekranu), a bliskie relacje między sąsiednimi plikami zostają. Zmierzone przy dławieniu
+CPU ×4 na ekranie telefonu: 6 → **16 kl./s**, przy 422 krawędziach zamiast 2564.
+
+Przy tym samym zgłoszeniu: **większość węzłów nie miała nazw**, bo próg gęstości liczył
+wszystkie węzły przepuszczone przez filtr (2565), a nie te na ekranie (359) — i przy
+przedmiocie z 2,5 tys. plików włączał się na zawsze. Teraz liczy ekran, a próg jest
+w pikselach: przybliżyłeś na tyle, że widać kółko — widzisz nazwę. Etykiety rysują się
+jednym przebiegiem z jednym ustawieniem fontu (to jedna z droższych operacji kontekstu)
+i żadna nie chowa się już pod węzłem narysowanym po niej.
+
+Do tego **doostrzenie po uspokojeniu**: obniżona gęstość pikseli wracała do pełnej
+dopiero przy następnym rysowaniu, a po puszczeniu palca nikt go nie zlecał — obraz
+zostawał rozmyty. Teraz po 650 ms ciszy leci jedna klatka w pełnej ostrości.
+
 Sprawdzone i **odrzucone**: nieprzezroczysty kontekst (`alpha: false`). Wygląda na
 darmową oszczędność, a wyszło 4 przerysowania/s zamiast 11 — zmiana cofnięta, komentarz
 w kodzie mówi dlaczego.

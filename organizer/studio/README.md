@@ -281,7 +281,11 @@ Zoom przeglądarki nie jest zamiennikiem: skaluje gotowy raster, czyli rozmazuje
 Przy dużym zakresie (np. przedmiot z 2,5 tys. plików) graf rysuje się **w takim
 szczególe, jaki widać**: węzeł mniejszy niż cztery piksele jest kropką, groty strzałek
 pojawiają się dopiero przy odpowiednim powiększeniu, krawędzie o tym samym wyglądzie idą
-jedną ścieżką, a to, co poza ekranem, nie jest rysowane wcale. Układanie grafu **ustępuje
+jedną ścieżką, a to, co poza ekranem, nie jest rysowane wcale. Po przybliżeniu odpadają
+też linie dłuższe niż półtorej przekątnej ekranu — ich drugiego końca i tak nie widać,
+a to one kosztują najwięcej (układ jest gwiazdą: każdy plik ma szprychę do przedmiotu).
+Nazwy węzłów pojawiają się wtedy, gdy węzeł jest dość duży na ekranie, a nie zależnie od
+tego, ile pozycji przepuścił filtr. Układanie grafu **ustępuje
 ręce** — dotknięcie płótna wstrzymuje symulację, puszczenie wznawia. Zmierzone przy
 dławieniu CPU ×4: liczba przerysowań grafu przy przesuwaniu 4,2 → 16,4 na sekundę, a układ,
 który wcześniej nie kończył się przez 45 s, staje w ~10 s. Minimapa rysuje się na canvasie

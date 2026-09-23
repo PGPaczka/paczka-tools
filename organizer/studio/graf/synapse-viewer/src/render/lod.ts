@@ -115,3 +115,41 @@ export function adaptRenderScale(
   if (medianFrameMs > SLOW_FRAME_MS) return Math.max(MIN_RENDER_DPR, current - 0.5)
   return Math.min(ceiling, current)
 }
+
+/**
+ * Ile etykiet naraz ma sens.
+ *
+ * Liczone po węzłach NA EKRANIE, nie po wszystkich, które przepuścił filtr — to była
+ * realna wada: przy przedmiocie z 2,5 tys. plików próg „gęsto" włączał się na zawsze,
+ * więc po przybliżeniu do pojedynczych plików żaden z nich nie miał nazwy, choć na
+ * ekranie było ich trzysta (zgłoszone z telefonu 2026-09-23).
+ */
+export const LABEL_BUDGET = 400
+/** Poniżej tylu pikseli promienia etykieta jest większa od węzła, który opisuje. */
+export const LABEL_MIN_RADIUS_PX = 4.5
+
+export function shouldLabel(
+  radiusPx: number, onScreenCount: number, focused: boolean,
+): boolean {
+  if (focused) return true
+  if (onScreenCount > LABEL_BUDGET) return radiusPx >= 14
+  return radiusPx >= LABEL_MIN_RADIUS_PX
+}
+
+/** Ile ekranów może mieć krawędź, zanim przestanie cokolwiek mówić. */
+export const MAX_EDGE_SCREENS = 1.5
+
+/**
+ * Najdłuższa krawędź, jaką warto narysować przy obecnym przybliżeniu (w pikselach).
+ *
+ * Przy oddaleniu bez ograniczeń: długie linie są wtedy kształtem całości i o to chodzi.
+ * Po przybliżeniu układ jest gwiazdą — każdy plik ma szprychę do węzła przedmiotu — więc
+ * na ekranie z trzystoma węzłami rysowało się dwa i pół tysiąca linii długich na kilka
+ * ekranów. Kosztowała ich RASTERYZACJA (miliony pikseli), nie liczba. Linia, której
+ * drugiego końca i tak nie widać, nie niesie żadnej informacji; bliska relacja między
+ * dwoma sąsiednimi plikami — owszem, i ta zostaje.
+ */
+export function maxEdgePx(richNodes: boolean, vw: number, vh: number): number {
+  if (!richNodes) return Number.POSITIVE_INFINITY
+  return Math.hypot(vw, vh) * MAX_EDGE_SCREENS
+}
