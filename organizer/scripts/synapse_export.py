@@ -34,6 +34,7 @@ from orglib import config, db
 from orglib.synapse_vault import (
     EDGE_BELONGS_TO,
     LEVEL_NEEDS_HUMAN,
+    NODE_CATEGORY,
     NODE_FILE,
     NODE_SEMESTER,
     NODE_SUBJECT,
@@ -47,6 +48,7 @@ from orglib.synapse_vault import (
     render_note,
     semester_id,
     slugify,
+    category_id,
     subject_id,
     subject_level,
     subject_status,
@@ -119,6 +121,10 @@ def build_notes(
     )
 
     # ── pliki ────────────────────────────────────────────────────────────────
+    #: Kategorie, które NAPRAWDĘ mają pliki — pusty węzeł byłby obietnicą bez pokrycia.
+    per_category: dict[tuple[int, str, str], dict[str, int]] = defaultdict(
+        lambda: {"files": 0, "ground_truth": 0, "planned": 0, "needs_review": 0}
+    )
     file_ids: dict[str, str] = {}
     file_notes: list[Note] = []
     for sha, decision in sorted(decisions.items()):
@@ -188,10 +194,16 @@ def build_notes(
             tags=tags,
             aliases=[filename] if filename != file_ids[sha] else [],
             modified=dates[-1] if dates else _date(decision["decided_at"]),
-            relations=[Relation(subject_ids[(semester, skrot)], EDGE_BELONGS_TO)],
+            relations=[Relation(
+                category_id(subject_ids[(semester, skrot)], category), EDGE_BELONGS_TO
+            )],
             body=body,
             folder=f"sem{semester}/{slugify(skrot, limit=16)}",
         ))
+        bucket = per_category[(semester, skrot, category)]
+        bucket["files"] += 1
+        bucket["ground_truth" if in_package else "planned"] += 1
+        bucket["needs_review"] += 1 if decision["needs_review"] else 0
 
     notes_by_id = {note.id: note for note in file_notes}
 
@@ -297,6 +309,48 @@ def build_notes(
             folder=f"sem{subject.semester}",
         ))
 
+    # ── kategorie (poziom między przedmiotem a plikami) ──────────────────────
+    # Czytelność: przedmiot pokazuje kilka skupisk zamiast tysięcy szprych, a nazwa
+    # skupiska od razu mówi, co w nim jest. Wydajność wychodzi przy okazji: pliki leżą
+    # przy swojej kategorii, więc krawędzie robią się krótkie i lokalne.
+    category_notes: list[Note] = []
+    for (semester, skrot, category), counts in sorted(per_category.items()):
+        key = (semester, skrot)
+        if key not in subject_ids:
+            continue
+        note_id = category_id(subject_ids[key], category)
+        aggregate = {
+            "ground_truth": counts["ground_truth"],
+            "planned": counts["planned"],
+            "needs_review": counts["needs_review"],
+        }
+        category_notes.append(Note(
+            id=note_id,
+            title=f"{category.replace('_', ' ').capitalize()} · {skrot}",
+            type=NODE_CATEGORY,
+            category=category,
+            level=subject_level(**aggregate),
+            status=subject_status(**aggregate),
+            # Te same tagi co pliki tej kategorii: wybór zakresu w grafie idzie po tagach,
+            # więc kategoria ma iść razem z materiałami, a nie zostawać sama.
+            tags=[
+                f"sem{semester}",
+                slugify(skrot, limit=16),
+                f"kategoria-{slugify(category, limit=20)}",
+            ],
+            aliases=[category],
+            relations=[Relation(subject_ids[key], EDGE_BELONGS_TO)],
+            body="\n".join([
+                f"**{category}** w przedmiocie `{skrot}` (semestr {semester}).",
+                "",
+                f"- Treści: **{counts['files']}**",
+                f"- W paczce (ground truth): **{counts['ground_truth']}**",
+                f"- Zaplanowane decyzje: **{counts['planned']}** "
+                f"(do obejrzenia: {counts['needs_review']})",
+            ]),
+            folder=f"sem{semester}/{slugify(skrot, limit=16)}",
+        ))
+
     semester_notes: list[Note] = []
     for semester in sorted(semesters):
         members = semesters[semester]
@@ -324,7 +378,7 @@ def build_notes(
             ]),
         ))
 
-    return dedupe_ids([*semester_notes, *subject_notes, *file_notes])
+    return dedupe_ids([*semester_notes, *subject_notes, *category_notes, *file_notes])
 
 
 def write_vault(notes: list[Note], root: Path, generated_at: str) -> dict[str, int]:

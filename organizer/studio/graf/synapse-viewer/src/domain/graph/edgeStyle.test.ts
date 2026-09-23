@@ -80,9 +80,12 @@ describe('presentEdgeKinds', () => {
 
 describe('presentNodeTypes', () => {
   it('orders a known hierarchy coarsest-first and ignores untyped notes', () => {
-    expect(presentNodeTypes(['file', undefined, 'semester', null, 'subject', 'file'])).toEqual([
+    expect(
+      presentNodeTypes(['file', undefined, 'semester', null, 'category', 'subject', 'file']),
+    ).toEqual([
       'semester',
       'subject',
+      'category',
       'file',
     ])
   })
@@ -95,7 +98,8 @@ describe('presentNodeTypes', () => {
 describe('nodeTypeScale', () => {
   it('makes containers bigger than what they contain', () => {
     expect(nodeTypeScale('semester')).toBeGreaterThan(nodeTypeScale('subject'))
-    expect(nodeTypeScale('subject')).toBeGreaterThan(nodeTypeScale('file'))
+    expect(nodeTypeScale('subject')).toBeGreaterThan(nodeTypeScale('category'))
+    expect(nodeTypeScale('category')).toBeGreaterThan(nodeTypeScale('file'))
     expect(nodeTypeScale(undefined)).toBe(nodeTypeScale('file'))
   })
 })

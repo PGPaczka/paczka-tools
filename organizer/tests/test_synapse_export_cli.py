@@ -81,12 +81,12 @@ def notes_of(root):
     return {p.stem: p for p in root.rglob("*.md")}
 
 
-def test_exports_the_three_level_hierarchy(workspace):
+def test_exports_the_four_level_hierarchy(workspace):
     result = runner.invoke(cli.app, [])
 
     assert result.exit_code == 0, result.output
     notes = notes_of(vault(workspace))
-    # 7 semestrów + 98 przedmiotów z katalogu + 3 treści z decyzją
+    # 7 semestrów + 98 przedmiotów z katalogu + kategorie + 3 treści z decyzją
     assert len([n for n in notes if n.startswith("sem") and "-" not in n]) == 7
     assert "sem3-ako" in notes
     files = [n for n in notes if n.startswith("ako-")]
@@ -95,6 +95,46 @@ def test_exports_the_three_level_hierarchy(workspace):
     head, _ = frontmatter(notes["sem3-ako"])
     assert 'type: "subject"' in head and 'category: "SEM3"' in head
     assert '  - target: "sem3"\n    kind: "belongs_to"' in head
+
+
+def test_files_hang_off_a_category_node_not_off_the_subject(workspace):
+    """Między przedmiotem a plikami stoi kategoria — decyzja użytkownika 2026-09-23.
+
+    Bez tego węzeł przedmiotu jest gwiazdą o dwóch i pół tysiącach szprych: nieczytelną
+    (nie widać, co jest czym) i kosztowną (każda szprycha biegnie przez pół grafu).
+    """
+    assert runner.invoke(cli.app, []).exit_code == 0
+    notes = notes_of(vault(workspace))
+
+    kategorie = {n for n in notes if n.startswith("sem3-ako-kat-")}
+    assert kategorie == {"sem3-ako-kat-egzamin", "sem3-ako-kat-kolokwia"}
+
+    head, _ = frontmatter(notes["sem3-ako-kat-kolokwia"])
+    assert 'type: "category"' in head and 'category: "kolokwia"' in head
+    assert '  - target: "sem3-ako"\n    kind: "belongs_to"' in head
+
+    plik = next(p for name, p in notes.items() if name.startswith("ako-") and "plik1" in name)
+    head, _ = frontmatter(plik)
+    assert '  - target: "sem3-ako-kat-kolokwia"\n    kind: "belongs_to"' in head
+    assert '"sem3-ako"' not in head, "plik wisi na kategorii, nie na przedmiocie"
+
+
+def test_category_note_carries_the_tags_that_select_it_with_its_files(workspace):
+    """Wybór zakresu w grafie działa na tagach — kategoria musi je nieść tak jak pliki."""
+    assert runner.invoke(cli.app, []).exit_code == 0
+    notes = notes_of(vault(workspace))
+
+    head, _ = frontmatter(notes["sem3-ako-kat-kolokwia"])
+
+    assert '"sem3"' in head and '"ako"' in head and '"kategoria-kolokwia"' in head
+
+
+def test_empty_categories_are_not_exported(workspace):
+    """Kategoria bez ani jednego pliku byłaby pustym węzłem — obietnicą bez pokrycia."""
+    assert runner.invoke(cli.app, []).exit_code == 0
+    notes = notes_of(vault(workspace))
+
+    assert "sem3-ako-kat-laboratoria" not in notes
 
 
 def test_subject_note_carries_the_same_tag_as_its_files(workspace):
@@ -125,7 +165,7 @@ def test_file_note_points_at_its_subject_and_carries_the_decision(workspace):
     head, text = frontmatter(note)
 
     assert 'type: "file"' in head and 'category: "kolokwia"' in head
-    assert '    kind: "belongs_to"' in head and '"sem3-ako"' in head
+    assert '    kind: "belongs_to"' in head and '"sem3-ako-kat-kolokwia"' in head
     assert "rok-2019" in head and "akcja-copy" in head
     assert "Decyzja: **copy**" in text and "Prowenancja" in text
 

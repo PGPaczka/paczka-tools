@@ -319,6 +319,37 @@ nie przesuwanie. I trzeci, najdroższy: **sprawdź, co właściwie liczy Twój l
 `requestAnimationFrame` tyka 60 razy na sekundę nawet wtedy, gdy graf nie przerysował się
 ani razu.
 
+## Kategoria jako poziom grafu (2026-09-23)
+
+Propozycja użytkownika: zamiast wszystkich plików wprost przy przedmiocie — `kolokwia`,
+`ćwiczenia`, `laboratoria`, `inne`, a pliki dopiero z nich. Trafiona w obie strony:
+
+- **czytelność**: przedmiot pokazuje siedem podpisanych skupisk zamiast dwóch i pół
+  tysiąca szprych, po których nie da się poznać, co jest czym;
+- **wydajność**: pliki leżą przy swojej kategorii, więc krawędzie są krótkie i lokalne,
+  a nie biegną przez pół grafu. Układanie przedmiotu skróciło się z 10 do 8 s (dławienie
+  CPU ×4), przesuwanie zostało na 16 przerysowaniach/s;
+- **nawigacja**: zakres w panelu filtrów ma teraz trzeci poziom, a wybór kategorii sam
+  odsłania pliki. „SEM3 → AKO → Egzamin" to 147 węzłów zamiast 2571.
+
+Zmiany: `NODE_CATEGORY` i `category_id` w `orglib/synapse_vault.py`, węzły kategorii
+w `scripts/synapse_export.py` (bez pustych), `presentNodeTypes`/`nodeTypeScale` w viewerze,
+kontrakt w `docs/SYNAPSE.md`.
+
+Przy okazji dwie rzeczy, które wyszły dopiero na realnych danych:
+
+- **tag tożsamości trzeba liczyć w obrębie RODZICA, nie całego poziomu.** „Kolokwia" ma
+  każdy przedmiot, więc reguła „tag unikalny wśród węzłów tego typu" dawała kategoriom
+  9 nazw na 127. W obrębie przedmiotu `kategoria-kolokwia` jest jednoznaczna. Ta sama
+  poprawka odzyskała 11 przedmiotów, których skrót powtarza się w innym semestrze;
+- **licznik przy opcji ma mówić, ile zobaczysz po kliknięciu.** „Egzamin · AKO · 303"
+  liczyło egzaminy całej paczki, a po wybraniu zostawało 148. Licznik niezgodny z tym,
+  co widać, jest gorszy niż jego brak.
+
+Do tego dolna granica „dopasuj widok" zrównana z granicą kółka (0,04): przedmiot z dwoma
+tysiącami plików nie mieścił się na ekranie telefonu przy 0,06, więc dopasowanie
+pokazywało wycinek i wyglądało na zepsute.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

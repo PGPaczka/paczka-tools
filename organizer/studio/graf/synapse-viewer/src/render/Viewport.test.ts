@@ -117,9 +117,10 @@ describe('Viewport', () => {
     it('scale clamped to the fit floor for a huge bbox', () => {
       // 10000×10000 world vs 800×600 viewport → unclamped << 0.4
       vp.fitView(0, 0, 10000, 10000)
-      // 0.06, nie 0.4: tyle trzeba, żeby paczka na cztery tysiące węzłów w ogóle
-      // zmieściła się na ekranie. Oczekiwanie 0.4 zostało z małego vaulta.
-      expect(vp.scale).toBeGreaterThanOrEqual(0.06)
+      // Tyle trzeba, żeby paczka na cztery tysiące węzłów w ogóle zmieściła się na
+      // ekranie — na telefonie nawet mniej. Oczekiwanie 0,4 zostało z małego vaulta.
+      expect(vp.scale).toBeGreaterThanOrEqual(0.04)
+      expect(vp.scale).toBeLessThan(0.1)
     })
 
     it('computes correct scale and translation for [100,100]→[300,300], vw=800, vh=600', () => {

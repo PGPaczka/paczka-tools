@@ -86,7 +86,10 @@ export class Viewport {
     const bw = bw0 + pad * 2
     const bh = bh0 + pad * 2
 
-    const sc = clamp(Math.min(this.vw / bw, this.vh / bh), 0.06, 1.35)
+    // Dolna granica ta sama co dla kółka (`MIN_SCALE`): przedmiot z dwoma tysiącami
+    // plików nie mieścił się na ekranie telefonu przy 0,06, więc „dopasuj widok"
+    // pokazywało wycinek i wyglądało na zepsute.
+    const sc = clamp(Math.min(this.vw / bw, this.vh / bh), MIN_SCALE, 1.35)
     const centerX = (minX + maxX) / 2
     const centerY = (minY + maxY) / 2
 

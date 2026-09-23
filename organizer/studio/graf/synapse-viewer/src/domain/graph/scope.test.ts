@@ -10,6 +10,20 @@ function node(id: string, type: string, tags: string[], title = id): RealNode {
   }
 }
 
+const VAULT_Z_KATEGORIAMI: RealNode[] = [
+  node('sem3', 'semester', ['semestr', 'sem3'], 'Semestr 3'),
+  node('sem7', 'semester', ['semestr', 'sem7'], 'Semestr 7'),
+  node('sem3-ako', 'subject', ['sem3', 'ako'], 'AKO'),
+  node('sem3-bd', 'subject', ['sem3', 'bd'], 'BD'),
+  node('sem7-ako', 'subject', ['sem7', 'ako'], 'AKO (sem 7)'),
+  node('sem3-ako-kat-kolokwia', 'category', ['sem3', 'ako', 'kategoria-kolokwia'], 'Kolokwia'),
+  node('sem3-ako-kat-laby', 'category', ['sem3', 'ako', 'kategoria-laby'], 'Laboratoria'),
+  node('sem3-bd-kat-kolokwia', 'category', ['sem3', 'bd', 'kategoria-kolokwia'], 'Kolokwia'),
+  node('ako-1', 'file', ['sem3', 'ako', 'kategoria-kolokwia']),
+  node('ako-2', 'file', ['sem3', 'ako', 'kategoria-laby']),
+  node('bd-1', 'file', ['sem3', 'bd', 'kategoria-kolokwia']),
+]
+
 const VAULT: RealNode[] = [
   node('sem3', 'semester', ['semestr', 'sem3'], 'Semestr 3'),
   node('sem4', 'semester', ['semestr', 'sem4'], 'Semestr 4'),
@@ -62,5 +76,52 @@ describe('zakres: semestr i przedmiot', () => {
     expect(
       scopeTagOf(node('x', 'subject', ['wspolny']), new Map([['wspolny', 3]]), new Set(), new Map()),
     ).toBeNull()
+  })
+})
+
+describe('zakres z poziomem kategorii', () => {
+  it('kategoria ma własny tag, choć „kolokwia" ma każdy przedmiot', () => {
+    // Rodzeństwem kategorii są kategorie TEGO przedmiotu, nie wszystkie w paczce.
+    const poziomy = scopeLevels(VAULT_Z_KATEGORIAMI)
+    const kategorie = poziomy.find((l) => l.type === 'category')!
+
+    expect(kategorie.options.map((o) => o.tag)).toEqual([
+      'kategoria-kolokwia', 'kategoria-kolokwia', 'kategoria-laby',
+    ])
+  })
+
+  it('schodzi się po kolei: semestr, przedmiot, kategoria', () => {
+    expect(scopeLevels(VAULT_Z_KATEGORIAMI).map((l) => l.type)).toEqual([
+      'semester', 'subject', 'category',
+    ])
+  })
+
+  it('przedmiot o skrócie powtórzonym w innym semestrze nadal jest zakresem', () => {
+    // Wcześniej odpadał: tag `ako` nosiły dwa przedmioty, więc reguła „unikalny w całym
+    // poziomie" odrzucała oba. W obrębie semestru jest jednoznaczny.
+    const przedmioty = scopeLevels(VAULT_Z_KATEGORIAMI).find((l) => l.type === 'subject')!
+
+    expect(przedmioty.options.filter((o) => o.tag === 'ako')).toHaveLength(2)
+  })
+
+  it('wybór kategorii zawęża się do wybranego przedmiotu', () => {
+    // Zawężaniem zajmuje się panel (po `tags`), tu sprawdzamy, że dane na to pozwalają.
+    const kategorie = scopeLevels(VAULT_Z_KATEGORIAMI).find((l) => l.type === 'category')!
+    const wAko = kategorie.options.filter((o) => o.tags.includes('ako'))
+
+    expect(wAko.map((o) => o.label)).toEqual(['Kolokwia', 'Laboratoria'])
+  })
+})
+
+describe('liczby przy opcjach', () => {
+  it('mówią, ile zobaczysz po kliknięciu — nie ile jest w całej paczce', () => {
+    // „Egzamin" przy AKO pokazywał 303 (wszystkie egzaminy paczki), a po wybraniu
+    // zostawało 148. Licznik niezgodny z tym, co widać, jest gorszy niż jego brak.
+    const kategorie = scopeLevels(VAULT_Z_KATEGORIAMI).find((l) => l.type === 'category')!
+    const kolokwiaAko = kategorie.options.find(
+      (o) => o.tags.includes('ako') && o.label === 'Kolokwia',
+    )!
+
+    expect(kolokwiaAko.count).toBe(1)
   })
 })

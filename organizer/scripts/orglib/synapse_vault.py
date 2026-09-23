@@ -31,6 +31,10 @@ from typing import Any, Iterable, Mapping, Sequence
 #: Typy węzłów, których używa ten vault (pole `type`; generator nie narzuca słownika).
 NODE_SEMESTER = "semester"
 NODE_SUBJECT = "subject"
+#: Kategoria materiału (kolokwia, laboratoria, wykład…) jako węzeł POŚREDNI między
+#: przedmiotem a plikami. Bez niej przedmiot jest gwiazdą o tysiącach szprych: nie widać
+#: w niej, co jest czym, a każda szprycha biegnie przez pół grafu.
+NODE_CATEGORY = "category"
 NODE_FILE = "file"
 
 #: Rodzaje krawędzi. `belongs_to` to szkielet hierarchii, reszta pochodzi z etapu B6.
@@ -165,6 +169,16 @@ def subject_id(semester: int, skrot: str, grupa: str = "", *, ambiguous: bool = 
     if ambiguous and grupa:
         parts.append(slugify(grupa, limit=20))
     return "-".join(parts)
+
+
+def category_id(subject_note_id: str, category: str) -> str:
+    """Id węzła kategorii w obrębie przedmiotu.
+
+    Wstawka ``-kat-`` nie jest ozdobnikiem: bez niej kategoria o nazwie zbieżnej ze
+    skrótem innego przedmiotu dałaby kolizję id, a kolizja w tym vaulcie oznacza
+    ostrzeżenie ``duplicate-id`` i notatkę, która przestaje być celem relacji.
+    """
+    return f"{subject_note_id}-kat-{slugify(category, limit=20)}"
 
 
 def file_id(skrot: str, sha256: str, filename: str = "") -> str:

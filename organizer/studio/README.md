@@ -299,15 +299,25 @@ klatkach schodzi do 1 i wraca, gdy graf się uspokoi. Gdy coś mimo to zwalnia, 
 **`/graf/?diag=1`** — w rogu pojawią się liczby z TEGO urządzenia: przerysowania na
 sekundę, czas rysowania w ms, liczba węzłów i krawędzi, zoom i realna gęstość pikseli.
 
-**Zakres: semestr → przedmiot.** Dwa pola na górze panelu filtrów wybierają, nad czym
-pracujesz; lista przedmiotów zawęża się do wybranego semestru, a wejście w przedmiot samo
-odsłania typ `file`. Oba filtry działają na tagach, które niesie **każdy poziom** (`sem3`,
+**Hierarchia ma cztery poziomy: semestr → przedmiot → kategoria → plik.** Kategoria
+(`Kolokwia`, `Laboratoria`, `Wykład`…) jest węzłem pośrednim: bez niej przedmiot był
+gwiazdą o dwóch i pół tysiącach szprych — nieczytelną i drogą w rysowaniu, bo każda
+szprycha biegła przez pół grafu. Teraz przedmiot pokazuje kilka podpisanych skupisk,
+a pliki leżą przy swojej kategorii.
+
+**Zakres: semestr → przedmiot → kategoria.** Dwa pola na górze panelu filtrów wybierają, nad czym
+pracujesz; lista przedmiotów zawęża się do wybranego semestru, lista kategorii do wybranego
+przedmiotu, a wejście w kategorię samo odsłania typ `file`. Oba filtry działają na tagach, które niesie **każdy poziom** (`sem3`,
 `ako`), więc wybór bierze przedmiot razem z materiałami. Filtrowanie po `category` tego nie
 umiało i wyglądało na zepsute: `SEM3` mają wyłącznie węzły przedmiotów, więc „SEM3 + pliki”
 odpowiadało przedmiotami i zerem plików. Po zmianie filtra widok **dojeżdża do tego, co
 zostało widoczne** — odfiltrowane węzły znikają, zamiast robić kurz dookoła.
 
 ![Zakres semestr → przedmiot w grafie](docs/screens/10b-graf-zakres.png)
+
+Wybór kategorii odsłania jej pliki — 147 egzaminów AKO zamiast 2,5 tysiąca wszystkiego:
+
+![Zakres z kategorią](docs/screens/10c-graf-kategorie.png)
 
 Tłumaczenie `sha256` ↔ `id` notatki stoi na kontrakcie vaulta: id notatki pliku kończy się
 `sha256[:8]` (`orglib/synapse_vault.ID_SHA_PREFIX`). Gdy skrót pasuje do kilku treści,

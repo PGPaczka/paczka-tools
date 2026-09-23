@@ -66,7 +66,10 @@ export function presentEdgeKinds(edges: readonly GraphEdge[]): string[] {
 
 /** Distinct node types actually present, ordered coarsest-first when recognised. */
 export function presentNodeTypes(types: readonly (string | null | undefined)[]): string[] {
-  const preferred = ['semester', 'subject', 'file']
+  // `category` sits between a subject and its files: a course package puts its material
+  // into kolokwia / laboratoria / wykład, and without that level a subject is a star with
+  // thousands of spokes — unreadable, and expensive to draw.
+  const preferred = ['semester', 'subject', 'category', 'file']
   const present = new Set(types.filter((t): t is string => typeof t === 'string' && t.length > 0))
   const ordered = preferred.filter((t) => present.has(t))
   const extra = [...present].filter((t) => !preferred.includes(t)).sort()
@@ -80,6 +83,8 @@ export function nodeTypeScale(type: string | null | undefined): number {
       return 1.9
     case 'subject':
       return 1.35
+    case 'category':
+      return 1.15
     default:
       return 1
   }

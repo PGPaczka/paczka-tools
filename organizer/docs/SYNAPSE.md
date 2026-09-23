@@ -66,32 +66,41 @@ backend studia prosto z `20_WORK`). Studio nie kopiuje vaulta do `public/`: nota
 z `work` przez helper containmentu. Tłumaczenie `sha256` ↔ `id` notatki: `orglib/graph_link.py`,
 po kontrakcie `synapse_vault.ID_SHA_PREFIX` (id notatki pliku kończy się `sha256[:8]`).
 
-**Znane, nierozstrzygnięte:** przy 4 317 węzłach viewer otwiera widok tak oddalony, że
-węzły są pyłkami — tak samo w studiu i poza nim, więc to zachowanie renderera, nie osadzenia.
-
-## Model: trzy typy węzłów
+## Model: cztery typy węzłów
 
 ```
-semester (7)  ←belongs_to—  subject (98)  ←belongs_to—  file (4 084)
-                                                  ↕ near_duplicate / older_version
+semester (7) ←belongs_to— subject (98) ←belongs_to— category (127) ←belongs_to— file (4 083)
+                                                                          ↕ near_duplicate / older_version
 ```
 
 Relacja zawierania jest zapisywana **na dziecku** (`belongs_to`), nie na rodzicu: przedmiot
 miewa tysiące plików, a jedna pozycja na notatkę trzyma front matter mały.
 
-| pole | `semester` | `subject` | `file` |
-|---|---|---|---|
-| `id` = nazwa pliku | `sem3` | `sem3-ako` | `ako-{nazwa}-{sha8}` |
-| `title` | `Semestr 3` | `AKO — Architektura Komputerów` | nazwa pliku źródłowego |
-| `category` | `semestr` | `SEM1`…`SEM7` | kategoria z `syntax.yaml` |
-| `level` | — | 1–3 wg stanu prac | 1 = w paczce · 2 = plan pewny · 3 = wymaga człowieka |
-| `status` | zbiorczy | `completed`/`in-progress`/`not-started` | j.w. wg etapu potoku |
-| `tags` | `semestr`, `semN` | `semN`, skrót (`ako`), grupa, formy, katedra | `semN`, skrót, `rodzaj-…`, `akcja-…`, `metoda-…`, `rok-…`, `w-paczce` |
-| `relations` | — | `belongs_to` → semestr | `belongs_to` → przedmiot + relacje z B6 |
+**Kategoria jest poziomem POŚREDNIM** (decyzja użytkownika 2026-09-23). Bez niej przedmiot
+był gwiazdą o dwóch i pół tysiącach szprych: nie dawało się odczytać, co jest czym, a każda
+szprycha biegła przez pół grafu — sam ich rysunek zjadał klatki na telefonie. Z kategorią
+przedmiot pokazuje kilka skupisk podpisanych `Kolokwia`, `Laboratoria`, `Wykład`…, a pliki
+leżą przy swojej kategorii, więc krawędzie są krótkie i lokalne. Kategorie bez ani jednego
+pliku nie są eksportowane.
 
-Tag semestru (`sem3`) i skrót przedmiotu (`ako`) niesie **każdy poziom**: semestr, jego
-przedmioty i ich pliki. To one pozwalają wybrać w viewerze zakres „semestr → przedmiot"
-jednym kliknięciem — `category` do tego nie służy, bo `SEM3` mają wyłącznie przedmioty
+| pole | `semester` | `subject` | `category` | `file` |
+|---|---|---|---|---|
+| `id` = nazwa pliku | `sem3` | `sem3-ako` | `sem3-ako-kat-kolokwia` | `ako-{nazwa}-{sha8}` |
+| `title` | `Semestr 3` | `AKO — Architektura Komputerów` | `Kolokwia · AKO` | nazwa pliku źródłowego |
+| `category` | `semestr` | `SEM1`…`SEM7` | nazwa kategorii | kategoria z `syntax.yaml` |
+| `level` | — | 1–3 wg stanu prac | j.w. dla swoich plików | 1 = w paczce · 2 = plan pewny · 3 = wymaga człowieka |
+| `status` | zbiorczy | `completed`/`in-progress`/`not-started` | zbiorczy dla swoich plików | j.w. wg etapu potoku |
+| `tags` | `semestr`, `semN` | `semN`, skrót (`ako`), grupa, formy, katedra | `semN`, skrót, `kategoria-…` | `semN`, skrót, `rodzaj-…`, `kategoria-…`, `akcja-…`, `metoda-…`, `rok-…`, `w-paczce` |
+| `relations` | — | `belongs_to` → semestr | `belongs_to` → przedmiot | `belongs_to` → **kategoria** + relacje z B6 |
+
+Wstawka `-kat-` w id kategorii nie jest ozdobnikiem: bez niej kategoria o nazwie zbieżnej
+ze skrótem innego przedmiotu dałaby kolizję id, a kolizja w tym vaulcie to ostrzeżenie
+`duplicate-id` i notatka, która przestaje być celem relacji.
+
+Tag semestru (`sem3`), skrót przedmiotu (`ako`) i `kategoria-…` niesie **każdy poziom
+poniżej** tego, co nazywa: kategorie i pliki mają `sem3` i `ako`, pliki mają dodatkowo
+`kategoria-kolokwia`. To one pozwalają wybrać w viewerze zakres „semestr → przedmiot →
+kategoria" trzema kliknięciami — `category` do tego nie służy, bo `SEM3` mają wyłącznie przedmioty
 i filtr po niej pokazuje przedmioty bez ich materiałów.
 
 **Do grafu wchodzą tylko materiały z DECYZJĄ** (ground truth albo plan) — decyzja
