@@ -182,19 +182,29 @@ export const CONTAINER_LABEL_BUDGET = 48
 export const CONTAINER_LABEL_MIN_PX = 3.5
 
 /**
- * Podpisy kontenerów: najgrubszy poziom zawsze, drobniejsze dopiero gdy jest na nie
- * miejsce, i wszystko razem w granicach budżetu.
+ * Do tylu kontenerów na ekranie podpisujemy wszystkie, niezależnie od przybliżenia.
  *
- * Dwie wady naraz, obie zgłoszone z ręki. „Kontener ma podpis zawsze" brzmi dobrze
- * i wygląda źle: w widoku całej paczki 232 nazwy nachodzą na siebie tak, że nie da się
- * przeczytać żadnej. A przy maksymalnym oddaleniu na jeden przedmiot wystarczy jego
- * nazwa — siedem podpisów kategorii to szum, dopóki nie przybliżysz na tyle, żeby te
- * kategorie w ogóle rozróżnić.
+ * Tyle nazw da się rozłożyć bez zlepiania. Po wybraniu jednego przedmiotu widać osiem
+ * kontenerów — przedmiot i jego kategorie — i wtedy nie ma czego oszczędzać: nazwy są
+ * całą treścią tego widoku, także przy pełnym oddaleniu.
+ */
+export const CONTAINER_LABELS_ALWAYS_BELOW = 24
+
+/**
+ * Podpisy kontenerów: najgrubszy poziom zawsze, reszta zależnie od tego, ILU ich jest.
+ *
+ * Trzy wersje tej reguły, każda poprawiona po obejrzeniu wyniku. „Kontener ma podpis
+ * zawsze" dało w widoku całej paczki 232 nazwy zlepione w ścianę. Próg zależny od
+ * przybliżenia wyczyścił ścianę, ale zabierał nazwy kategorii także wtedy, gdy wybrany
+ * był JEDEN przedmiot i tych nazw było siedem. Decyduje więc liczba kontenerów na
+ * ekranie, a przybliżenie dopiero wtedy, gdy jest ich dużo.
  */
 export function keepTopContainers<T extends { priority: number; radiusPx: number }>(
   items: T[], budget = CONTAINER_LABEL_BUDGET,
 ): T[] {
   if (items.length === 0) return items
+  if (items.length <= CONTAINER_LABELS_ALWAYS_BELOW) return items
+
   const coarsest = Math.max(...items.map((i) => i.priority))
   const affordable = items.filter(
     (item) => item.priority === coarsest || item.radiusPx >= CONTAINER_LABEL_MIN_PX,

@@ -160,27 +160,36 @@ describe('podpisy kontenerów', () => {
   const przedmiot = { priority: 1.7, radiusPx: 1.1, id: 'AKO' }
   const kategorie = [1, 2, 3].map((n) => ({ priority: 1.3, radiusPx: 0.7, id: `kat${n}` }))
 
-  it('przy maksymalnym oddaleniu zostaje sama nazwa przedmiotu', () => {
-    // Zgłoszone z ręki: siedem podpisów kategorii przy jednym punkcie to szum, dopóki
-    // nie przybliżysz na tyle, żeby te kategorie w ogóle rozróżnić.
+  it('przy wybranym JEDNYM przedmiocie kategorie mają nazwy przy każdym oddaleniu', () => {
+    // Osiem kontenerów na ekranie — przedmiot i jego kategorie. Ich nazwy są całą
+    // treścią tego widoku, więc nie ma czego oszczędzać (zgłoszone z ręki).
     const widoczne = keepTopContainers([przedmiot, ...kategorie])
 
-    expect(widoczne.map((i) => i.id)).toEqual(['AKO'])
+    expect(widoczne).toHaveLength(4)
   })
 
-  it('po przybliżeniu kategorie wracają', () => {
-    const blizej = [
-      { ...przedmiot, radiusPx: 6 },
-      ...kategorie.map((k) => ({ ...k, radiusPx: 4.5 })),
-    ]
+  it('w tłumie kontenerów drobniejsze poziomy milkną przy oddaleniu', () => {
+    // Widok całej paczki: 232 nazwy naraz to ściana, z której nie da się nic odczytać.
+    const tlum = Array.from({ length: 40 }, (_, n) => ({
+      priority: n < 8 ? 1.7 : 1.3, radiusPx: 1, id: `k${n}`,
+    }))
 
-    expect(keepTopContainers(blizej)).toHaveLength(4)
+    expect(keepTopContainers(tlum).every((i) => i.priority === 1.7)).toBe(true)
   })
 
-  it('przy tłoku zostają najgrubsze poziomy', () => {
-    // Semestr (2,2) przed przedmiotem (1,7) przed kategorią (1,3).
+  it('po przybliżeniu kategorie wracają także w tłumie', () => {
+    const tlum = Array.from({ length: 40 }, (_, n) => ({
+      priority: n < 8 ? 1.7 : 1.3, radiusPx: n < 8 ? 6 : 4.5, id: `k${n}`,
+    }))
+
+    expect(keepTopContainers(tlum)).toHaveLength(40)
+  })
+
+  it('gdy nawet po odsianiu jest ich za dużo, wygrywają najgrubsze poziomy', () => {
+    // Semestr (2,2) przed przedmiotem (1,7) przed kategorią (1,3). Wszystkie na tyle
+    // duże, że przechodzą próg rozmiaru — o kolejności decyduje sam budżet.
     const items = [
-      { priority: 1.3, radiusPx: 9, id: 'kategoria' },
+      ...Array.from({ length: 30 }, (_, n) => ({ priority: 1.3, radiusPx: 9, id: `kat${n}` })),
       { priority: 2.2, radiusPx: 9, id: 'semestr' },
       { priority: 1.7, radiusPx: 9, id: 'przedmiot' },
     ]
