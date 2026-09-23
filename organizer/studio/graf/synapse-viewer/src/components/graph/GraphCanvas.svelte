@@ -47,6 +47,11 @@
   }
 
   let renderer: CanvasGraphRenderer | null = null
+
+  /** Podgląd kosztu rysowania: `/graf/?diag=1`. Domyślnie wyłączony. */
+  const diag =
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('diag') === '1'
+  let stats = { fps: 0, drawMs: 0, nodesDrawn: 0, edgesDrawn: 0, scale: 1, renderDpr: 1, deviceDpr: 1 }
   let sim: ReturnType<typeof createSimulation> | null = null
 
   // Track user drag/zoom so we don't auto-fit after they've panned
@@ -212,6 +217,13 @@
     window.addEventListener('pointerup', resumeLayout)
     window.addEventListener('pointercancel', resumeLayout)
 
+    // Odczyt statystyk co pół sekundy — sam podgląd nie ma wpływać na to, co mierzy.
+    const diagTimer = diag
+      ? setInterval(() => {
+          if (renderer) stats = renderer.getStats()
+        }, 500)
+      : null
+
     startSimulation(get(visibleNodeIds))
 
     renderer = new CanvasGraphRenderer()
@@ -345,6 +357,7 @@
     })
 
     return () => {
+      if (diagTimer !== null) clearInterval(diagTimer)
       canvas.removeEventListener('pointerdown', pauseLayout)
       window.removeEventListener('pointerup', resumeLayout)
       window.removeEventListener('pointercancel', resumeLayout)
@@ -368,3 +381,32 @@
 </script>
 
 <canvas bind:this={canvas} style="width:100%;height:100%;display:block"></canvas>
+
+{#if diag}
+  <!-- `?diag=1` — mierzalny odczyt z URZĄDZENIA, na którym coś „laguje". Bez tego
+       zostaje opis wrażenia, a wrażenie nie mówi, czy koszt jest w rysowaniu, w liczbie
+       elementów, czy w gęstości pikseli telefonu. -->
+  <div class="diag">
+    <b>{stats.fps} kl./s</b> · rysowanie {stats.drawMs} ms<br />
+    węzłów {stats.nodesDrawn} · krawędzi {stats.edgesDrawn}<br />
+    zoom {stats.scale} · piksele {stats.renderDpr}/{stats.deviceDpr}
+  </div>
+{/if}
+
+<style>
+  .diag {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 30;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: rgba(13, 17, 23, 0.86);
+    color: var(--text);
+    font-family: var(--font-mono, monospace);
+    font-size: 11px;
+    line-height: 1.45;
+    pointer-events: none;
+  }
+</style>

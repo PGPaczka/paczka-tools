@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { detailLevel, discInBounds, segmentOffscreen, visibleWorldBounds } from './lod'
+import {
+  adaptRenderScale,
+  detailLevel,
+  discInBounds,
+  renderScale,
+  segmentOffscreen,
+  visibleWorldBounds,
+} from './lod'
 
 describe('kadrowanie widoku', () => {
   const bounds = visibleWorldBounds(0, 0, 1, 800, 600, 0)
@@ -45,5 +52,43 @@ describe('poziom szczegółu', () => {
 
   it('groty wracają później niż pierścienie — są drobniejsze od węzła', () => {
     expect(detailLevel(0.5, 11)).toEqual({ arrows: false, richNodes: true })
+  })
+})
+
+describe('gęstość rysowania', () => {
+  it('laptop rysuje jak dotąd', () => {
+    expect(renderScale(1)).toBe(1)
+    expect(renderScale(2)).toBe(2)
+  })
+
+  it('telefon z dpr 3 nie maluje dziewięciu pikseli na jeden', () => {
+    // 3 × 3 to dziewięciokrotność pracy na klatkę przy obrazie złożonym z kropek.
+    expect(renderScale(3)).toBe(2)
+    expect(renderScale(3.5)).toBe(2)
+  })
+
+  it('brak wartości to jeden, nie zero', () => {
+    expect(renderScale(0)).toBe(1)
+  })
+})
+
+describe('dostrajanie gęstości do urządzenia', () => {
+  it('wolne klatki obniżają gęstość krok po kroku', () => {
+    expect(adaptRenderScale(2, 90, 3, false)).toBe(1.5)
+    expect(adaptRenderScale(1.5, 90, 3, false)).toBe(1)
+  })
+
+  it('nie schodzi poniżej jednego piksela na piksel CSS', () => {
+    expect(adaptRenderScale(1, 250, 3, false)).toBe(1)
+  })
+
+  it('płynne klatki nie zmieniają niczego', () => {
+    expect(adaptRenderScale(1.5, 16, 3, false)).toBe(1.5)
+  })
+
+  it('po uspokojeniu wraca pełna ostrość', () => {
+    // Obniżona gęstość ma być ceną za ruch, nie trwałym pogorszeniem obrazu.
+    expect(adaptRenderScale(1, 16, 3, true)).toBe(2)
+    expect(adaptRenderScale(1, 16, 1, true)).toBe(1)
   })
 })

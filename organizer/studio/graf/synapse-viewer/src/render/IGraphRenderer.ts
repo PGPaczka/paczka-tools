@@ -6,6 +6,20 @@ export interface NodePosition {
   y: number
 }
 
+/** Co ostatnia klatka naprawdę kosztowała — do podglądu `?diag=1`. */
+export interface RenderStats {
+  /** Czas samego rysowania w ms (mediana z ostatnich klatek). */
+  drawMs: number
+  /** Klatki na sekundę liczone z odstępów między rysowaniami. */
+  fps: number
+  nodesDrawn: number
+  edgesDrawn: number
+  /** Ile pikseli fizycznych na piksel CSS naprawdę malujemy. */
+  renderDpr: number
+  deviceDpr: number
+  scale: number
+}
+
 export interface RendererOptions {
   canvas: HTMLCanvasElement
   getPositions: () => NodePosition[]
@@ -47,4 +61,6 @@ export interface IGraphRenderer {
   scheduleRender(): void
   destroy(): void
   fitToNodes(): void
+  /** Ostatnio zmierzone koszty rysowania. */
+  getStats(): RenderStats
 }

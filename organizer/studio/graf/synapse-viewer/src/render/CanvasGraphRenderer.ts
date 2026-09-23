@@ -2,8 +2,16 @@ import { Viewport } from './Viewport'
 import { buildQuadtree, hitTest } from './hitTesting'
 import { categoryColor } from '../domain/color/categoryColor'
 import { edgeStyle, edgeWidth, nodeTypeScale } from '../domain/graph/edgeStyle'
-import { DOT_RADIUS_PX, detailLevel, discInBounds, segmentOffscreen, visibleWorldBounds } from './lod'
-import type { IGraphRenderer, RendererOptions, NodePosition } from './IGraphRenderer'
+import {
+  DOT_RADIUS_PX,
+  adaptRenderScale,
+  detailLevel,
+  discInBounds,
+  renderScale,
+  segmentOffscreen,
+  visibleWorldBounds,
+} from './lod'
+import type { IGraphRenderer, RendererOptions, NodePosition, RenderStats } from './IGraphRenderer'
 import type { GraphNode, KnowledgeGraph } from '../domain/graph/GraphModel'
 
 const BG_COLOR = '#0d1117'
@@ -87,6 +95,19 @@ export class CanvasGraphRenderer implements IGraphRenderer {
   private nodeIndex: Map<string, GraphNode> = new Map()
   private nodeIndexFor: KnowledgeGraph | null = null
 
+  /** Koszt ostatnich klatek — mierzony zawsze, pokazywany tylko w `?diag=1`. */
+  private stats: RenderStats = {
+    drawMs: 0, fps: 0, nodesDrawn: 0, edgesDrawn: 0, renderDpr: 1, deviceDpr: 1, scale: 1,
+  }
+  private frameTimes: number[] = []
+  private lastFrameAt = 0
+  /** Bieżąca gęstość rysowania — dostrajana do tego, co urządzenie wyrabia. */
+  private currentDpr = 0
+
+  getStats(): RenderStats {
+    return { ...this.stats }
+  }
+
   /** Hit-testing quadtree, kept until the positions it was built from change. */
   private quadtree: ReturnType<typeof buildQuadtree> | null = null
   private quadtreeVersion = -1
@@ -131,6 +152,10 @@ export class CanvasGraphRenderer implements IGraphRenderer {
   mount(options: RendererOptions): void {
     this.options = options
     this.canvas = options.canvas
+    // Kontekst zostaje PRZEZROCZYSTY. `alpha: false` wygląda na darmową oszczędność
+    // (kompozytor nie musi mieszać warstw), ale zmierzone było dwa i pół raza wolniejsze:
+    // 4 przerysowania na sekundę zamiast 11. Zgadywanie o wydajności bywa odwrotne
+    // od prawdy — stąd pomiar przed i po każdej takiej zmianie.
     this.ctx = this.canvas.getContext('2d')
 
     this.viewport.setSize(this.canvas.clientWidth, this.canvas.clientHeight)
@@ -472,10 +497,21 @@ export class CanvasGraphRenderer implements IGraphRenderer {
 
   private draw(): void {
     if (!this.ctx || !this.canvas || !this.options) return
+    const drawStartedAt = performance.now()
 
     const canvas = this.canvas
     const ctx = this.ctx
-    const dpr = window.devicePixelRatio || 1
+    const deviceDpr = window.devicePixelRatio || 1
+    if (this.currentDpr === 0) this.currentDpr = renderScale(deviceDpr)
+    const gaps0 = [...this.frameTimes].sort((a, b) => a - b)
+    const medianGap = gaps0.length >= 6 ? gaps0[Math.floor(gaps0.length / 2)] : 0
+    // „Cisza" = od ostatniej klatki minęło więcej niż pół sekundy, czyli nikt nie rusza
+    // grafem; wtedy wolno wrócić do pełnej ostrości bez ryzyka szarpnięcia.
+    const idle = this.lastFrameAt > 0 && performance.now() - this.lastFrameAt > 500
+    this.currentDpr = adaptRenderScale(
+      this.currentDpr, medianGap || 0, deviceDpr, idle || medianGap === 0,
+    )
+    const dpr = this.currentDpr
 
     const cssW = canvas.clientWidth
     const cssH = canvas.clientHeight
@@ -502,6 +538,7 @@ export class CanvasGraphRenderer implements IGraphRenderer {
       }
     }
 
+    // Nieprzezroczysty kontekst trzeba zamalować, a nie wyczyścić do przezroczystości.
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
     const { tx, ty, scale } = this.viewport.getTransform()
@@ -548,6 +585,7 @@ export class CanvasGraphRenderer implements IGraphRenderer {
     // collapsed into a handful.
     const visibleKinds = this.options.getVisibleEdgeKinds?.() ?? new Set<string>()
     const batches = new Map<string, EdgeBatch>()
+    let edgesDrawn = 0
     const arrows: { src: NodePosition; tgt: NodePosition; radius: number; color: string }[] = []
     ctx.save()
     for (const edge of graph.edges) {
@@ -581,6 +619,7 @@ export class CanvasGraphRenderer implements IGraphRenderer {
         batches.set(key, batch)
       }
       batch.segments.push(src.x, src.y, tgt.x, tgt.y)
+      edgesDrawn++
 
       if (style.arrow && detail.arrows) {
         const targetNode = this.nodeIndex.get(edge.target)
@@ -626,6 +665,7 @@ export class CanvasGraphRenderer implements IGraphRenderer {
     // secondary stroke all land on the same pixel — so nodes are collected by colour
     // and drawn as one path each. Two and a half thousand fills become a handful.
     const dots = new Map<string, number[]>()
+    let nodesDrawn = 0
 
     for (const node of drawOrder.concat(onTop)) {
       const pos = posMap.get(node.id)
@@ -633,6 +673,7 @@ export class CanvasGraphRenderer implements IGraphRenderer {
       if (!discInBounds(bounds, pos.x, pos.y, MAX_NODE_RADIUS)) continue
 
       const isVisible = visibleIds.has(node.id)
+      if (isVisible) nodesDrawn++
       // A node excluded by a filter disappears. It used to be drawn at alpha 0.08,
       // so a filtered graph still showed every one of four thousand nodes as a speck —
       // and since the view fits to the VISIBLE ones, the result looked like the filter
@@ -819,6 +860,28 @@ export class CanvasGraphRenderer implements IGraphRenderer {
     ctx.globalAlpha = 1
 
     ctx.setTransform(1, 0, 0, 1, 0, 0)
+
+    // Pomiar jest tani (dwa odczyty zegara) i dzięki niemu „laguje" da się zamienić
+    // na liczbę z konkretnego urządzenia, zamiast zgadywać po opisie.
+    const finishedAt = performance.now()
+    const gap = finishedAt - this.lastFrameAt
+    // Przerwy dłuższe niż pół sekundy to bezczynność (graf rysuje się na żądanie),
+    // a nie wolna klatka — wliczone, zaniżałyby odczyt akurat wtedy, gdy nic nie boli.
+    if (this.lastFrameAt > 0 && gap < 500) {
+      this.frameTimes.push(gap)
+      if (this.frameTimes.length > 30) this.frameTimes.shift()
+    }
+    this.lastFrameAt = finishedAt
+    const gaps = [...this.frameTimes].sort((a, b) => a - b)
+    this.stats = {
+      drawMs: Math.round((finishedAt - drawStartedAt) * 10) / 10,
+      fps: gaps.length > 0 ? Math.round(1000 / gaps[Math.floor(gaps.length / 2)]) : 0,
+      nodesDrawn,
+      edgesDrawn,
+      renderDpr: dpr,
+      deviceDpr,
+      scale: Math.round(scale * 1000) / 1000,
+    }
 
     this.options.onViewportChange?.({
       tx: this.viewport.tx,

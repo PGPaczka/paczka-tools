@@ -229,12 +229,17 @@ złapały testy — więc każda dostała test przed poprawką.
 Zgłoszone z ręki: „jak odpalę ako + files, to bardzo laguje cały canvas". Zmierzone
 Playwrightem przy dławieniu CPU ×4 (czyli mniej więcej tablet), 2565 widocznych węzłów:
 
-| Co | Było | Jest |
+| Co (przerysowania grafu na sekundę) | Było | Jest |
 |---|---:|---:|
-| przesuwanie po ułożeniu | 6,4 kl./s | **38,8 kl./s** |
-| przesuwanie w trakcie układania | ~5 kl./s | **40 kl./s** |
-| układanie w ogóle się kończy | nie w 40 s | **~15 s** (≈4 s bez dławienia) |
-| przesuwanie na desktopie | 25 kl./s | **52–60 kl./s** |
+| przesuwanie po ułożeniu | 4,2 | **11,5** |
+| przesuwanie w trakcie układania | 2,8 | **9,8** |
+| układanie w ogóle się kończy | nie w 45 s | **~16 s** (≈4 s bez dławienia) |
+
+**Poprawka do pierwszej wersji tego wpisu:** podane wcześniej 6,4 → 38,8 kl./s mierzyły
+pętlę `requestAnimationFrame` przeglądarki, która tyka 60 razy na sekundę niezależnie od
+tego, czy graf się przerysował. Właściwą miarą jest liczba PRZERYSOWAŃ grafu — i ta daje
+2,7× zamiast 6×. Wnioski o przyczynach zostają: kolejność poprawek wynikała z profilu,
+nie z tej liczby.
 
 Co to powodowało — same rzeczy niewidoczne w kodzie rysującym:
 
@@ -257,11 +262,31 @@ Co to powodowało — same rzeczy niewidoczne w kodzie rysującym:
   wsadowej ścieżce na kolor — pierścień, kropka wewnętrzna i obwódka i tak lądowały na
   tym samym pikselu. Groty strzałek pojawiają się dopiero, gdy są mniejsze od węzła.
 
+Po zgłoszeniu z Pixela 10 Pro (na maksymalnym oddaleniu nadal 2–4 kl./s) doszły dwie
+rzeczy celujące w koszt POZA naszym JS-em — bo rysowanie w JS to przy tym grafie 2 ms,
+a klatka potrafi trwać ćwierć sekundy:
+
+- **limit gęstości rysowania**: telefon z `devicePixelRatio` 3 malował dziewięć pikseli
+  fizycznych na jeden CSS-owy; teraz maksymalnie cztery (dpr 2). Przy obrazie złożonym
+  z kropek i włosowatych linii różnicy nie widać, a pracy jest o połowę mniej;
+- **samoregulacja**: gdy klatki i tak są wolniejsze niż 33 ms, gęstość schodzi o pół
+  kroku (do 1), a gdy graf się uspokoi — wraca. Ostrość spada tylko wtedy, gdy
+  alternatywą jest szarpanie;
+- **`/graf/?diag=1`** pokazuje liczby z urządzenia: przerysowania na sekundę, czas
+  rysowania, liczbę węzłów i krawędzi, zoom oraz realną gęstość pikseli. Bez tego
+  „laguje" nie daje się odróżnić od „jest dużo elementów".
+
+Sprawdzone i **odrzucone**: nieprzezroczysty kontekst (`alpha: false`). Wygląda na
+darmową oszczędność, a wyszło 4 przerysowania/s zamiast 11 — zmiana cofnięta, komentarz
+w kodzie mówi dlaczego.
+
 Wnioski na przyszłość: **najpierw profil, potem optymalizacja** — pierwsze pomiary
 wskazywały na rasteryzację, a dopiero profil CPU pokazał, że 57% czasu idzie poza JS,
-i dopiero test A/B (rysowanie bez krawędzi / bez węzłów) ustawił kolejność prac. I drugi:
-pomiar zrobiony w trakcie układania kłamie — wcześniejsze „4 kl./s" mierzyło symulację,
-nie przesuwanie.
+i dopiero test A/B (rysowanie bez krawędzi / bez węzłów) ustawił kolejność prac. Drugi:
+pomiar zrobiony w trakcie układania kłamie — wcześniejsze 4 kl./s mierzyło symulację,
+nie przesuwanie. I trzeci, najdroższy: **sprawdź, co właściwie liczy Twój licznik** —
+`requestAnimationFrame` tyka 60 razy na sekundę nawet wtedy, gdy graf nie przerysował się
+ani razu.
 
 ## Zależności od potoku
 

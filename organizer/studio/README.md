@@ -283,8 +283,14 @@ szczególe, jaki widać**: węzeł mniejszy niż cztery piksele jest kropką, gr
 pojawiają się dopiero przy odpowiednim powiększeniu, krawędzie o tym samym wyglądzie idą
 jedną ścieżką, a to, co poza ekranem, nie jest rysowane wcale. Układanie grafu **ustępuje
 ręce** — dotknięcie płótna wstrzymuje symulację, puszczenie wznawia. Zmierzone przy
-dławieniu CPU ×4: przesuwanie 6,4 → 38,8 kl./s, a układ, który wcześniej nie kończył się
-przez 40 s, staje w ~15 s.
+dławieniu CPU ×4: liczba przerysowań grafu przy przesuwaniu 4,2 → 11,5 na sekundę, a układ,
+który wcześniej nie kończył się przez 45 s, staje w ~16 s.
+
+Na telefonie dochodzi gęstość pikseli: przy `devicePixelRatio` 3 każda klatka to
+dziewięciokrotność pracy laptopa, więc rysowanie jest ograniczone do dpr 2, a przy wolnych
+klatkach schodzi do 1 i wraca, gdy graf się uspokoi. Gdy coś mimo to zwalnia, otwórz
+**`/graf/?diag=1`** — w rogu pojawią się liczby z TEGO urządzenia: przerysowania na
+sekundę, czas rysowania w ms, liczba węzłów i krawędzi, zoom i realna gęstość pikseli.
 
 **Zakres: semestr → przedmiot.** Dwa pola na górze panelu filtrów wybierają, nad czym
 pracujesz; lista przedmiotów zawęża się do wybranego semestru, a wejście w przedmiot samo

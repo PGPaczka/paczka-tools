@@ -77,3 +77,41 @@ export function detailLevel(scale: number, radius: number): DetailLevel {
     richNodes: scale * radius >= DOT_RADIUS_PX,
   }
 }
+
+/**
+ * Ile pikseli fizycznych naprawdę warto malować na jeden piksel CSS.
+ *
+ * Telefon potrafi mieć `devicePixelRatio` 3, czyli DZIEWIĘĆ razy więcej pikseli do
+ * wymazania i pomalowania na każdej klatce niż ekran zwykłego laptopa. Przy grafie
+ * złożonym z kropek i włosowatych linii nikt tej różnicy nie zobaczy, a różnica w
+ * płynności jest widoczna od razu. Etykiety i tak są rysowane tekstem, więc zostają
+ * ostre na tyle, na ile pozwala ten limit.
+ */
+export const MAX_RENDER_DPR = 2
+
+export function renderScale(devicePixelRatio: number): number {
+  return Math.min(devicePixelRatio || 1, MAX_RENDER_DPR)
+}
+
+/** Najniższa gęstość, do jakiej wolno zejść — poniżej graf zaczyna wyglądać na zepsuty. */
+export const MIN_RENDER_DPR = 1
+/** Powyżej tego czasu klatki (ok. 30 kl./s) rysunek jest za drogi dla tego urządzenia. */
+export const SLOW_FRAME_MS = 33
+
+/**
+ * Gęstość rysowania dostosowana do tego, co urządzenie NAPRAWDĘ wyrabia.
+ *
+ * Nie da się z góry wiedzieć, ile pikseli uciągnie cudzy telefon: ten sam graf chodzi
+ * płynnie na laptopie i dławi się na ekranie o trzykrotnej gęstości. Więc zamiast
+ * zgadywać — mierzymy: wolne klatki obniżają gęstość o pół kroku, cisza (czyli nikt nic
+ * nie robi) przywraca pełną. Dzięki temu ostrość spada tylko wtedy, gdy alternatywą
+ * jest szarpanie.
+ */
+export function adaptRenderScale(
+  current: number, medianFrameMs: number, deviceDpr: number, idle: boolean,
+): number {
+  const ceiling = renderScale(deviceDpr)
+  if (idle) return ceiling
+  if (medianFrameMs > SLOW_FRAME_MS) return Math.max(MIN_RENDER_DPR, current - 0.5)
+  return Math.min(ceiling, current)
+}
