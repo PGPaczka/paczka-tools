@@ -86,12 +86,16 @@ pliku nie są eksportowane.
 | pole | `semester` | `subject` | `category` | `file` |
 |---|---|---|---|---|
 | `id` = nazwa pliku | `sem3` | `sem3-ako` | `sem3-ako-kat-kolokwia` | `ako-{nazwa}-{sha8}` |
-| `title` | `Semestr 3` | `AKO` (sam skrót) | `Kolokwia · AKO` | nazwa pliku źródłowego |
+| `title` | `Semestr 3` | `AKO` (sam skrót) | `Kolokwia · AKO` | nazwa pliku (źródłowego albo docelowego) |
 | `category` | `semestr` | `SEM1`…`SEM7` | nazwa kategorii | kategoria z `syntax.yaml` |
 | `level` | — | 1–3 wg stanu prac | j.w. dla swoich plików | 1 = w paczce · 2 = plan pewny · 3 = wymaga człowieka |
 | `status` | zbiorczy | `completed`/`in-progress`/`not-started` | zbiorczy dla swoich plików | j.w. wg etapu potoku |
 | `tags` | `semestr`, `semN` | `semN`, skrót (`ako`), grupa, formy, katedra | `semN`, skrót, `kategoria-…` | `semN`, skrót, `rodzaj-…`, `kategoria-…`, `akcja-…`, `metoda-…`, `rok-…`, `w-paczce` |
 | `relations` | — | `belongs_to` → semestr | `belongs_to` → przedmiot | `belongs_to` → **kategoria** + relacje z B6 |
+
+Nazwa pliku bierze się z kopii źródłowej, a gdy jej nie ma — ze **ścieżki docelowej**
+z decyzji. Ground truth opisuje materiały leżące już w paczce, których nikt nie indeksował
+jako plików źródłowych: 890 takich treści nazywało się w grafie skrótem sha.
 
 `title` przedmiotu to **sam skrót**: w grafie jest to podpis przy węźle, a
 „AKO — Architektura Komputerów" zasłania sąsiadów. Pełna nazwa zostaje aliasem (czyli

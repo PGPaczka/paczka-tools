@@ -97,6 +97,34 @@ def test_exports_the_four_level_hierarchy(workspace):
     assert '  - target: "sem3"\n    kind: "belongs_to"' in head
 
 
+def test_content_without_a_source_row_is_named_after_its_target(workspace):
+    """Materiał już w paczce nie ma wiersza w `files` — nazwa idzie ze ścieżki docelowej.
+
+    890 węzłów grafu nazywało się skrótem sha (`4758fa46fb68`), bo ground truth opisuje
+    treści leżące w paczce, których nikt nie indeksował jako plików źródłowych.
+    Skrót sha jest uczciwy i bezużyteczny; nazwa z decyzji mówi, co to za materiał.
+    """
+    conn = db.connect(workspace.work_db)
+    sha = "f" * 64
+    db.upsert_content(conn, {"sha256": sha, "content_kind": "pdf"})
+    db.upsert_classification(conn, {
+        "sha256": sha, "semester": 3, "subject_key": "AKO", "category": "wyklad",
+        "target_relative_path": "paczka/SEM3/AKO_X/wyklad/Wyklad_12_Cache.pdf",
+        "is_outdated": 0, "classification_method": "manual", "confidence": 1.0,
+        "run_id": "ground_truth", "decided_at": "2026-09-20T00:00:00Z",
+    })
+    conn.commit()
+    conn.close()
+
+    assert runner.invoke(cli.app, []).exit_code == 0
+    notes = notes_of(vault(workspace))
+
+    dopasowane = [name for name in notes if name.startswith("ako-wyklad-12-cache")]
+    assert dopasowane, f"brak notatki nazwanej po ścieżce docelowej: {sorted(notes)[:8]}"
+    head, _ = frontmatter(notes[dopasowane[0]])
+    assert 'title: "Wyklad_12_Cache.pdf"' in head
+
+
 def test_files_hang_off_a_category_node_not_off_the_subject(workspace):
     """Między przedmiotem a plikami stoi kategoria — decyzja użytkownika 2026-09-23.
 

@@ -14,6 +14,8 @@ export interface RenderStats {
   fps: number
   nodesDrawn: number
   edgesDrawn: number
+  /** Ile podpisów faktycznie weszło — po odsianiu kolizji. */
+  labelsDrawn: number
   /** Ile pikseli fizycznych na piksel CSS naprawdę malujemy. */
   renderDpr: number
   deviceDpr: number

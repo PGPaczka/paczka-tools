@@ -5,6 +5,7 @@ import {
   containerRadius,
   detailLevel,
   placeLabelsByLevel,
+  shortenLabel,
   discInBounds,
   maxEdgePx,
   renderScale,
@@ -114,7 +115,9 @@ describe('etykiety', () => {
   })
 
   it('kropka mniejsza od własnej etykiety jej nie dostaje', () => {
-    expect(shouldLabel(3, 50, false)).toBe(false)
+    // Próg to 3 px promienia: niżej węzeł jest drobniejszy od liter przy nim.
+    expect(shouldLabel(2, 50, false)).toBe(false)
+    expect(shouldLabel(3, 50, false)).toBe(true)
   })
 })
 
@@ -163,7 +166,7 @@ describe('układanie podpisów poziomami', () => {
   it('gdy poziom się mieści, wchodzi w całości', () => {
     const przedmioty = [box(0, 0, 1.7, 'a'), box(0, 200, 1.7, 'b')]
 
-    expect(placeLabelsByLevel([przedmioty])).toHaveLength(2)
+    expect(placeLabelsByLevel([{ items: przedmioty, strict: true }])).toHaveLength(2)
   })
 
   it('gdy choć jedna nazwa nie ma miejsca, milknie CAŁY poziom', () => {
@@ -171,28 +174,80 @@ describe('układanie podpisów poziomami', () => {
     // czemu akurat te (zgłoszone z ręki 2026-09-23).
     const przedmioty = [box(0, 0, 1.7, 'a'), box(10, 0, 1.7, 'b'), box(0, 300, 1.7, 'c')]
 
-    expect(placeLabelsByLevel([przedmioty])).toEqual([])
+    expect(placeLabelsByLevel([{ items: przedmioty, strict: true }])).toEqual([])
   })
 
   it('grubszy poziom wchodzi pierwszy i blokuje drobniejszy', () => {
     const semestry = [box(0, 0, 2.2, 'sem')]
     const kategorie = [box(10, 0, 1.3, 'kat')]
 
-    expect(placeLabelsByLevel([kategorie, semestry]).map((i) => i.id)).toEqual(['sem'])
+    expect(
+      placeLabelsByLevel([
+        { items: kategorie, strict: true },
+        { items: semestry, strict: true },
+      ]).map((i) => i.id),
+    ).toEqual(['sem'])
   })
 
   it('drobniejszy poziom wchodzi, gdy nie koliduje z grubszym', () => {
     const semestry = [box(0, 0, 2.2, 'sem')]
     const kategorie = [box(0, 300, 1.3, 'kat')]
 
-    expect(placeLabelsByLevel([kategorie, semestry])).toHaveLength(2)
+    expect(
+      placeLabelsByLevel([
+        { items: kategorie, strict: true },
+        { items: semestry, strict: true },
+      ]),
+    ).toHaveLength(2)
   })
 
   it('kolejność wejścia nie zmienia wyniku', () => {
     const a = [box(0, 0, 2.2, 'sem')]
     const b = [box(10, 0, 1.7, 'przedmiot')]
 
-    expect(placeLabelsByLevel([a, b]).map((i) => i.id))
-      .toEqual(placeLabelsByLevel([b, a]).map((i) => i.id))
+    const ab = placeLabelsByLevel([{ items: a, strict: true }, { items: b, strict: true }])
+    const ba = placeLabelsByLevel([{ items: b, strict: true }, { items: a, strict: true }])
+
+    expect(ab.map((i) => i.id)).toEqual(ba.map((i) => i.id))
+  })
+})
+
+describe('skracanie nazw', () => {
+  it('krótka nazwa zostaje bez zmian', () => {
+    expect(shortenLabel('main.asm')).toBe('main.asm')
+  })
+
+  it('długa traci ŚRODEK, bo koniec niesie rozszerzenie', () => {
+    const wynik = shortenLabel('egzamin_5-02-2015_praktykaZad3.jpg', 20)
+
+    expect(wynik).toHaveLength(20)
+    expect(wynik.endsWith('.jpg')).toBe(true)
+    expect(wynik).toContain('…')
+  })
+})
+
+describe('poziom plików', () => {
+  const box = (x: number, y: number, priority: number, id: string) =>
+    ({ x, y, w: 100, h: 16, priority, id })
+
+  it('dostaje tyle podpisów, ile się mieści — inaczej nie byłoby żadnego', () => {
+    // Siedemset nazw w skupisku nie zmieści się przy żadnym powiększeniu; „wszystkie
+    // albo nic" znaczyłoby tu „nic" (zmierzone: do zoomu 0,6 ani jednej).
+    const pliki = [box(0, 0, 1, 'a'), box(10, 0, 1, 'b'), box(0, 300, 1, 'c')]
+
+    expect(placeLabelsByLevel([{ items: pliki, strict: false }]).map((i) => i.id))
+      .toEqual(['a', 'c'])
+  })
+
+  it('kontenery mają pierwszeństwo przed plikami', () => {
+    const przedmiot = [box(0, 0, 1.7, 'AKO')]
+    const pliki = [box(8, 0, 1, 'plik')]
+
+    expect(
+      placeLabelsByLevel([
+        { items: pliki, strict: false },
+        { items: przedmiot, strict: true },
+      ]).map((i) => i.id),
+    ).toEqual(['AKO'])
   })
 })

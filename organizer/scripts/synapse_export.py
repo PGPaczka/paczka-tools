@@ -93,6 +93,21 @@ def load_index(
     return decisions, relations, files, kinds
 
 
+def content_name(copies: list[sqlite3.Row], decision: dict[str, Any] | None, sha: str) -> str:
+    """Nazwa treści: z pliku źródłowego, a gdy go nie ma — ze ścieżki docelowej.
+
+    Ground truth opisuje materiały leżące już w paczce, których nikt nie indeksował
+    jako plików źródłowych: 890 takich treści nazywało się w grafie skrótem sha.
+    Skrót jest uczciwy i bezużyteczny — nazwa z decyzji mówi, co to za materiał.
+    """
+    if copies:
+        return Path(str(copies[0]["source_relative_path"])).name
+    target = (decision or {}).get("target_relative_path")
+    if target:
+        return Path(str(target)).name
+    return sha[:12]
+
+
 def build_notes(
     *,
     subjects: list[config.Subject],
@@ -132,7 +147,7 @@ def build_notes(
         if not in_scope(semester, skrot) or (semester, skrot) not in subject_ids:
             continue
         copies = files.get(sha, [])
-        filename = Path(str(copies[0]["source_relative_path"])).name if copies else sha[:12]
+        filename = content_name(copies, decision, sha)
         note_id = file_id(skrot, sha, filename)
         file_ids[sha] = note_id
 
@@ -141,7 +156,7 @@ def build_notes(
             continue
         semester, skrot = int(decision["semester"]), str(decision["subject_key"])
         copies = files.get(sha, [])
-        filename = Path(str(copies[0]["source_relative_path"])).name if copies else sha[:12]
+        filename = content_name(copies, decision, sha)
         in_package = str(decision["run_id"]) == GROUND_TRUTH_RUN_ID
         category = str(decision["category"] or "inne")
         kind = kinds.get(sha, "other")
@@ -232,7 +247,7 @@ def build_notes(
     if include_unassigned:
         for sha, note_id in sorted(unassigned.items()):
             copies = files.get(sha, [])
-            filename = Path(str(copies[0]["source_relative_path"])).name if copies else sha[:12]
+            filename = content_name(copies, None, sha)
             file_notes.append(Note(
                 id=note_id,
                 title=filename,

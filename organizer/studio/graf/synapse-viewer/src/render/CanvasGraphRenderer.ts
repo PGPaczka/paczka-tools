@@ -12,6 +12,7 @@ import {
   placeLabelsByLevel,
   renderScale,
   segmentOffscreen,
+  shortenLabel,
   shouldLabel,
   visibleWorldBounds,
 } from './lod'
@@ -99,7 +100,8 @@ export class CanvasGraphRenderer implements IGraphRenderer {
 
   /** Koszt ostatnich klatek — mierzony zawsze, pokazywany tylko w `?diag=1`. */
   private stats: RenderStats = {
-    drawMs: 0, fps: 0, nodesDrawn: 0, edgesDrawn: 0, renderDpr: 1, deviceDpr: 1, scale: 1,
+    drawMs: 0, fps: 0, nodesDrawn: 0, edgesDrawn: 0, labelsDrawn: 0,
+    renderDpr: 1, deviceDpr: 1, scale: 1,
   }
   private frameTimes: number[] = []
   private lastFrameAt = 0
@@ -715,6 +717,7 @@ export class CanvasGraphRenderer implements IGraphRenderer {
       radiusPx: number
     }
     const labels: LabelDraw[] = []
+    let labelsDrawn = 0
     const containerLabels: LabelDraw[] = []
     let nodesDrawn = 0
 
@@ -874,7 +877,7 @@ export class CanvasGraphRenderer implements IGraphRenderer {
           x: pos.x,
           y: pos.y,
           offset: radius * scale + 5,
-          text: node.title,
+          text: container ? node.title : shortenLabel(node.title),
           focused: isHovered || isSelected || container,
           bold: isSelected || container,
           dimmed: hasFocus && !adjacent.has(node.id),
@@ -927,7 +930,9 @@ export class CanvasGraphRenderer implements IGraphRenderer {
       // rozrzuconych daleko od siebie, gdzie wszystkie da się przeczytać.
       let font = ''
       const boxes = labels.map((label) => {
-        const fontSize = label.focused ? 12 : 10.5
+        // 9.5 zamiast 10.5 dla zwykłych etykiet: prostokąt jest o kilkanaście procent
+        // mniejszy w obu wymiarach, więc cały poziom mieści się o krok wcześniej.
+        const fontSize = label.focused ? 12 : 9.5
         const wanted = `${label.bold ? 700 : 500} ${fontSize}px Inter, system-ui, sans-serif`
         if (wanted !== font) {
           ctx.font = wanted
@@ -940,8 +945,9 @@ export class CanvasGraphRenderer implements IGraphRenderer {
         return { label, fontSize, x: sx - w / 2, y: sy, w, h, priority: label.priority }
       })
 
-      // Grupujemy po poziomie hierarchii: wskazany węzeł osobno (zawsze wchodzi),
-      // potem semestry, przedmioty, kategorie, pliki — każdy w całości albo wcale.
+      // Grupujemy po poziomie hierarchii: wskazany węzeł, semestry, przedmioty,
+      // kategorie, pliki. Kontenery wchodzą w całości albo wcale — jest ich garstka.
+      // Pliki dostają tyle, ile się mieści: „wszystkie" znaczyłoby przy nich „nigdy".
       const byLevel = new Map<number, typeof boxes>()
       for (const box of boxes) {
         const level = box.priority
@@ -951,7 +957,14 @@ export class CanvasGraphRenderer implements IGraphRenderer {
       }
 
       font = ''
-      for (const box of placeLabelsByLevel([...byLevel.values()])) {
+      const drawn = placeLabelsByLevel(
+        [...byLevel.entries()].map(([priority, items]) => ({
+          items,
+          strict: priority > 1,
+        })),
+      )
+      labelsDrawn = drawn.length
+      for (const box of drawn) {
         const wanted =
           `${box.label.bold ? 700 : 500} ${box.fontSize}px Inter, system-ui, sans-serif`
         if (wanted !== font) {
@@ -991,6 +1004,7 @@ export class CanvasGraphRenderer implements IGraphRenderer {
       fps: gaps.length > 0 ? Math.round(1000 / gaps[Math.floor(gaps.length / 2)]) : 0,
       nodesDrawn,
       edgesDrawn,
+      labelsDrawn,
       renderDpr: dpr,
       deviceDpr,
       scale: Math.round(scale * 1000) / 1000,

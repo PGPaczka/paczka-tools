@@ -39,7 +39,7 @@ export interface SimLink extends SimulationLinkDatum<SimNode> {
  *  - forceLink (springs)        distance = linkDist
  *  - forceCollide               radius scales with node level
  *  - forceCenter                gentle 0.05 strength to prevent drift
- *  - custom category-anchor pull (0.0085 strength, matching prototype)
+ *  - custom anchor pull (0.03; the prototype's 0.0085 loses to repulsion at scale)
  *
  * Alpha decay matches prototype: alpha *= 0.975 per tick → alphaDecay = 0.025
  * Stops at alphaMin = 0.004.
@@ -103,15 +103,27 @@ export function createSimulation(
   // We pass copies with string ids; the .id() accessor handles the mapping
   const simLinks = links.map((l) => ({ ...l }))
 
-  // Custom category-anchor force (prototype constant: 0.0085)
+  /**
+   * Siła ciągnąca węzeł do jego kotwicy.
+   *
+   * 0,0085 z prototypu wystarczało dla vaulta o kilkudziesięciu notatkach. Przy
+   * siedmiuset plikach w jednej kategorii odpychanie (820) wygrywa z tak słabym
+   * ciągiem i skupisko rozdyma się do promienia półtora tysiąca jednostek — czyli
+   * kategorie odlatują od swojego przedmiotu, choć kotwice mają dobrze policzone
+   * miejsca. Mocniejszy ciąg trzyma je przy kotwicy, a kolizje dalej pilnują, żeby
+   * węzły nie siadały sobie na głowie.
+   */
+  const ANCHOR_PULL = 0.03
+
+  // Custom category-anchor force
   function anchorForce(alpha: number) {
     for (const node of simNodes) {
       // Honour fixed positions (e.g. user-dragged nodes)
       if (node.fx != null) continue
       const anchor = anchors.get(node.anchor)
       if (!anchor) continue
-      node.vx = (node.vx ?? 0) + (anchor.x - (node.x ?? 0)) * 0.0085 * alpha
-      node.vy = (node.vy ?? 0) + (anchor.y - (node.y ?? 0)) * 0.0085 * alpha
+      node.vx = (node.vx ?? 0) + (anchor.x - (node.x ?? 0)) * ANCHOR_PULL * alpha
+      node.vy = (node.vy ?? 0) + (anchor.y - (node.y ?? 0)) * ANCHOR_PULL * alpha
     }
   }
 
@@ -127,7 +139,11 @@ export function createSimulation(
     )
     .force(
       'collide',
-      forceCollide<SimNode>().radius((d) => 9 + (d.level ?? 1) * 2.2 + 30),
+      // Odstęp 14, nie 30: promień skupiska rośnie jak `odstęp × √liczba`, więc przy
+      // siedmiuset plikach trzydziestka robiła z kategorii tarczę o promieniu tysiąca
+      // jednostek — i to ona, a nie kotwice, wypychała skupiska daleko od przedmiotu.
+      // Węzeł ma promień ~11, więc 25 dalej trzyma je osobno.
+      forceCollide<SimNode>().radius((d) => 9 + (d.level ?? 1) * 2.2 + 14),
     )
     .force('center', forceCenter<SimNode>(0, 0).strength(0.05))
     .force('anchors', anchorForce)

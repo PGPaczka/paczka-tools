@@ -123,10 +123,26 @@ export function adaptRenderScale(
  * realna wada: przy przedmiocie z 2,5 tys. plików próg „gęsto" włączał się na zawsze,
  * więc po przybliżeniu do pojedynczych plików żaden z nich nie miał nazwy, choć na
  * ekranie było ich trzysta (zgłoszone z telefonu 2026-09-23).
+ *
+ * Próg jest wysoki, bo od kiedy o podpisach rozstrzygają kolizje, nie jest już regułą
+ * czytelności — tylko granicą pracy: tyle prostokątów da się zmierzyć i ułożyć w klatce
+ * bez zauważalnego kosztu. Przy 400 gasił nazwy plików dokładnie tam, gdzie były
+ * potrzebne (zmierzone: 435 węzłów na ekranie → ani jednego podpisu).
  */
-export const LABEL_BUDGET = 400
+export const LABEL_BUDGET = 1500
 /** Poniżej tylu pikseli promienia etykieta jest większa od węzła, który opisuje. */
-export const LABEL_MIN_RADIUS_PX = 4.5
+export const LABEL_MIN_RADIUS_PX = 3
+
+/** Dłuższa nazwa i tak nie zmieści się obok sąsiadów — a to ona decyduje o kolizji. */
+export const LABEL_MAX_CHARS = 26
+
+export function shortenLabel(text: string, limit = LABEL_MAX_CHARS): string {
+  if (text.length <= limit) return text
+  // Koniec nazwy pliku niesie rozszerzenie, więc zjadamy ŚRODEK, nie ogon.
+  const head = Math.ceil((limit - 1) / 2)
+  const tail = limit - 1 - head
+  return `${text.slice(0, head)}…${text.slice(text.length - tail)}`
+}
 
 export function shouldLabel(
   radiusPx: number, onScreenCount: number, focused: boolean, container = false,
@@ -195,13 +211,26 @@ export interface LabelBox {
  * i wszystkie nazwy da się przeczytać nawet z daleka; w gęstwinie dziesięć kategorii
  * skupionych wokół jednego węzła zlepia się w plamę przy tym samym przybliżeniu.
  *
- * Decyzja zapada jednak dla CAŁEGO POZIOMU naraz, nie dla pojedynczej nazwy. Podpisanie
- * części przedmiotów, a części nie, wygląda na usterkę i każe zgadywać, czemu akurat te —
- * a odpowiedź „bo tamtym zabrakło miejsca" nic nie znaczy dla czytającego. Poziom wchodzi
- * w całości albo wcale, od najgrubszego: semestry, potem przedmioty, potem kategorie,
- * na końcu pliki.
+ * Poziomy KONTENERÓW wchodzą w całości albo wcale. Podpisanie części przedmiotów,
+ * a części nie, wygląda na usterkę i każe zgadywać, czemu akurat te — a odpowiedź „bo
+ * tamtym zabrakło miejsca" nic nie znaczy dla czytającego. Kontenerów jest garstka,
+ * więc „wszystkie" jest wykonalne.
+ *
+ * Dla PLIKÓW ta sama zasada znaczyłaby „nigdy": siedemset nazw nie zmieści się obok
+ * siebie przy żadnym powiększeniu, bo w skupisku sąsiedzi dzieli kilkanaście pikseli,
+ * a nazwa ma sto. Zmierzone: do zoomu 0,6 nie pojawiała się ani jedna. Pliki dostają
+ * więc tyle podpisów, ile się mieści, w stałej kolejności — im bliżej, tym więcej,
+ * a te już podpisane zostają podpisane.
  */
-export function placeLabelsByLevel<T extends LabelBox>(levels: T[][], gap = 2): T[] {
+export interface LabelLevel<T> {
+  items: T[]
+  /** `true` = wszystkie albo żadna (kontenery); `false` = tyle, ile się zmieści (pliki). */
+  strict: boolean
+}
+
+export function placeLabelsByLevel<T extends LabelBox>(
+  levels: LabelLevel<T>[], gap = 2,
+): T[] {
   const placed: T[] = []
   const hits = (a: LabelBox, b: LabelBox): boolean =>
     a.x < b.x + b.w + gap &&
@@ -210,15 +239,24 @@ export function placeLabelsByLevel<T extends LabelBox>(levels: T[][], gap = 2): 
     a.y + a.h + gap > b.y
 
   for (const level of [...levels].sort(
-    (a, b) => (b[0]?.priority ?? 0) - (a[0]?.priority ?? 0),
+    (a, b) => (b.items[0]?.priority ?? 0) - (a.items[0]?.priority ?? 0),
   )) {
-    if (level.length === 0) continue
-    const fits = level.every(
-      (item, index) =>
-        !placed.some((other) => hits(item, other)) &&
-        !level.some((other, otherIndex) => otherIndex !== index && hits(item, other)),
-    )
-    if (fits) placed.push(...level)
+    const items = level.items
+    if (items.length === 0) continue
+
+    if (level.strict) {
+      const fits = items.every(
+        (item, index) =>
+          !placed.some((other) => hits(item, other)) &&
+          !items.some((other, otherIndex) => otherIndex !== index && hits(item, other)),
+      )
+      if (fits) placed.push(...items)
+      continue
+    }
+
+    for (const item of items) {
+      if (!placed.some((other) => hits(item, other))) placed.push(item)
+    }
   }
   return placed
 }

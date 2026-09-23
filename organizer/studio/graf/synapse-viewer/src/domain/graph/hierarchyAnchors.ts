@@ -21,8 +21,14 @@ export interface AnchorNode {
   weight: number
 }
 
-/** World units per unit of sqrt(weight): roughly a node's diameter plus breathing room. */
-export const SPACING = 26
+/**
+ * World units per unit of sqrt(weight).
+ *
+ * Kept in step with the simulation's collide radius (~25): a cluster of N nodes settles
+ * into a disc of roughly `collide × √N`, so this is the radius its parent has to make
+ * room for. Too large and every cluster is flung away from the node it belongs to.
+ */
+export const SPACING = 22
 
 /** Smallest ring radius, so a container with one tiny child is not degenerate. */
 const MIN_RADIUS = 120

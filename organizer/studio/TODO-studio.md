@@ -421,6 +421,31 @@ tyle miejsca, ile zajmuje. Vault bez hierarchii dalej używa `categoryAnchors`.
 Wniosek: „kotwicz po rodzicu" było dobrą regułą z niedokończoną implementacją — klucz
 kotwicy ma sens tylko razem z jej POZYCJĄ liczoną względem rodzica.
 
+## Trzy zgłoszenia znad zbliżenia (2026-09-23)
+
+- **Węzły o nazwach będących skrótem sha (890 sztuk).** Nie błąd rysowania, tylko dane:
+  ground truth opisuje materiały leżące JUŻ w paczce, które nigdy nie były indeksowane
+  jako pliki źródłowe, więc `files` nie ma dla nich wiersza i eksport nie miał skąd wziąć
+  nazwy. Teraz bierze ją ze ścieżki docelowej z decyzji (`content_name`), czyli stamtąd,
+  gdzie ten materiał faktycznie leży.
+- **Podpisy plików pojawiały się dopiero przy bardzo dużym zbliżeniu.** Zmierzone: przy
+  722 plikach na ekranie ani jednej nazwy aż do zoomu 0,594. Powód strukturalny: zasada
+  „wszystkie albo nic" przy poziomie plików znaczy „nic", bo siedemset nazw nie zmieści
+  się obok siebie przy ŻADNYM powiększeniu. Kontenery (semestr, przedmiot, kategoria)
+  zostają przy regule „wszystkie albo nic" — jest ich garstka i częściowe podpisanie
+  wygląda tam na usterkę. Pliki dostają tyle podpisów, ile się mieści, w stałej
+  kolejności. Do tego mniejsza czcionka (9,5 px), skracanie długich nazw w środku
+  (koniec niesie rozszerzenie) i próg promienia 4,5 → 3 px. Wynik: pierwsze nazwy przy
+  zoomie 0,267 zamiast 0,594, koszt rysowania 2,6 ms.
+- **Duże skupiska odlatywały od przedmiotu.** Promień skupiska rośnie jak
+  `odstęp × √liczba`, a odstęp kolizji wynosił 30 — przy 700 plikach robiło to tarczę
+  o promieniu półtora tysiąca jednostek. Odstęp 30 → 14, `SPACING` kotwic 26 → 22,
+  a ciąg do kotwicy 0,0085 → 0,03: przy 820 odpychania prototypowa stała przegrywała
+  i skupisko rozdymało się niezależnie od tego, jak dobrze policzono kotwice.
+
+Podgląd `?diag=1` pokazuje teraz także **liczbę postawionych podpisów** — bez niej te
+progi znowu byłyby zgadywaniem.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

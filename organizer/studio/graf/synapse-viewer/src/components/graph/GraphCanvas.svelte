@@ -52,7 +52,10 @@
   /** Podgląd kosztu rysowania: `/graf/?diag=1`. Domyślnie wyłączony. */
   const diag =
     typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('diag') === '1'
-  let stats = { fps: 0, drawMs: 0, nodesDrawn: 0, edgesDrawn: 0, scale: 1, renderDpr: 1, deviceDpr: 1 }
+  let stats = {
+    fps: 0, drawMs: 0, nodesDrawn: 0, edgesDrawn: 0, labelsDrawn: 0,
+    scale: 1, renderDpr: 1, deviceDpr: 1,
+  }
   let sim: ReturnType<typeof createSimulation> | null = null
 
   // Track user drag/zoom so we don't auto-fit after they've panned
@@ -433,7 +436,7 @@
        elementów, czy w gęstości pikseli telefonu. -->
   <div class="diag">
     <b>{stats.fps} kl./s</b> · rysowanie {stats.drawMs} ms<br />
-    węzłów {stats.nodesDrawn} · krawędzi {stats.edgesDrawn}<br />
+    węzłów {stats.nodesDrawn} · krawędzi {stats.edgesDrawn} · podpisów {stats.labelsDrawn}<br />
     zoom {stats.scale} · piksele {stats.renderDpr}/{stats.deviceDpr}
   </div>
 {/if}
