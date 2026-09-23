@@ -137,6 +137,20 @@ def test_empty_categories_are_not_exported(workspace):
     assert "sem3-ako-kat-laboratoria" not in notes
 
 
+def test_subject_is_titled_by_its_skrot_with_the_full_name_as_an_alias(workspace):
+    """W grafie liczy się skrót — pełna nazwa nie mieści się przy węźle.
+
+    Zgłoszone 2026-09-23: podpis „AKO — Architektura Komputerów" zasłaniał sąsiadów.
+    Pełna nazwa zostaje w aliasach (więc wyszukiwarka ją znajduje) i w treści notatki.
+    """
+    assert runner.invoke(cli.app, []).exit_code == 0
+    head, text = frontmatter(notes_of(vault(workspace))["sem3-ako"])
+
+    assert 'title: "AKO"' in head
+    assert '"Architektura Komputerów"' in head, "pełna nazwa zostaje aliasem"
+    assert "Architektura Komputerów" in text
+
+
 def test_subject_note_carries_the_same_tag_as_its_files(workspace):
     """Jeden tag wybiera przedmiot RAZEM z jego plikami.
 

@@ -288,7 +288,10 @@ def build_notes(
             tags.append("do-przegladu")
         subject_notes.append(Note(
             id=subject_ids[key],
-            title=f"{subject.skrot} — {subject.nazwa.replace('_', ' ')}",
+            # Sam skrót: w grafie to jest PODPIS przy węźle, a „AKO — Architektura
+            # Komputerów" zasłania sąsiadów. Pełna nazwa zostaje aliasem (wyszukiwarka
+            # jej nie traci) i pierwszą linią treści notatki.
+            title=subject.skrot,
             type=NODE_SUBJECT,
             category=f"SEM{subject.semester}",
             level=subject_level(**counts),

@@ -711,6 +711,8 @@ export class CanvasGraphRenderer implements IGraphRenderer {
       text: string; focused: boolean; bold: boolean; dimmed: boolean
       /** Im grubszy poziom, tym wyżej w kolejce po miejsce na podpis. */
       priority: number
+      /** Promień NATURALNY na ekranie — bez podniesienia do minimalnej widoczności. */
+      radiusPx: number
     }
     const labels: LabelDraw[] = []
     const containerLabels: LabelDraw[] = []
@@ -877,6 +879,7 @@ export class CanvasGraphRenderer implements IGraphRenderer {
           bold: isSelected || container,
           dimmed: hasFocus && !adjacent.has(node.id),
           priority: nodeTypeScale(node.kind === 'real' ? node.type : null),
+          radiusPx: baseRadius * scale,
         }
         if (container && !isHovered && !isSelected) containerLabels.push(draw)
         else labels.push(draw)

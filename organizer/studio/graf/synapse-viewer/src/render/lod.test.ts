@@ -156,21 +156,39 @@ describe('rozmiar kontenera', () => {
   })
 })
 
-describe('budżet podpisów kontenerów', () => {
-  it('przy małej liczbie zostają wszystkie', () => {
-    const items = [{ priority: 1 }, { priority: 2 }]
+describe('podpisy kontenerów', () => {
+  const przedmiot = { priority: 1.7, radiusPx: 1.1, id: 'AKO' }
+  const kategorie = [1, 2, 3].map((n) => ({ priority: 1.3, radiusPx: 0.7, id: `kat${n}` }))
 
-    expect(keepTopContainers(items, 5)).toHaveLength(2)
+  it('przy maksymalnym oddaleniu zostaje sama nazwa przedmiotu', () => {
+    // Zgłoszone z ręki: siedem podpisów kategorii przy jednym punkcie to szum, dopóki
+    // nie przybliżysz na tyle, żeby te kategorie w ogóle rozróżnić.
+    const widoczne = keepTopContainers([przedmiot, ...kategorie])
+
+    expect(widoczne.map((i) => i.id)).toEqual(['AKO'])
+  })
+
+  it('po przybliżeniu kategorie wracają', () => {
+    const blizej = [
+      { ...przedmiot, radiusPx: 6 },
+      ...kategorie.map((k) => ({ ...k, radiusPx: 4.5 })),
+    ]
+
+    expect(keepTopContainers(blizej)).toHaveLength(4)
   })
 
   it('przy tłoku zostają najgrubsze poziomy', () => {
     // Semestr (2,2) przed przedmiotem (1,7) przed kategorią (1,3).
     const items = [
-      { priority: 1.3, id: 'kategoria' },
-      { priority: 2.2, id: 'semestr' },
-      { priority: 1.7, id: 'przedmiot' },
+      { priority: 1.3, radiusPx: 9, id: 'kategoria' },
+      { priority: 2.2, radiusPx: 9, id: 'semestr' },
+      { priority: 1.7, radiusPx: 9, id: 'przedmiot' },
     ]
 
     expect(keepTopContainers(items, 2).map((i) => i.id)).toEqual(['semestr', 'przedmiot'])
+  })
+
+  it('pusty wybór nie wywraca reguły', () => {
+    expect(keepTopContainers([])).toEqual([])
   })
 })

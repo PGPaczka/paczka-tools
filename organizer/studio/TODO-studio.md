@@ -368,6 +368,19 @@ wyróżniał". Trafione — tych krawędzi jest kilkanaście, a niosą najwięce
   i wyglądało źle: 232 nazwy naraz to ściana, z której nie da się odczytać żadnej.
   Przy tłoku zostają najgrubsze poziomy, reszta wraca po przybliżeniu.
 
+## Podpisy warstwami (2026-09-23)
+
+Dwie uwagi z ręki, obie o tym samym — ile tekstu naraz ma sens:
+
+- **przedmiot podpisany jest skrótem**, nie pełną nazwą. `AKO — Architektura
+  Komputerów` przy węźle zasłaniało sąsiadów; pełna nazwa zostaje aliasem (więc
+  wyszukiwarka jej nie traci) i pierwszą linią treści notatki;
+- **kategorie dostają podpis dopiero przy przybliżeniu.** Przy maksymalnym oddaleniu
+  na jeden przedmiot wystarczy jego nazwa — siedem podpisów kategorii wokół jednego
+  punktu to szum, dopóki nie widać, co jest czym. Reguła: najgrubszy poziom na ekranie
+  ma podpis zawsze, drobniejsze od 3,5 px promienia. Dokładnie tak, jak już działo się
+  z plikami wewnątrz kategorii.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

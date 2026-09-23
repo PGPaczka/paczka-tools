@@ -2,6 +2,8 @@
 
 ## Kontekst ręczny
 
+- **Podpisy w grafie dochodzą warstwami (2026-09-23).** Przedmiot jest podpisany SKRÓTEM (`title` = `AKO`, pełna nazwa w aliasach i w treści notatki — wyszukiwarka jej nie traci), a kategorie dostają nazwy dopiero przy przybliżeniu: najgrubszy poziom na ekranie ma podpis zawsze, drobniejsze od 3,5 px naturalnego promienia. Przy maksymalnym oddaleniu na jeden przedmiot widać więc samo `AKO`, a nie siedem nazw kategorii wokół jednego punktu. Zmiana `title` wymaga przebudowy grafu (`just studio-graf`).
+
 - **Kręgosłup hierarchii w grafie jest teraz nietykalny (2026-09-23, prośba użytkownika).** Krawędzie kontener → kontener (semestr → przedmioty, przedmiot → kategorie) omijają regułę długości i kadrowanie, mają minimalną grubość NA EKRANIE (grubość liczy się w jednostkach świata, więc przy oddaleniu linia schodziła poniżej piksela), a same kontenery rysują się na wierzchu, z poświatą i minimalnym promieniem 6 px. Rozmiary poziomów rozsunięte: semestr 2,2 · przedmiot 1,7 · kategoria 1,3 · plik 1.
 - **Podpisy węzłów rysują się w przestrzeni EKRANU, nie świata.** Tekst skalowany razem z grafem miał przy widoku całej paczki pół piksela — dlatego nazwy semestrów i przedmiotów znikały przy oddaleniu, choć „były rysowane". Przy okazji są ostrzejsze, bo nie przechodzą przez skalowanie kontekstu.
 - **„Kontener ma podpis zawsze" brzmiało dobrze i wyglądało źle:** 232 nazwy naraz to ściana tekstu, z której nie da się odczytać żadnej. Jest budżet (48) z priorytetem dla grubszych poziomów — przy oddaleniu widać semestry i przedmioty, kategorie wracają po przybliżeniu. Warto pamiętać ten wzorzec: reguła „zawsze" przy 200+ elementach zwykle znaczy „nigdy nie da się tego przeczytać".

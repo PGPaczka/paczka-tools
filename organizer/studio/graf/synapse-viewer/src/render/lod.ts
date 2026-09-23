@@ -173,16 +173,32 @@ export function containerRadius(radius: number, scale: number): number {
 export const CONTAINER_LABEL_BUDGET = 48
 
 /**
- * Podpisy kontenerów ograniczone budżetem, od najgrubszego poziomu.
+ * Od tylu pikseli promienia kontener zasługuje na podpis sam z siebie.
  *
- * „Kontener ma podpis zawsze" brzmi dobrze i wygląda źle: w widoku całej paczki widać
- * 232 kontenery naraz, a ich nazwy nachodzą na siebie tak, że nie da się przeczytać
- * żadnej. Przy tłoku zostają więc te najgrubsze — semestry, potem przedmioty — a reszta
- * wraca, gdy przybliżysz na tyle, że jest dla nich miejsce.
+ * Liczony z promienia NATURALNEGO (przed podniesieniem do minimalnej widoczności),
+ * bo to on niesie informację o poziomie: przedmiot jest grubszy od kategorii, więc
+ * przy oddalaniu kategoria traci podpis wcześniej.
  */
-export function keepTopContainers<T extends { priority: number }>(
+export const CONTAINER_LABEL_MIN_PX = 3.5
+
+/**
+ * Podpisy kontenerów: najgrubszy poziom zawsze, drobniejsze dopiero gdy jest na nie
+ * miejsce, i wszystko razem w granicach budżetu.
+ *
+ * Dwie wady naraz, obie zgłoszone z ręki. „Kontener ma podpis zawsze" brzmi dobrze
+ * i wygląda źle: w widoku całej paczki 232 nazwy nachodzą na siebie tak, że nie da się
+ * przeczytać żadnej. A przy maksymalnym oddaleniu na jeden przedmiot wystarczy jego
+ * nazwa — siedem podpisów kategorii to szum, dopóki nie przybliżysz na tyle, żeby te
+ * kategorie w ogóle rozróżnić.
+ */
+export function keepTopContainers<T extends { priority: number; radiusPx: number }>(
   items: T[], budget = CONTAINER_LABEL_BUDGET,
 ): T[] {
-  if (items.length <= budget) return items
-  return [...items].sort((a, b) => b.priority - a.priority).slice(0, budget)
+  if (items.length === 0) return items
+  const coarsest = Math.max(...items.map((i) => i.priority))
+  const affordable = items.filter(
+    (item) => item.priority === coarsest || item.radiusPx >= CONTAINER_LABEL_MIN_PX,
+  )
+  if (affordable.length <= budget) return affordable
+  return [...affordable].sort((a, b) => b.priority - a.priority).slice(0, budget)
 }
