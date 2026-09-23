@@ -1,4 +1,19 @@
 <script lang="ts">
+  /**
+   * Overview of the whole layout, with the current viewport drawn on top.
+   *
+   * It used to be an SVG with one <circle> per node and one <line> per edge. For a
+   * course package that is ~10 000 DOM elements, and the viewport rectangle changes on
+   * every single pan frame — so the browser re-painted all of them, continuously. On a
+   * phone that cost around half a second per frame while the graph itself drew in 3 ms:
+   * the graph was smooth and the minimap was strangling it.
+   *
+   * Now it is a canvas with two layers. The layout goes into an offscreen bitmap that is
+   * only redrawn when the positions or the filters change; a pan just blits that bitmap
+   * and strokes one rectangle.
+   */
+  import { onDestroy } from 'svelte'
+
   import { graph, visibleNodeIds } from '../../stores/graphStore'
   import { minimapPositions, minimapViewport } from '../../stores/minimapStore'
   import { categoryColor } from '../../domain/color/categoryColor'
@@ -7,21 +22,12 @@
 
   const W = 172
   const H = 118
+  const PAD = 20
 
-  // Map world coordinates to minimap coordinates
-  function worldToMinimap(
-    wx: number,
-    wy: number,
-    minX: number,
-    minY: number,
-    scaleX: number,
-    scaleY: number,
-  ): { x: number; y: number } {
-    return {
-      x: (wx - minX) * scaleX,
-      y: (wy - minY) * scaleY,
-    }
-  }
+  let canvas: HTMLCanvasElement | undefined
+  let layer: HTMLCanvasElement | null = null
+  let layerDirty = true
+  let frame: number | null = null
 
   $: positions = $minimapPositions
   $: vp = $minimapViewport
@@ -29,7 +35,7 @@
   $: visIds = $visibleNodeIds
   $: overrides = $settings.catColorOverrides
 
-  // Find bounding box of all node positions
+  // Bounding box of the layout, in world units.
   $: bbox = (() => {
     if (positions.size === 0) return { minX: 0, minY: 0, maxX: W, maxY: H }
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
@@ -39,126 +45,141 @@
       if (x > maxX) maxX = x
       if (y > maxY) maxY = y
     }
-    // Add padding
-    const pad = 20
-    return { minX: minX - pad, minY: minY - pad, maxX: maxX + pad, maxY: maxY + pad }
+    return { minX: minX - PAD, minY: minY - PAD, maxX: maxX + PAD, maxY: maxY + PAD }
   })()
 
-  $: bboxW = bbox.maxX - bbox.minX || W
-  $: bboxH = bbox.maxY - bbox.minY || H
-  $: scaleX = W / bboxW
-  $: scaleY = H / bboxH
+  $: scaleX = W / ((bbox.maxX - bbox.minX) || W)
+  $: scaleY = H / ((bbox.maxY - bbox.minY) || H)
 
-  // Compute the viewport rect in minimap coords
-  // The canvas transform is: screen = world * scale + (tx, ty)
-  // So world = (screen - translation) / scale
-  $: vpRect = (() => {
-    // Map the four corners of the canvas viewport to world, then to minimap coords
-    const worldTL = {
-      x: (0 - vp.tx) / vp.scale,
-      y: (0 - vp.ty) / vp.scale,
+  // Anything that changes the PICTURE invalidates the cached layer; the viewport alone
+  // does not, which is the whole point.
+  $: {
+    void positions
+    void graphData
+    void visIds
+    void overrides
+    void bbox
+    layerDirty = true
+    schedule()
+  }
+
+  // The viewport rectangle moves with every pan — it only ever costs one blit + one rect.
+  $: {
+    void vp
+    schedule()
+  }
+
+  function schedule(): void {
+    if (typeof window === 'undefined' || frame !== null) return
+    frame = requestAnimationFrame(() => {
+      frame = null
+      paint()
+    })
+  }
+
+  function buildLayer(): void {
+    if (typeof document === 'undefined') return
+    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    if (layer === null) layer = document.createElement('canvas')
+    layer.width = Math.round(W * dpr)
+    layer.height = Math.round(H * dpr)
+    const ctx = layer.getContext('2d')
+    if (!ctx || !graphData) return
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    ctx.clearRect(0, 0, W, H)
+
+    // Edges first, as one path: at this size they are a texture, not individual lines.
+    ctx.strokeStyle = 'rgba(48, 54, 61, 0.5)'
+    ctx.lineWidth = 0.6
+    ctx.beginPath()
+    for (const edge of graphData.edges) {
+      const src = positions.get(edge.source)
+      const tgt = positions.get(edge.target)
+      if (!src || !tgt) continue
+      ctx.moveTo((src.x - bbox.minX) * scaleX, (src.y - bbox.minY) * scaleY)
+      ctx.lineTo((tgt.x - bbox.minX) * scaleX, (tgt.y - bbox.minY) * scaleY)
     }
-    const worldBR = {
-      x: (vp.vw - vp.tx) / vp.scale,
-      y: (vp.vh - vp.ty) / vp.scale,
-    }
-    const mmTL = worldToMinimap(worldTL.x, worldTL.y, bbox.minX, bbox.minY, scaleX, scaleY)
-    const mmBR = worldToMinimap(worldBR.x, worldBR.y, bbox.minX, bbox.minY, scaleX, scaleY)
-    return {
-      x: mmTL.x,
-      y: mmTL.y,
-      w: mmBR.x - mmTL.x,
-      h: mmBR.y - mmTL.y,
-    }
-  })()
+    ctx.stroke()
 
-  // Build edge lines and node circles for rendering
-  $: edges = (() => {
-    if (!graphData) return []
-    return graphData.edges.map((e) => {
-      const src = positions.get(e.source)
-      const tgt = positions.get(e.target)
-      if (!src || !tgt) return null
-      const s = worldToMinimap(src.x, src.y, bbox.minX, bbox.minY, scaleX, scaleY)
-      const t = worldToMinimap(tgt.x, tgt.y, bbox.minX, bbox.minY, scaleX, scaleY)
-      return { x1: s.x, y1: s.y, x2: t.x, y2: t.y }
-    }).filter(Boolean) as Array<{ x1: number; y1: number; x2: number; y2: number }>
-  })()
+    // Nodes grouped by colour, so a few thousand dots cost a few fills.
+    const byColor = new Map<string, number[]>()
+    for (const node of graphData.nodes) {
+      const p = positions.get(node.id)
+      if (!p) continue
+      const fill = node.kind === 'real'
+        ? categoryColor((node as RealNode).category, overrides)
+        : '#30363d'
+      const key = visIds.has(node.id) ? fill : `${fill}|dim`
+      let bucket = byColor.get(key)
+      if (bucket === undefined) {
+        bucket = []
+        byColor.set(key, bucket)
+      }
+      bucket.push((p.x - bbox.minX) * scaleX, (p.y - bbox.minY) * scaleY)
+    }
+    for (const [key, bucket] of byColor) {
+      const [color, dim] = key.split('|')
+      ctx.globalAlpha = dim ? 0.4 : 1
+      ctx.fillStyle = color
+      ctx.beginPath()
+      for (let i = 0; i < bucket.length; i += 2) {
+        ctx.moveTo(bucket[i] + 2.4, bucket[i + 1])
+        ctx.arc(bucket[i], bucket[i + 1], 2.4, 0, Math.PI * 2)
+      }
+      ctx.fill()
+    }
+    ctx.globalAlpha = 1
+    layerDirty = false
+  }
 
-  $: nodes = (() => {
-    if (!graphData) return []
-    return graphData.nodes.map((n) => {
-      const p = positions.get(n.id)
-      if (!p) return null
-      const mm = worldToMinimap(p.x, p.y, bbox.minX, bbox.minY, scaleX, scaleY)
-      const isVisible = visIds.has(n.id)
-      const fill =
-        n.kind === 'real'
-          ? categoryColor((n as RealNode).category, overrides)
-          : 'var(--border)'
-      return { id: n.id, x: mm.x, y: mm.y, fill, isVisible }
-    }).filter(Boolean) as Array<{ id: string; x: number; y: number; fill: string; isVisible: boolean }>
-  })()
+  function paint(): void {
+    if (!canvas) return
+    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    if (canvas.width !== Math.round(W * dpr)) {
+      canvas.width = Math.round(W * dpr)
+      canvas.height = Math.round(H * dpr)
+      layerDirty = true
+    }
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    if (layerDirty) buildLayer()
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    ctx.clearRect(0, 0, W, H)
+    ctx.fillStyle = '#161b22'
+    ctx.fillRect(0, 0, W, H)
+    if (layer) {
+      ctx.drawImage(layer, 0, 0, W, H)
+    }
+
+    // Viewport rectangle: world → minimap.
+    const x = ((0 - vp.tx) / vp.scale - bbox.minX) * scaleX
+    const y = ((0 - vp.ty) / vp.scale - bbox.minY) * scaleY
+    const w = (vp.vw / vp.scale) * scaleX
+    const h = (vp.vh / vp.scale) * scaleY
+    ctx.strokeStyle = '#58a6ff'
+    ctx.globalAlpha = 0.8
+    ctx.lineWidth = 1.2
+    ctx.strokeRect(x, y, w, h)
+    ctx.globalAlpha = 1
+
+    ctx.strokeStyle = '#30363d'
+    ctx.lineWidth = 1
+    ctx.strokeRect(0.5, 0.5, W - 1, H - 1)
+  }
+
+  onDestroy(() => {
+    if (frame !== null && typeof window !== 'undefined') cancelAnimationFrame(frame)
+  })
 </script>
 
 <div class="minimap" aria-label="Graph minimap">
-  <svg
-    width={W}
-    height={H}
-    viewBox="0 0 {W} {H}"
-    role="img"
+  <canvas
+    bind:this={canvas}
+    style="width:{W}px;height:{H}px;display:block"
     aria-label="Minimap overview"
-  >
-    <!-- Background -->
-    <rect x="0" y="0" width={W} height={H} fill="var(--panel)" rx="4" />
-
-    <!-- Edges -->
-    {#each edges as e}
-      <line
-        x1={e.x1} y1={e.y1}
-        x2={e.x2} y2={e.y2}
-        stroke="var(--border)"
-        stroke-width="0.6"
-        opacity="0.5"
-      />
-    {/each}
-
-    <!-- Nodes -->
-    {#each nodes as n (n.id)}
-      <circle
-        cx={n.x}
-        cy={n.y}
-        r="2.4"
-        fill={n.fill}
-        opacity={n.isVisible ? 1 : 0.4}
-      />
-    {/each}
-
-    <!-- Viewport rect -->
-    <rect
-      x={vpRect.x}
-      y={vpRect.y}
-      width={vpRect.w}
-      height={vpRect.h}
-      fill="none"
-      stroke="var(--accent)"
-      stroke-width="1.2"
-      opacity="0.8"
-      rx="2"
-    />
-
-    <!-- Border -->
-    <rect
-      x="0.5"
-      y="0.5"
-      width={W - 1}
-      height={H - 1}
-      fill="none"
-      stroke="var(--border)"
-      stroke-width="1"
-      rx="4"
-    />
-  </svg>
+  ></canvas>
 </div>
 
 <style>
@@ -171,9 +192,5 @@
     box-shadow: 0 4px 12px var(--shadow);
     pointer-events: none;
     z-index: 20;
-  }
-
-  svg {
-    display: block;
   }
 </style>

@@ -231,9 +231,9 @@ Playwrightem przy dławieniu CPU ×4 (czyli mniej więcej tablet), 2565 widoczny
 
 | Co (przerysowania grafu na sekundę) | Było | Jest |
 |---|---:|---:|
-| przesuwanie po ułożeniu | 4,2 | **11,5** |
-| przesuwanie w trakcie układania | 2,8 | **9,8** |
-| układanie w ogóle się kończy | nie w 45 s | **~16 s** (≈4 s bez dławienia) |
+| przesuwanie po ułożeniu | 4,2 | **16,4** |
+| przesuwanie w trakcie układania | 2,8 | **16,0** |
+| układanie w ogóle się kończy | nie w 45 s | **~10 s** (≈2,5 s bez dławienia) |
 
 **Poprawka do pierwszej wersji tego wpisu:** podane wcześniej 6,4 → 38,8 kl./s mierzyły
 pętlę `requestAnimationFrame` przeglądarki, która tyka 60 razy na sekundę niezależnie od
@@ -275,6 +275,18 @@ a klatka potrafi trwać ćwierć sekundy:
 - **`/graf/?diag=1`** pokazuje liczby z urządzenia: przerysowania na sekundę, czas
   rysowania, liczbę węzłów i krawędzi, zoom oraz realną gęstość pikseli. Bez tego
   „laguje" nie daje się odróżnić od „jest dużo elementów".
+
+**Najdroższa rzecz w całym widoku nie była grafem — była minimapą.** Podgląd z Pixela
+(`?diag=1`) pokazał rysowanie grafu w **3,4 ms** przy **2 klatkach na sekundę**: pół
+sekundy na klatkę szło poza nasz kod. Minimapa była SVG-iem z jednym `<circle>` na węzeł
+i jedną `<line>` na krawędź — blisko **10 000 elementów DOM** — a ramka widoku zmienia
+się przy KAŻDEJ klatce przesuwania, więc przeglądarka przemalowywała je wszystkie, bez
+przerwy. Teraz to canvas z dwiema warstwami: układ trafia do bitmapy przerysowywanej
+tylko przy zmianie pozycji albo filtra, a przesuwanie to jedno przeklejenie bitmapy
+i jeden prostokąt. Z minimapy został **1 element DOM zamiast ~9800**.
+
+Wniosek, którego nie dało się wyczytać z kodu grafu: **mierz stronę, nie komponent.**
+Graf był szybki (3 ms), a dławił go sąsiad rysujący ten sam zbiór danych drugi raz.
 
 Sprawdzone i **odrzucone**: nieprzezroczysty kontekst (`alpha: false`). Wygląda na
 darmową oszczędność, a wyszło 4 przerysowania/s zamiast 11 — zmiana cofnięta, komentarz

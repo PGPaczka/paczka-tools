@@ -283,8 +283,11 @@ szczególe, jaki widać**: węzeł mniejszy niż cztery piksele jest kropką, gr
 pojawiają się dopiero przy odpowiednim powiększeniu, krawędzie o tym samym wyglądzie idą
 jedną ścieżką, a to, co poza ekranem, nie jest rysowane wcale. Układanie grafu **ustępuje
 ręce** — dotknięcie płótna wstrzymuje symulację, puszczenie wznawia. Zmierzone przy
-dławieniu CPU ×4: liczba przerysowań grafu przy przesuwaniu 4,2 → 11,5 na sekundę, a układ,
-który wcześniej nie kończył się przez 45 s, staje w ~16 s.
+dławieniu CPU ×4: liczba przerysowań grafu przy przesuwaniu 4,2 → 16,4 na sekundę, a układ,
+który wcześniej nie kończył się przez 45 s, staje w ~10 s. Minimapa rysuje się na canvasie
+(dwie warstwy: układ w bitmapie, ramka widoku na wierzchu) — jako SVG miała ~10 000
+elementów DOM przemalowywanych przy każdej klatce przesuwania i to ona, a nie graf,
+odpowiadała za większość zacięć na telefonie.
 
 Na telefonie dochodzi gęstość pikseli: przy `devicePixelRatio` 3 każda klatka to
 dziewięciokrotność pracy laptopa, więc rysowanie jest ograniczone do dpr 2, a przy wolnych
