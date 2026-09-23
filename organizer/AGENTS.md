@@ -247,6 +247,10 @@ zbędną rekurencyjną delegację.
   położenia. Materiały przedmiotu: wyłącznie w dotychczas zatwierdzonym procesie,
   po jawnej akceptacji planu przed `apply`, z commitem dopiero po pomyślnym
   `verify`, na branchu przedmiotu. Nigdy razem z commitem narzędzi.
+- **Komunikaty commitów pisz po angielsku** (decyzja użytkownika z 2026-09-23).
+  Dotyczy tytułu i treści; reszta dokumentacji repo zostaje po polsku. Starsze,
+  polskie commity zostają takie, jakie są — przepisywanie opublikowanej historii
+  kosztuje więcej, niż daje.
 - Push i utworzenie PR wymagają osobnego polecenia; merge robi użytkownik.
 - Nie cofaj ani nie nadpisuj niepowiązanych zmian użytkownika.
 
