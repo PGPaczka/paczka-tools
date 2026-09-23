@@ -350,6 +350,24 @@ Do tego dolna granica „dopasuj widok" zrównana z granicą kółka (0,04): prz
 tysiącami plików nie mieścił się na ekranie telefonu przy 0,06, więc dopasowanie
 pokazywało wycinek i wyglądało na zepsute.
 
+## Kręgosłup hierarchii zawsze widoczny (2026-09-23)
+
+Zgłoszenie: „żeby root (AKO) miał połączenia do dzieci zawsze widoczne i żeby lepiej się
+wyróżniał". Trafione — tych krawędzi jest kilkanaście, a niosą najwięcej treści:
+
+- połączenia **kontener → kontener** (semestr → przedmioty, przedmiot → kategorie) nie
+  podlegają regule długości ani kadrowaniu; mają też minimalną grubość na ekranie, bo
+  grubość liczy się w jednostkach świata i przy oddaleniu linia schodziła poniżej piksela;
+- kontenery rysują się **na wierzchu** (wcześniej ginęły pod plikami), z poświatą
+  w kolorze kategorii, i nie schodzą poniżej sześciu pikseli promienia;
+- rozmiary poziomów rozsunięte: semestr 2,2 · przedmiot 1,7 · kategoria 1,3 · plik 1;
+- **podpisy rysowane w przestrzeni ekranu**, a nie świata. To była realna wada: tekst
+  skalował się razem z grafem, więc przy widoku całej paczki dwunastopunktowa etykieta
+  miała pół piksela i podpisy semestrów po prostu znikały;
+- podpisy kontenerów mają pierwszeństwo, ale z budżetem (48). „Zawsze" brzmiało dobrze
+  i wyglądało źle: 232 nazwy naraz to ściana, z której nie da się odczytać żadnej.
+  Przy tłoku zostają najgrubsze poziomy, reszta wraca po przybliżeniu.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

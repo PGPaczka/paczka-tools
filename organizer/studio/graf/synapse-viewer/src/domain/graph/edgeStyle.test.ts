@@ -3,6 +3,7 @@ import {
   EDGE_STYLES,
   edgeStyle,
   edgeWidth,
+  isContainerType,
   presentEdgeKinds,
   presentNodeTypes,
   nodeTypeScale,
@@ -101,5 +102,15 @@ describe('nodeTypeScale', () => {
     expect(nodeTypeScale('subject')).toBeGreaterThan(nodeTypeScale('category'))
     expect(nodeTypeScale('category')).toBeGreaterThan(nodeTypeScale('file'))
     expect(nodeTypeScale(undefined)).toBe(nodeTypeScale('file'))
+  })
+})
+
+describe('kontenery', () => {
+  it('semestr, przedmiot i kategoria trzymają innych — plik nie', () => {
+    expect(isContainerType('semester')).toBe(true)
+    expect(isContainerType('subject')).toBe(true)
+    expect(isContainerType('category')).toBe(true)
+    expect(isContainerType('file')).toBe(false)
+    expect(isContainerType(undefined)).toBe(false)
   })
 })

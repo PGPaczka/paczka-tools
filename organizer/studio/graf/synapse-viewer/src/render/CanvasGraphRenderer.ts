@@ -1,10 +1,12 @@
 import { Viewport } from './Viewport'
 import { buildQuadtree, hitTest } from './hitTesting'
 import { categoryColor } from '../domain/color/categoryColor'
-import { edgeStyle, edgeWidth, nodeTypeScale } from '../domain/graph/edgeStyle'
+import { edgeStyle, edgeWidth, isContainerType, nodeTypeScale } from '../domain/graph/edgeStyle'
 import {
   DOT_RADIUS_PX,
   adaptRenderScale,
+  containerRadius,
+  keepTopContainers,
   detailLevel,
   discInBounds,
   maxEdgePx,
@@ -315,6 +317,12 @@ export class CanvasGraphRenderer implements IGraphRenderer {
     return nodeRadius(node.level, node.type)
   }
 
+  /** Czy ten węzeł trzyma inne (semestr, przedmiot, kategoria)? Ghost nigdy nie trzyma. */
+  private isContainer(id: string): boolean {
+    const node = this.nodeIndex.get(id)
+    return node !== undefined && node.kind === 'real' && isContainerType(node.type ?? null)
+  }
+
   /** Node lookup for this graph, rebuilt only when the graph itself changes. */
   private nodeIndexOf(graph: KnowledgeGraph): Map<string, GraphNode> {
     if (this.nodeIndexFor !== graph) {
@@ -618,7 +626,12 @@ export class CanvasGraphRenderer implements IGraphRenderer {
       const tgt = posMap.get(edge.target)
       if (!src || !tgt) continue
       if (segmentOffscreen(bounds, src.x, src.y, tgt.x, tgt.y)) continue
-      if (Math.hypot(tgt.x - src.x, tgt.y - src.y) * scale > edgeLimitPx) continue
+      // Kręgosłup hierarchii — połączenia między kontenerami (przedmiot → kategorie,
+      // semestr → przedmioty) — zostaje ZAWSZE. Jest ich kilkanaście, a to one pokazują,
+      // z czego składa się to, na co patrzysz; reguła długości chroni przed tłumem
+      // plików, nie przed nimi.
+      const spine = this.isContainer(edge.source) && this.isContainer(edge.target)
+      if (!spine && Math.hypot(tgt.x - src.x, tgt.y - src.y) * scale > edgeLimitPx) continue
 
       // Highlight only edges where the focused node is a direct endpoint.
       // Cross-edges between neighbours would misleadingly look like those neighbours are also focused.
@@ -631,10 +644,13 @@ export class CanvasGraphRenderer implements IGraphRenderer {
       const color = isHighlighted && hasFocus ? SELECTED_COLOR : style.color
       const width = isHighlighted && hasFocus ? edgeWidth(edge) * 1.6 : edgeWidth(edge)
 
-      const key = `${color}|${width}|${style.dash.join(',')}|${alpha}`
+      // Grubość jest w jednostkach świata, więc przy oddaleniu linia potrafi zejść
+      // poniżej piksela i zniknąć. Kręgosłup ma być widoczny przy każdym przybliżeniu.
+      const drawWidth = spine ? Math.max(width, 1.6 / scale) : width
+      const key = `${color}|${drawWidth}|${style.dash.join(',')}|${alpha}`
       let batch = batches.get(key)
       if (batch === undefined) {
-        batch = { color, width, dash: style.dash, alpha, segments: [] }
+        batch = { color, width: drawWidth, dash: style.dash, alpha, segments: [] }
         batches.set(key, batch)
       }
       batch.segments.push(src.x, src.y, tgt.x, tgt.y)
@@ -675,8 +691,11 @@ export class CanvasGraphRenderer implements IGraphRenderer {
     const onTop: GraphNode[] = []
     const drawOrder: GraphNode[] = []
     for (const node of graph.nodes) {
-      if (node.id === selected || node.id === hovered) onTop.push(node)
-      else drawOrder.push(node)
+      // Kontenery idą na wierzch razem z zaznaczonym: w gęstwinie plików węzeł
+      // przedmiotu ginął pod nimi, choć to on jest punktem odniesienia.
+      if (node.id === selected || node.id === hovered || this.isContainer(node.id)) {
+        onTop.push(node)
+      } else drawOrder.push(node)
     }
 
     // --- Draw nodes ---
@@ -684,9 +703,17 @@ export class CanvasGraphRenderer implements IGraphRenderer {
     // secondary stroke all land on the same pixel — so nodes are collected by colour
     // and drawn as one path each. Two and a half thousand fills become a handful.
     const dots = new Map<string, number[]>()
-    const labels: {
-      x: number; y: number; text: string; focused: boolean; bold: boolean; dimmed: boolean
-    }[] = []
+    interface LabelDraw {
+      /** Pozycja węzła w świecie — na ekran przeliczamy ją dopiero przy rysowaniu. */
+      x: number; y: number
+      /** Odstęp pod węzłem, już w pikselach ekranu. */
+      offset: number
+      text: string; focused: boolean; bold: boolean; dimmed: boolean
+      /** Im grubszy poziom, tym wyżej w kolejce po miejsce na podpis. */
+      priority: number
+    }
+    const labels: LabelDraw[] = []
+    const containerLabels: LabelDraw[] = []
     let nodesDrawn = 0
 
     for (const node of drawOrder.concat(onTop)) {
@@ -708,8 +735,10 @@ export class CanvasGraphRenderer implements IGraphRenderer {
 
       // Próg liczony dla TEGO węzła: plik przy skali, w której semestr jest jeszcze
       // czytelnym kółkiem, ma już półtora piksela i cały jego rysunek ląduje na jednym.
-      const radius = node.kind === 'ghost' ? 7 : nodeRadius(node.level, node.type)
-      if (radius * scale < DOT_RADIUS_PX && !isSelected && !isHovered) {
+      const container = node.kind === 'real' && isContainerType(node.type ?? null)
+      const baseRadius = node.kind === 'ghost' ? 7 : nodeRadius(node.level, node.type)
+      const radius = container ? containerRadius(baseRadius, scale) : baseRadius
+      if (radius * scale < DOT_RADIUS_PX && !isSelected && !isHovered && !container) {
         // Kolor niesie znaczenie także przy oddaleniu (to po nim widać skupiska
         // semestrów), więc grupujemy PO KOLORZE, a nie rysujemy wszystkiego na szaro.
         const color =
@@ -746,9 +775,20 @@ export class CanvasGraphRenderer implements IGraphRenderer {
         ctx.stroke()
         ctx.setLineDash([])
       } else {
-        const r = nodeRadius(node.level, node.type)
+        const r = radius
         const catColor = categoryColor(node.category, overrides)
         const statusColor = node.status === 'in-progress' ? AMBER : node.status === 'completed' ? GREEN : GRAY
+
+        // Poświata wokół kontenera: przedmiot i kategorie mają się wyróżniać z tłumu
+        // plików bez powiększania ich do rozmiaru, przy którym zasłaniają sąsiadów.
+        if (container && !isHovered && !isSelected) {
+          ctx.globalAlpha = alpha * 0.14
+          ctx.fillStyle = catColor
+          ctx.beginPath()
+          ctx.arc(pos.x, pos.y, r + Math.max(6, r * 0.5), 0, Math.PI * 2)
+          ctx.fill()
+          ctx.globalAlpha = alpha
+        }
 
         // Glow ring for hovered/selected (always category colour)
         if (isHovered || isSelected) {
@@ -824,15 +864,22 @@ export class CanvasGraphRenderer implements IGraphRenderer {
       // Zbierane, nie rysowane od razu: ustawienie `ctx.font` jest jedną z droższych
       // operacji kontekstu, a tak wystarczy raz na klatkę zamiast raz na etykietę.
       // Przy okazji żadna etykieta nie chowa się pod węzłem narysowanym później.
-      if (node.kind === 'real' && isVisible && shouldLabel(radius * scale, onScreen.size, isHovered || isSelected)) {
-        labels.push({
+      if (
+        node.kind === 'real' && isVisible &&
+        shouldLabel(radius * scale, onScreen.size, isHovered || isSelected, container)
+      ) {
+        const draw: LabelDraw = {
           x: pos.x,
-          y: pos.y + radius + 5,
+          y: pos.y,
+          offset: radius * scale + 5,
           text: node.title,
-          focused: isHovered || isSelected,
-          bold: isSelected,
+          focused: isHovered || isSelected || container,
+          bold: isSelected || container,
           dimmed: hasFocus && !adjacent.has(node.id),
-        })
+          priority: nodeTypeScale(node.kind === 'real' ? node.type : null),
+        }
+        if (container && !isHovered && !isSelected) containerLabels.push(draw)
+        else labels.push(draw)
       }
     }
 
@@ -852,8 +899,17 @@ export class CanvasGraphRenderer implements IGraphRenderer {
     }
     ctx.globalAlpha = 1
 
-    // --- Labels, in one pass ---
+    // Podpisy kontenerów mają pierwszeństwo, ale nie nieograniczone: w widoku całej
+    // paczki 232 nazwy naraz to ściana tekstu, z której nie da się nic odczytać.
+    for (const label of keepTopContainers(containerLabels)) labels.push(label)
+
+    // --- Labels, in one pass, in SCREEN space ---
+    // Tekst rysowany w jednostkach świata kurczy się razem z grafem: przy widoku całej
+    // paczki (skala 0,05) dwunastopunktowa etykieta miała pół piksela, więc podpisy
+    // semestrów i przedmiotów po prostu znikały. W przestrzeni ekranu są zawsze czytelne
+    // i przy okazji ostre, bo nie przechodzą przez skalowanie.
     if (labels.length > 0) {
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.textAlign = 'center'
       ctx.textBaseline = 'top'
       const padH = 5
@@ -866,18 +922,20 @@ export class CanvasGraphRenderer implements IGraphRenderer {
           ctx.font = wanted
           font = wanted
         }
+        const sx = label.x * scale + tx
+        const sy = label.y * scale + ty + label.offset
         const boxW = ctx.measureText(label.text).width + padH * 2
         const boxH = fontSize + padV * 2
 
         ctx.globalAlpha = label.dimmed ? 0 : 0.82
         ctx.fillStyle = LABEL_BG
         ctx.beginPath()
-        ctx.roundRect(label.x - boxW / 2, label.y, boxW, boxH, 4)
+        ctx.roundRect(sx - boxW / 2, sy, boxW, boxH, 4)
         ctx.fill()
 
         ctx.globalAlpha = label.dimmed ? 0.3 : 1
         ctx.fillStyle = label.dimmed ? LABEL_COLOR_DIM : LABEL_COLOR
-        ctx.fillText(label.text, label.x, label.y + padV)
+        ctx.fillText(label.text, sx, sy + padV)
       }
       ctx.globalAlpha = 1
     }

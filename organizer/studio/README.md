@@ -319,6 +319,16 @@ Wybór kategorii odsłania jej pliki — 147 egzaminów AKO zamiast 2,5 tysiąca
 
 ![Zakres z kategorią](docs/screens/10c-graf-kategorie.png)
 
+**Kręgosłup hierarchii jest widoczny zawsze.** Połączenia między kontenerami (semestr →
+przedmioty, przedmiot → kategorie) nie podlegają cięciu długości ani poziomowi szczegółu:
+jest ich kilkanaście, a to one mówią, z czego składa się to, na co patrzysz. Same kontenery
+rysują się na wierzchu, z poświatą, nie schodzą poniżej sześciu pikseli i mają podpis nawet
+w tłumie — z budżetem, bo 232 nazwy naraz to ściana tekstu, więc przy oddaleniu zostają
+najgrubsze poziomy. Podpisy rysowane są w przestrzeni ekranu, więc nie kurczą się razem
+z grafem (wcześniej przy widoku całej paczki miały pół piksela i po prostu znikały).
+
+![Kręgosłup przedmiotu widoczny mimo 2,5 tys. plików](docs/screens/10d-graf-kregoslup.png)
+
 Tłumaczenie `sha256` ↔ `id` notatki stoi na kontrakcie vaulta: id notatki pliku kończy się
 `sha256[:8]` (`orglib/synapse_vault.ID_SHA_PREFIX`). Gdy skrót pasuje do kilku treści,
 studio **pokazuje kandydatów zamiast wybierać**. Notatki serwuje samo studio

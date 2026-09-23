@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import {
   adaptRenderScale,
+  containerRadius,
   detailLevel,
+  keepTopContainers,
   discInBounds,
   maxEdgePx,
   renderScale,
@@ -133,5 +135,42 @@ describe('długie krawędzie', () => {
     // 200 px przy ekranie telefonu to dwa węzły obok siebie — dokładnie to, po co
     // ktoś przybliża graf.
     expect(200).toBeLessThan(maxEdgePx(true, 412, 915))
+  })
+})
+
+describe('etykiety kontenerów', () => {
+  it('przedmiot i kategoria mają podpis nawet w największym tłoku', () => {
+    // Jest ich garstka, a to po nich poznajesz, na co patrzysz.
+    expect(shouldLabel(3, 4000, false, true)).toBe(true)
+  })
+})
+
+describe('rozmiar kontenera', () => {
+  it('przy oddaleniu kontener nie schodzi poniżej widoczności', () => {
+    // Przy skali 0,05 przedmiot o promieniu 25 miałby 1,25 px i ginął wśród plików.
+    expect(containerRadius(25, 0.05) * 0.05).toBeGreaterThanOrEqual(6)
+  })
+
+  it('przy przybliżeniu nic nie rozdmuchuje', () => {
+    expect(containerRadius(25, 1)).toBe(25)
+  })
+})
+
+describe('budżet podpisów kontenerów', () => {
+  it('przy małej liczbie zostają wszystkie', () => {
+    const items = [{ priority: 1 }, { priority: 2 }]
+
+    expect(keepTopContainers(items, 5)).toHaveLength(2)
+  })
+
+  it('przy tłoku zostają najgrubsze poziomy', () => {
+    // Semestr (2,2) przed przedmiotem (1,7) przed kategorią (1,3).
+    const items = [
+      { priority: 1.3, id: 'kategoria' },
+      { priority: 2.2, id: 'semestr' },
+      { priority: 1.7, id: 'przedmiot' },
+    ]
+
+    expect(keepTopContainers(items, 2).map((i) => i.id)).toEqual(['semestr', 'przedmiot'])
   })
 })

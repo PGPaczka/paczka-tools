@@ -129,9 +129,11 @@ export const LABEL_BUDGET = 400
 export const LABEL_MIN_RADIUS_PX = 4.5
 
 export function shouldLabel(
-  radiusPx: number, onScreenCount: number, focused: boolean,
+  radiusPx: number, onScreenCount: number, focused: boolean, container = false,
 ): boolean {
-  if (focused) return true
+  // Kontenery (semestr, przedmiot, kategoria) mają podpis zawsze: jest ich garstka,
+  // a to one mówią, na co się właśnie patrzy. Reszta reguł dotyczy tłumu plików.
+  if (focused || container) return true
   if (onScreenCount > LABEL_BUDGET) return radiusPx >= 14
   return radiusPx >= LABEL_MIN_RADIUS_PX
 }
@@ -152,4 +154,35 @@ export const MAX_EDGE_SCREENS = 1.5
 export function maxEdgePx(richNodes: boolean, vw: number, vh: number): number {
   if (!richNodes) return Number.POSITIVE_INFINITY
   return Math.hypot(vw, vh) * MAX_EDGE_SCREENS
+}
+
+/**
+ * Najmniejszy promień kontenera NA EKRANIE.
+ *
+ * Semestr, przedmiot i kategoria mają być widoczne przy każdym przybliżeniu — przy
+ * oddaleniu do całej paczki węzeł przedmiotu schodził do jednego piksela i ginął wśród
+ * plików, choć to on jest punktem odniesienia dla całej reszty.
+ */
+export const MIN_CONTAINER_PX = 6
+
+export function containerRadius(radius: number, scale: number): number {
+  return Math.max(radius, MIN_CONTAINER_PX / scale)
+}
+
+/** Ile podpisów kontenerów da się naraz przeczytać, zanim zlepią się w ścianę tekstu. */
+export const CONTAINER_LABEL_BUDGET = 48
+
+/**
+ * Podpisy kontenerów ograniczone budżetem, od najgrubszego poziomu.
+ *
+ * „Kontener ma podpis zawsze" brzmi dobrze i wygląda źle: w widoku całej paczki widać
+ * 232 kontenery naraz, a ich nazwy nachodzą na siebie tak, że nie da się przeczytać
+ * żadnej. Przy tłoku zostają więc te najgrubsze — semestry, potem przedmioty — a reszta
+ * wraca, gdy przybliżysz na tyle, że jest dla nich miejsce.
+ */
+export function keepTopContainers<T extends { priority: number }>(
+  items: T[], budget = CONTAINER_LABEL_BUDGET,
+): T[] {
+  if (items.length <= budget) return items
+  return [...items].sort((a, b) => b.priority - a.priority).slice(0, budget)
 }

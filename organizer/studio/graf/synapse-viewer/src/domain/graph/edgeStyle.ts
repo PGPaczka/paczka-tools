@@ -80,12 +80,24 @@ export function presentNodeTypes(types: readonly (string | null | undefined)[]):
 export function nodeTypeScale(type: string | null | undefined): number {
   switch (type) {
     case 'semester':
-      return 1.9
+      return 2.2
     case 'subject':
-      return 1.35
+      return 1.7
     case 'category':
-      return 1.15
+      return 1.3
     default:
       return 1
   }
+}
+
+/**
+ * Is this a CONTAINER — a note whose job is to hold others (semester, subject, category)?
+ *
+ * The containers and the links between them are the skeleton of a vault: a handful of
+ * nodes carrying most of the meaning. They are drawn on top, always labelled and never
+ * culled by the rules that keep a crowd of files affordable — those rules exist because
+ * files are many, and the skeleton is not.
+ */
+export function isContainerType(type: string | null | undefined): boolean {
+  return nodeTypeScale(type) > 1
 }
