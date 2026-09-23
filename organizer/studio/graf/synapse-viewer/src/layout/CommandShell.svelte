@@ -13,6 +13,16 @@
     <path d="M6.5 1h3l.45 1.8a5.2 5.2 0 011.3.75l1.75-.6 1.5 2.6-1.4 1.1a5.2 5.2 0 010 1.7l1.4 1.1-1.5 2.6-1.75-.6a5.2 5.2 0 01-1.3.75L9.5 14h-3l-.45-1.75A5.2 5.2 0 014.75 11.5l-1.75.6-1.5-2.6 1.4-1.1a5.2 5.2 0 010-1.7L1.5 5.55l1.5-2.6 1.75.6A5.2 5.2 0 016.05 2.8L6.5 1zm1.5 9a2 2 0 100-4 2 2 0 000 4z"/>
   </svg>`
 
+  /**
+   * Filters as a drawer on small screens.
+   *
+   * The panel is a fixed 220px column. On a phone (412px) that left the canvas
+   * ~190px wide, so the graph looked like "only the sidebar loaded" — reported from
+   * a tablet and a phone. Below 820px the panel floats above the canvas instead and
+   * is toggled from the command bar, so the drawing always gets the full width.
+   */
+  let filtersOpen = false
+
   const views: Array<{ id: 'graph' | 'cards' | 'dash' | 'venn'; label: string }> = [
     { id: 'graph', label: 'Graph' },
     { id: 'venn', label: 'Venn' },
@@ -74,7 +84,13 @@
   </div>
 
   <!-- Content row sits below the floating command bar -->
-  <div class="content-zone">
+  <button
+    class="filters-toggle"
+    aria-label={filtersOpen ? 'Hide filters' : 'Show filters'}
+    on:click={() => (filtersOpen = !filtersOpen)}
+  >{filtersOpen ? '×' : '☰'}</button>
+
+  <div class="content-zone" class:filters-open={filtersOpen}>
     <slot name="filters" />
     <div class="main-area">
       <slot name="main" />
@@ -226,5 +242,57 @@
     overflow: hidden;
     position: relative;
     padding-top: 64px;
+  }
+
+  /* On a wide screen the drawer button is pointless — the column is always there. */
+  .filters-toggle {
+    display: none;
+  }
+
+  @media (max-width: 820px) {
+    .filters-toggle {
+      display: block;
+      position: absolute;
+      left: 8px;
+      top: 68px;
+      z-index: 30;
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--text);
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    /* Filters float above the canvas instead of taking a column from it. */
+    .content-zone > :global(.filter-panel) {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 25;
+      transform: translateX(-102%);
+      transition: transform 0.16s ease-out;
+      box-shadow: 0 0 24px rgba(1, 4, 9, 0.6);
+    }
+    .content-zone.filters-open > :global(.filter-panel) {
+      transform: translateX(0);
+    }
+
+    /* Same for the note panel: on a phone it is a sheet, not a third column. */
+    .content-zone > :global(.detail-panel) {
+      position: absolute;
+      top: 56px;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 26;
+      /* `!important`, bo panel niesie szerokość w atrybucie style (suwak szerokości). */
+      width: auto !important;
+      max-width: none;
+    }
   }
 </style>

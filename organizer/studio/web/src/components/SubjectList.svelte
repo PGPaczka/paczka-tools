@@ -12,6 +12,7 @@
     semesters,
     grupa = $bindable<string | null>(null),
     grupy = [],
+    onClose,
   }: {
     subjects: SubjectRow[];
     selected: SubjectRow | null;
@@ -22,6 +23,8 @@
     grupa: string | null;
     /** Strumienie/katedry w wybranym semestrze; pusto = ten semestr ich nie ma. */
     grupy: string[];
+    /** Zwinięcie panelu (przycisk w nagłówku listy). */
+    onClose?: () => void;
   } = $props();
 
   let search: HTMLInputElement | undefined = $state();
@@ -41,8 +44,14 @@
   const key = (row: SubjectRow) => `${row.semester}/${row.grupa}/${row.skrot}`;
 </script>
 
-<section>
+<section class="side-panel subject-list">
   <header>
+    <div class="head-row">
+      <span class="label">Przedmioty</span>
+      {#if onClose}
+        <button class="collapse" onclick={onClose} title="Zwiń listę" aria-label="Zwiń listę">×</button>
+      {/if}
+    </div>
     <input
       bind:this={search}
       bind:value={query}
@@ -131,6 +140,32 @@
     padding: 10px 12px;
     border-bottom: 1px solid var(--border);
     background: var(--bg-deep);
+  }
+
+  .head-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .head-row .label {
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-2);
+  }
+  .collapse {
+    margin-left: auto;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1;
+  }
+  .collapse:hover {
+    color: var(--text);
+    border-color: var(--accent-dim);
   }
 
   input {

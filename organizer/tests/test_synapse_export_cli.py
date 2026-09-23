@@ -97,6 +97,26 @@ def test_exports_the_three_level_hierarchy(workspace):
     assert '  - target: "sem3"\n    kind: "belongs_to"' in head
 
 
+def test_subject_note_carries_the_same_tag_as_its_files(workspace):
+    """Jeden tag wybiera przedmiot RAZEM z jego plikami.
+
+    W grafie semestr da się wybrać tagiem `sem3` (niosą go wszystkie trzy poziomy),
+    ale przedmiot nie miał własnego tagu: filtr po `ako` pokazywał pliki bez ich
+    przedmiotu. Zgłoszone z tabletu 2026-09-23 razem z prośbą o wybór przedmiotu.
+    """
+    assert runner.invoke(cli.app, []).exit_code == 0
+
+    notes = notes_of(vault(workspace))
+    subject_head, _ = frontmatter(notes["sem3-ako"])
+    file_head, _ = frontmatter(
+        next(p for name, p in notes.items() if name.startswith("ako-"))
+    )
+
+    assert '"ako"' in subject_head, "przedmiot ma nieść swój skrót jako tag"
+    assert '"sem3"' in subject_head and '"sem3"' in file_head
+    assert '"ako"' in file_head
+
+
 def test_file_note_points_at_its_subject_and_carries_the_decision(workspace):
     assert runner.invoke(cli.app, []).exit_code == 0
 

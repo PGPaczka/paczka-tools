@@ -39,6 +39,86 @@ PAGE_WIDTH: int = 1000
 IMAGE_KINDS = frozenset({"image"})
 PAGE_KINDS = frozenset({"pdf"})
 
+#: Rodzaje treści, w których plik źródłowy JEST tekstem — więc wolno go pokazać
+#: wprost, gdy etap extract go nie dotknął. ``other`` jest tu celowo: ten kubeł
+#: opisuje etap potoku, a nie to, czy coś da się przeczytać (leżą w nim m.in.
+#: pliki projektowe Visual Studio, czyli zwykły XML).
+SOURCE_TEXT_KINDS = frozenset({"text", "code", "other", ""})
+
+#: Ile bajtów źródła wolno powąchać przy rozstrzyganiu „tekst czy binarka".
+SNIFF_BYTES: int = 65536
+
+#: Rozszerzenie → język dla kolorowania składni. Rozstrzyga backend, bo to reguła
+#: o treści, a front ma nie zgadywać po nazwie (``studio/AGENTS.md``, reguła 1).
+TEXT_LANGUAGES: dict[str, str] = {
+    ".md": "markdown", ".markdown": "markdown",
+    ".c": "c", ".h": "c", ".cpp": "cpp", ".cc": "cpp", ".hpp": "cpp", ".cs": "csharp",
+    ".java": "java", ".py": "python", ".rb": "ruby", ".go": "go", ".rs": "rust",
+    ".js": "javascript", ".mjs": "javascript", ".ts": "typescript", ".jsx": "javascript",
+    ".php": "php", ".pl": "perl", ".lua": "lua", ".kt": "kotlin", ".swift": "swift",
+    ".m": "matlab", ".asm": "x86asm", ".s": "x86asm", ".vhd": "vhdl", ".v": "verilog",
+    ".sh": "bash", ".bash": "bash", ".bat": "dos", ".ps1": "powershell",
+    ".sql": "sql", ".r": "r", ".scala": "scala", ".f90": "fortran", ".pas": "delphi",
+    ".html": "xml", ".htm": "xml", ".xml": "xml", ".xsd": "xml", ".svg": "xml",
+    ".vcxproj": "xml", ".csproj": "xml", ".props": "xml", ".config": "xml",
+    ".json": "json", ".yaml": "yaml", ".yml": "yaml", ".toml": "ini", ".ini": "ini",
+    ".css": "css", ".scss": "scss", ".tex": "latex", ".csv": "plaintext",
+    ".txt": "plaintext", ".log": "plaintext",
+}
+
+
+def text_language(filename: str, content_kind: str | None) -> str | None:
+    """Język do kolorowania składni, albo ``None``, gdy nie ma czego kolorować.
+
+    Tekst wyciągnięty z PDF-a czy docx-a jest wypisem, nie kodem — kolorowanie go
+    byłoby kłamstwem o tym, co człowiek ogląda.
+    """
+    if (content_kind or "") not in SOURCE_TEXT_KINDS:
+        return None
+    return TEXT_LANGUAGES.get(Path(filename).suffix.lower())
+
+
+def looks_like_text(raw: bytes) -> str | None:
+    """Zdekodowany początek pliku, gdy to tekst; ``None``, gdy bajty są binarne.
+
+    Wysypanie zawartości ``.obj`` na ekran jest gorsze niż uczciwe „nie ma czego
+    pokazać", więc decyduje treść, nie rozszerzenie: bajt zerowy albo gęstwina
+    znaków sterujących kończy podgląd.
+    """
+    if not raw:
+        return None
+    for bom, encoding in ((b"\xff\xfe", "utf-16-le"), (b"\xfe\xff", "utf-16-be"), (b"\xef\xbb\xbf", "utf-8-sig")):
+        if raw.startswith(bom):
+            try:
+                return raw.decode(encoding, errors="replace")
+            except (UnicodeError, LookupError):
+                return None
+    if b"\x00" in raw:
+        return None
+    for encoding in ("utf-8", "cp1250"):
+        try:
+            text = raw.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+        control = sum(1 for char in text if ord(char) < 32 and char not in "\t\n\r")
+        return None if control > len(text) * 0.02 else text
+    return None
+
+
+def source_text_head(source: Path, limit: int) -> str | None:
+    """Głowa tekstu wzięta wprost z pliku źródłowego (tylko do odczytu).
+
+    Potrzebne, bo extract pomija tysiące pozycji (``other`` w całości, część
+    ``text``/``code``), a decyzja o nich i tak zapada po tym, co w nich jest.
+    """
+    try:
+        with source.open("rb") as handle:
+            raw = handle.read(min(SNIFF_BYTES, max(limit * 4, 1024)))
+    except OSError:
+        return None
+    text = looks_like_text(raw)
+    return None if text is None else text[:limit]
+
 
 def text_head(paths: config.Paths, relative_path: str | None, limit: int) -> str | None:
     """Głowa tekstu z ``work`` (ścieżka z ``content.extracted_text_path``).

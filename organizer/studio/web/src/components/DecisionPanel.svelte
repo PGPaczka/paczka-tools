@@ -1,4 +1,5 @@
 <script lang="ts">
+  import TextPreview from './TextPreview.svelte';
   import Lightbox from './Lightbox.svelte';
   import {
     postDecision,
@@ -315,7 +316,11 @@
             </figcaption>
           {/if}
         {:else if preview?.text_head}
-          <pre class="text-head">{preview.text_head}</pre>
+          <TextPreview
+            text={preview.text_head}
+            language={preview.text_language}
+            label={current.filename ?? preview.content_kind}
+          />
         {:else if preview && preview.preview_kind === 'none'}
           <div class="no-preview">
             <p>Bez podglądu</p>
@@ -333,7 +338,7 @@
         {#if preview?.text_head && imageUrl}
           <details class="text-toggle">
             <summary>głowa tekstu</summary>
-            <pre class="text-head">{preview.text_head}</pre>
+            <TextPreview text={preview.text_head} language={preview.text_language} />
           </details>
         {/if}
       </figure>
@@ -575,17 +580,6 @@
   .pager button:disabled {
     opacity: 0.35;
     cursor: default;
-  }
-  .text-head {
-    margin: 0;
-    max-height: 44vh;
-    overflow: auto;
-    white-space: pre-wrap;
-    word-break: break-word;
-    font-family: var(--font-mono);
-    font-size: 11px;
-    line-height: 1.55;
-    color: var(--text);
   }
   .text-toggle summary {
     cursor: pointer;

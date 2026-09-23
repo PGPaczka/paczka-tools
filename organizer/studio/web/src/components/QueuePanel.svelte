@@ -7,8 +7,14 @@
     dashboard,
     stage,
     onStage,
-  }: { dashboard: Dashboard; stage: string | null; onStage: (value: string | null) => void } =
-    $props();
+    onClose,
+  }: {
+    dashboard: Dashboard;
+    stage: string | null;
+    onStage: (value: string | null) => void;
+    /** Zwinięcie panelu — na telefonie to jedyny sensowny sposób odzyskania ekranu. */
+    onClose?: () => void;
+  } = $props();
 
   /** Kolor etapu — ta sama skala, co przy pozycjach: bursztyn = czeka na oko. */
   const colors: Record<string, string> = {
@@ -27,8 +33,13 @@
   );
 </script>
 
-<aside>
-  <h2>Kolejka</h2>
+<aside class="side-panel queue-panel">
+  <div class="panel-head">
+    <h2>Kolejka</h2>
+    {#if onClose}
+      <button class="collapse" onclick={onClose} title="Zwiń panel" aria-label="Zwiń panel">×</button>
+    {/if}
+  </div>
   <Bar {segments} height={6} />
 
   <ul>
@@ -78,6 +89,29 @@
     border-right: 1px solid var(--border);
     background: var(--bg-deep);
     overflow-y: auto;
+  }
+
+  .panel-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel-head h2 {
+    margin: 0;
+  }
+  .collapse {
+    margin-left: auto;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1;
+  }
+  .collapse:hover {
+    color: var(--text);
+    border-color: var(--accent-dim);
   }
 
   h2 {

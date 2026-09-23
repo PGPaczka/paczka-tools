@@ -198,6 +198,32 @@ Do tego dotyk i układ: gesty w grafie (jeden palec przesuwa, dwa skalują; sufi
 się w poziomie zamiast chować zakładki poza ekran (na 412 px `plan`, `graf`
 i `statystyki` były nieklikalne).
 
+## Telefon, tekst i zakres grafu (2026-09-23)
+
+Druga tura zgłoszeń z telefonu i tabletu. Każde znalazło realną wadę, żadnej nie
+złapały testy — więc każda dostała test przed poprawką.
+
+- **Wbudowany graf na telefonie ładował sam panel boczny.** Pasek zakładek rozpychał
+  całą stronę (`main` miał 769 px przy ekranie 412 px), a zwinięta zakładka panelu
+  leżała NA panelu roboczym i zjadała mu lewą krawędź. Układ jest domknięty do
+  szerokości ekranu, a panel roboczy zaczyna się za szynami: canvas grafu ma teraz
+  pełne 382 px zamiast 192.
+- **Pliki md/txt/kod pokazują się jako tekst.** Extract nie dotknął ani jednej treści
+  `other` (4537) i ponad dwustu `text`/`code`, więc podgląd bywał pusty przy pozycji,
+  o której trzeba było zdecydować. Backend czyta wtedy głowę **samego pliku**, ale
+  tylko gdy bajty są tekstem — `.obj` i `.jar` nadal uczciwie mówią „bez podglądu”.
+  Język do kolorowania składni ustala backend (`preview.text_language`), a
+  `highlight.js` doczytuje się osobnym chunkiem dopiero, gdy jest co pokolorować.
+- **Nie dało się oddalić grafu do widoku całości.** Kółko stawało na 0,35, a paczka
+  otwiera się przy 0,06 — po pierwszym przybliżeniu nie było jak wrócić i przesuwanie
+  między semestrami było zgadywanką. Podłoga zoomu to teraz 0,04.
+- **Filtr „SEM3 + pliki” pokazywał przedmioty bez plików.** `category` = `SEM3` mają
+  wyłącznie węzły przedmiotów. Viewer dostał wybór **zakresu**: semestr, a pod nim
+  przedmiot (lista zawęża się do wybranego semestru), oba działające na tagach, które
+  niosą wszystkie trzy poziomy. Eksport dokłada przedmiotowi jego skrót jako tag —
+  jedno kliknięcie wybiera przedmiot razem z materiałami. Wejście do przedmiotu samo
+  odsłania typ `file`.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

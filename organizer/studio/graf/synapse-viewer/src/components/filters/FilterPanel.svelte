@@ -11,6 +11,7 @@
     presentEdgeKinds,
     presentNodeTypes,
   } from '../../domain/graph/edgeStyle'
+  import { scopeLevels } from '../../domain/graph/scope'
 
   // Derived data from graph
   $: realNodes = ($graph?.nodes ?? []).filter((n): n is RealNode => n.kind === 'real')
@@ -41,6 +42,48 @@
     },
     {} as Record<string, number>,
   )
+
+  // Scope: walk the hierarchy (semester → subject) instead of guessing which dimension
+  // holds it. Category looked like the answer and was not: only subject notes carry
+  // `SEM3`, so "SEM3 + files" answered with subjects and zero files.
+  $: levels_ = scopeLevels(realNodes)
+  $: scopeTags = levels_.map((level) => {
+    const chosen = level.options.find((option) => $filters.tags.includes(option.tag))
+    return chosen?.tag ?? ''
+  })
+  /**
+   * Opcje każdego poziomu, zawężone wyborem z poziomu wyżej.
+   *
+   * To musi być wartość pochodna, nie funkcja wołana w szablonie: Svelte nie wie,
+   * od czego zależy wywołanie, więc lista przedmiotów zostawała pełna po wybraniu
+   * semestru — i wybór „drugiego z listy" trafiał w przedmiot z innego semestru.
+   */
+  $: scopeChoices = levels_.map((level, index) => {
+    const above = scopeTags.slice(0, index).filter((tag) => tag !== '')
+    return level.options.filter((option) => above.every((tag) => option.tags.includes(tag)))
+  })
+
+  function chooseScope(index: number, tag: string) {
+    // Every tag this picker owns — so switching semester drops the subject under it.
+    const owned = new Set(levels_.flatMap((level) => level.options.map((o) => o.tag)))
+    const keptOwn = scopeTags.slice(0, index).filter((t) => t !== '')
+
+    filters.update((f: GraphFilters) => {
+      const tags = [...f.tags.filter((t) => !owned.has(t)), ...keptOwn]
+      if (tag !== '') tags.push(tag)
+      // Zakres to iloczyn („sem3 ORAZ ako"), więc suma tagów byłaby tu kłamstwem.
+      const tagMode = 'all' as const
+      // Schodząc do najdrobniejszego poziomu chcesz zobaczyć właśnie jego — inaczej
+      // wybór przedmiotu pokazuje sam przedmiot, a materiały zostają ukryte.
+      const finest = nodeTypes[nodeTypes.length - 1]
+      const nodeTypesNext =
+        tag !== '' && index === levels_.length - 1 && f.nodeTypes.length > 0 &&
+        finest !== undefined && !f.nodeTypes.includes(finest)
+          ? [...f.nodeTypes, finest]
+          : f.nodeTypes
+      return { ...f, tags, tagMode, nodeTypes: nodeTypesNext }
+    })
+  }
 
   // Node types (e.g. semester / subject / file) — only those present in this vault.
   $: nodeTypes = presentNodeTypes(realNodes.map((n) => n.type))
@@ -186,6 +229,26 @@
     aria-hidden={!hasFilters}
   >Clear filters</button>
 
+  <!-- Scope: pick a semester, then a subject. Both carry their notes WITH them. -->
+  {#if levels_.length > 0}
+    <section class="filter-section">
+      <div class="section-label">Scope</div>
+      {#each levels_ as level, index}
+        <select
+          class="scope-select"
+          aria-label={level.type}
+          value={scopeTags[index]}
+          on:change={(event) => chooseScope(index, event.currentTarget.value)}
+        >
+          <option value="">all {level.type}s</option>
+          {#each scopeChoices[index] ?? [] as option}
+            <option value={option.tag}>{option.label} · {option.count}</option>
+          {/each}
+        </select>
+      {/each}
+    </section>
+  {/if}
+
   <!-- Node type — only shown when the vault types its notes -->
   {#if nodeTypes.length > 0}
     <section class="filter-section">
@@ -329,6 +392,20 @@
     width: 14px;
     border-top-width: 2px;
     margin-right: 2px;
+  }
+
+  .scope-select {
+    width: calc(100% - 24px);
+    margin: 0 12px 6px;
+    padding: 4px 6px;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 11px;
+  }
+  .scope-select:focus {
+    outline: 1px solid var(--accent);
   }
 
   .filter-panel {

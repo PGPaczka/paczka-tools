@@ -68,10 +68,24 @@ describe('Viewport', () => {
       expect(vp.scale).toBeLessThanOrEqual(6)
     })
 
-    it('scale is clamped to min 0.35', () => {
-      vp.scale = 0.36
-      vp.applyWheel(1, 400, 300) // factor 0.89 → 0.32 → clamped
-      expect(vp.scale).toBeGreaterThanOrEqual(0.35)
+    it('zooming out can return to the scale the vault OPENS at', () => {
+      // fitView may settle as low as 0.06 for a four-thousand-node package, while the
+      // wheel refused to go below 0.35. Zoom in once and the overview was unreachable:
+      // you could no longer see where the semesters were, so panning became guesswork.
+      vp.setSize(800, 600)
+      vp.fitView(0, 0, 12000, 9000)
+      const opening = vp.scale
+
+      vp.scale = 1
+      for (let i = 0; i < 40; i++) vp.applyWheel(1, 400, 300)
+
+      expect(vp.scale).toBeLessThanOrEqual(opening)
+    })
+
+    it('scale is clamped to a floor, so the graph never vanishes into a dot', () => {
+      vp.scale = 0.05
+      vp.applyWheel(1, 400, 300)
+      expect(vp.scale).toBeGreaterThanOrEqual(0.04)
     })
 
     it('keeps the world point under the mouse fixed', () => {
@@ -100,10 +114,12 @@ describe('Viewport', () => {
       expect(vp.scale).toBeLessThanOrEqual(1.35)
     })
 
-    it('scale clamped to min 0.4 for a huge bbox', () => {
+    it('scale clamped to the fit floor for a huge bbox', () => {
       // 10000×10000 world vs 800×600 viewport → unclamped << 0.4
       vp.fitView(0, 0, 10000, 10000)
-      expect(vp.scale).toBeGreaterThanOrEqual(0.4)
+      // 0.06, nie 0.4: tyle trzeba, żeby paczka na cztery tysiące węzłów w ogóle
+      // zmieściła się na ekranie. Oczekiwanie 0.4 zostało z małego vaulta.
+      expect(vp.scale).toBeGreaterThanOrEqual(0.06)
     })
 
     it('computes correct scale and translation for [100,100]→[300,300], vw=800, vh=600', () => {

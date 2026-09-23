@@ -22,7 +22,7 @@ from fastapi.testclient import TestClient
 from orglib import config, db
 from studio.api.app import create_app
 
-SHA = {name: name * 64 for name in "abcd"}
+SHA = {name: name * 64 for name in "abcdef"}
 THRESHOLDS = {"confidence": {"auto_apply": 0.90, "review_min": 0.70}}
 
 SUBJECTS = [
@@ -89,6 +89,36 @@ def workspace(tmp_path):
         "source_package": "P", "source_relative_path": "SEM3/nie-ma.pdf", "folder_path": "P/SEM3",
         "filename": "nie-ma.pdf", "extension": ".pdf", "size_bytes": 100,
         "sha256": SHA["c"], "status": "extracted",
+    })
+    # d: notatka .md leżąca na dysku, ale BEZ wyekstrahowanego tekstu. Tak wygląda
+    # w bazie 4,5 tysiąca treści `other` i ponad dwieście `text`/`code`: extract ich
+    # nie dotknął, a człowiek i tak musi wiedzieć, czym one są.
+    (paths.sources / "P" / "SEM3" / "notatki.md").write_text(
+        "# Hazardy\n\nLista pytań na kolokwium.\n", encoding="utf-8"
+    )
+    db.upsert_content(conn, {"sha256": SHA["d"], "content_kind": "text"})
+    db.upsert_file(conn, {
+        "source_package": "P", "source_relative_path": "SEM3/notatki.md", "folder_path": "P/SEM3",
+        "filename": "notatki.md", "extension": ".md", "size_bytes": 40,
+        "sha256": SHA["d"], "status": "hashed",
+    })
+    # e: plik projektowy Visual Studio — `content_kind = other`, ale to zwykły XML.
+    (paths.sources / "P" / "SEM3" / "lab.vcxproj").write_text(
+        '<?xml version="1.0"?><Project ToolsVersion="4.0"></Project>', encoding="utf-8"
+    )
+    db.upsert_content(conn, {"sha256": SHA["e"], "content_kind": "other"})
+    db.upsert_file(conn, {
+        "source_package": "P", "source_relative_path": "SEM3/lab.vcxproj", "folder_path": "P/SEM3",
+        "filename": "lab.vcxproj", "extension": ".vcxproj", "size_bytes": 57,
+        "sha256": SHA["e"], "status": "hashed",
+    })
+    # f: prawdziwy binarny artefakt kompilacji — podgląd ma go NIE udawać tekstem.
+    (paths.sources / "P" / "SEM3" / "lab.obj").write_bytes(bytes(range(256)) * 4)
+    db.upsert_content(conn, {"sha256": SHA["f"], "content_kind": "other"})
+    db.upsert_file(conn, {
+        "source_package": "P", "source_relative_path": "SEM3/lab.obj", "folder_path": "P/SEM3",
+        "filename": "lab.obj", "extension": ".obj", "size_bytes": 1024,
+        "sha256": SHA["f"], "status": "hashed",
     })
     conn.commit()
     conn.close()
@@ -208,3 +238,34 @@ def test_preview_says_what_it_can_show(client) -> None:
 def test_unknown_content_is_404(client) -> None:
     assert client.get("/api/preview/" + "0" * 64).status_code == 404
     assert client.get("/api/preview/" + "0" * 64 + "/image").status_code == 404
+
+
+def test_a_text_file_without_extraction_is_still_readable(client) -> None:
+    """Plik .md bez etapu extract to nadal tekst — a nie „brak podglądu".
+
+    Zgłoszone z telefonu: przy pozycjach md/txt panel pokazywał pustkę, więc nie
+    dało się stwierdzić, czym w ogóle jest plik, o którym zapada decyzja.
+    """
+    body = client.get(f"/api/preview/{SHA['d']}").json()
+
+    assert body["preview_kind"] == "text"
+    assert body["has_text"] is True
+    assert "Hazardy" in body["text_head"]
+    assert body["text_language"] == "markdown", "widok nie ma zgadywać języka po nazwie"
+
+
+def test_a_project_file_classified_as_other_is_shown_as_text(client) -> None:
+    """`content_kind = other` opisuje etap potoku, nie to, czy da się to przeczytać."""
+    body = client.get(f"/api/preview/{SHA['e']}").json()
+
+    assert body["preview_kind"] == "text"
+    assert "<Project" in body["text_head"]
+    assert body["text_language"] == "xml"
+
+
+def test_a_binary_artifact_is_not_pretended_to_be_text(client) -> None:
+    """Wysypanie bajtów .obj na ekran jest gorsze niż uczciwe „nie ma czego pokazać"."""
+    body = client.get(f"/api/preview/{SHA['f']}").json()
+
+    assert body["preview_kind"] == "none"
+    assert body["has_text"] is False and body["text_head"] is None

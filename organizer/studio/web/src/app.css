@@ -101,3 +101,52 @@ input {
 .tag.auto { color: var(--green); border-color: rgba(63, 185, 80, 0.4); }
 .tag.unresolved { color: var(--red); border-color: rgba(248, 81, 73, 0.4); }
 .tag.brak { color: var(--muted-2); }
+
+/* Paleta kolorowania składni (highlight.js). Zamiast gotowego motywu — 20 linii
+   na tych samych tokenach co reszta studia: motyw z paczki przynosi własne tło
+   i własny szary, przez co podgląd wyglądał jak wklejony z innej aplikacji. */
+.hljs-comment,
+.hljs-quote {
+  color: var(--muted);
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-doctag,
+.hljs-type,
+.hljs-deletion {
+  color: var(--red);
+}
+.hljs-string,
+.hljs-regexp,
+.hljs-addition {
+  color: #a5d6ff;
+}
+.hljs-number,
+.hljs-attr,
+.hljs-attribute,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-meta {
+  color: var(--accent);
+}
+.hljs-built_in,
+.hljs-params,
+.hljs-symbol,
+.hljs-bullet {
+  color: var(--orange);
+}
+.hljs-title,
+.hljs-name,
+.hljs-section,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: #7ee787;
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 600;
+}

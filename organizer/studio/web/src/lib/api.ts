@@ -247,6 +247,8 @@ export interface Preview {
   content_kind: string | null;
   text_head: string | null;
   has_text: boolean;
+  /** Język do kolorowania składni albo `null` — ustala backend, nie widok. */
+  text_language: string | null;
   has_image: boolean;
   /** Co widok ma narysować: 'page' (strona PDF), 'image', 'text', 'none'.
    *  Rodzaj ustala backend — front nie zgaduje po rozszerzeniu. */

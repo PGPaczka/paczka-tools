@@ -262,7 +262,13 @@ def build_notes(
         if scope and key != scope:
             continue
         counts = per_subject.get(key, {"ground_truth": 0, "planned": 0, "needs_review": 0})
-        tags = [f"sem{subject.semester}", f"grupa-{slugify(subject.grupa, limit=20)}"]
+        # Skrót przedmiotu jest tym samym tagiem, który niosą jego pliki: jedno
+        # kliknięcie w grafie wybiera przedmiot RAZEM z materiałami, a nie osobno.
+        tags = [
+            f"sem{subject.semester}",
+            slugify(subject.skrot, limit=16),
+            f"grupa-{slugify(subject.grupa, limit=20)}",
+        ]
         tags += [f"forma-{form.lower()}" for form in subject.forms]
         if subject.katedra:
             tags.append(f"katedra-{slugify(subject.katedra, limit=16)}")

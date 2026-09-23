@@ -86,8 +86,13 @@ miewa tysiące plików, a jedna pozycja na notatkę trzyma front matter mały.
 | `category` | `semestr` | `SEM1`…`SEM7` | kategoria z `syntax.yaml` |
 | `level` | — | 1–3 wg stanu prac | 1 = w paczce · 2 = plan pewny · 3 = wymaga człowieka |
 | `status` | zbiorczy | `completed`/`in-progress`/`not-started` | j.w. wg etapu potoku |
-| `tags` | — | grupa, formy, katedra | `rodzaj-…`, `akcja-…`, `metoda-…`, `rok-…`, `w-paczce` |
+| `tags` | `semestr`, `semN` | `semN`, skrót (`ako`), grupa, formy, katedra | `semN`, skrót, `rodzaj-…`, `akcja-…`, `metoda-…`, `rok-…`, `w-paczce` |
 | `relations` | — | `belongs_to` → semestr | `belongs_to` → przedmiot + relacje z B6 |
+
+Tag semestru (`sem3`) i skrót przedmiotu (`ako`) niesie **każdy poziom**: semestr, jego
+przedmioty i ich pliki. To one pozwalają wybrać w viewerze zakres „semestr → przedmiot"
+jednym kliknięciem — `category` do tego nie służy, bo `SEM3` mają wyłącznie przedmioty
+i filtr po niej pokazuje przedmioty bez ich materiałów.
 
 **Do grafu wchodzą tylko materiały z DECYZJĄ** (ground truth albo plan) — decyzja
 użytkownika. Relacja do treści bez decyzji zostaje zapisana jako cel spoza vaulta, więc

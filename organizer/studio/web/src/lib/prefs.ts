@@ -51,3 +51,24 @@ export function clearPrefs(): void {
     /* jw. */
   }
 }
+
+/** Poniżej tej szerokości panele są nakładką nad panelem roboczym, nie kolumną. */
+export const NARROW = 700;
+/** Poniżej tej szerokości trzy kolumny nie mieszczą się sensownie obok siebie. */
+export const TABLET = 1100;
+
+/**
+ * Które panele boczne są otwarte przy pierwszym wejściu z danego ekranu.
+ *
+ * Wcześniej rozstrzygało to jedno `@media (max-width: 1100px) { aside { display: none } }`
+ * i było to gorsze niż wygląda: panel dawało się „rozwinąć", tylko nic się nie pokazywało,
+ * bo reguła chowała go niezależnie od stanu. Na telefonie zwijanie wyglądało więc na
+ * zepsute (zgłoszone 2026-09-23). Stan trzyma aplikacja, CSS go tylko rysuje.
+ */
+export function defaultPanels(width: number): { queueOpen: boolean; listOpen: boolean } {
+  if (width <= NARROW) return { queueOpen: false, listOpen: false };
+  // Kolejka etapów jest powtórzona jako filtr w liście przedmiotów; lista nie jest
+  // powtórzona nigdzie, więc to ona zostaje, gdy miejsca jest mało.
+  if (width <= TABLET) return { queueOpen: false, listOpen: true };
+  return { queueOpen: true, listOpen: true };
+}

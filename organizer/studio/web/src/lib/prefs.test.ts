@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { clearPrefs, loadPrefs, savePrefs } from './prefs';
+import { clearPrefs, defaultPanels, loadPrefs, savePrefs } from './prefs';
 
 describe('prefs', () => {
   beforeEach(() => localStorage.clear());
@@ -33,5 +33,20 @@ describe('prefs', () => {
     savePrefs({ mode: 'plan' });
     clearPrefs();
     expect(loadPrefs()).toEqual({});
+  });
+});
+
+describe('panele boczne na starcie', () => {
+  it('telefon zaczyna z obydwoma zwiniętymi — pierwszy ekran ma być pracą', () => {
+    expect(defaultPanels(412)).toEqual({ queueOpen: false, listOpen: false });
+  });
+
+  it('tablet zwija kolejkę, ale zostawia listę przedmiotów', () => {
+    // Kolejka etapów jest powtórzona jako filtr w liście, lista nie jest powtórzona nigdzie.
+    expect(defaultPanels(820)).toEqual({ queueOpen: false, listOpen: true });
+  });
+
+  it('na szerokim ekranie oba panele są otwarte', () => {
+    expect(defaultPanels(1440)).toEqual({ queueOpen: true, listOpen: true });
   });
 });

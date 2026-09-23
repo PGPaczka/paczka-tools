@@ -1,4 +1,12 @@
 <script lang="ts">
+  /**
+   * Filters as a drawer on small screens.
+   *
+   * The filter panel is a fixed 220px column. On a 412px phone that left the canvas
+   * ~190px wide, so an embedded graph looked like "only the sidebar loaded" (reported
+   * from a phone and a tablet). Below 820px it floats above the canvas instead.
+   */
+  let filtersOpen = false
   import { createEventDispatcher } from 'svelte'
 
   export let view: 'graph' | 'cards' | 'dash' | 'venn' = 'graph'
@@ -77,7 +85,13 @@
   </header>
 
   <!-- Content row -->
-  <div class="content-row">
+  <button
+    class="filters-toggle"
+    aria-label={filtersOpen ? 'Hide filters' : 'Show filters'}
+    on:click={() => (filtersOpen = !filtersOpen)}
+  >{filtersOpen ? '×' : '☰'}</button>
+
+  <div class="content-row" class:filters-open={filtersOpen}>
     <!-- Left sidebar: filter panel slot -->
     <slot name="filters" />
 
@@ -238,5 +252,55 @@
     flex: 1;
     overflow: hidden;
     position: relative;
+  }
+
+  /* Na szerokim ekranie kolumna filtrów jest zawsze — przycisk byłby zbędny. */
+  .filters-toggle {
+    display: none;
+  }
+
+  @media (max-width: 820px) {
+    .filters-toggle {
+      display: block;
+      position: absolute;
+      left: 8px;
+      top: 60px;
+      z-index: 30;
+      width: 38px;
+      height: 38px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--text);
+      font-size: 17px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .content-row > :global(.filter-panel) {
+      position: absolute;
+      top: 48px;
+      bottom: 0;
+      left: 0;
+      z-index: 25;
+      transform: translateX(-102%);
+      transition: transform 0.16s ease-out;
+      box-shadow: 0 0 24px rgba(1, 4, 9, 0.6);
+    }
+    .content-row.filters-open > :global(.filter-panel) {
+      transform: translateX(0);
+    }
+
+    /* Panel notatki jest wtedy arkuszem na całą szerokość, nie trzecią kolumną. */
+    .content-row > :global(.detail-panel) {
+      position: absolute;
+      top: 48px;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 26;
+      width: auto !important;
+      max-width: none;
+    }
   }
 </style>

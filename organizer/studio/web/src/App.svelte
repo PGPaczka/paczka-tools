@@ -11,7 +11,7 @@
     type SubjectRow,
   } from './lib/api';
   import { count } from './lib/format';
-  import { loadPrefs, savePrefs, type Prefs } from './lib/prefs';
+  import { loadPrefs, savePrefs, type Prefs, defaultPanels, NARROW } from './lib/prefs';
   import QueuePanel from './components/QueuePanel.svelte';
   import SubjectList from './components/SubjectList.svelte';
   import SubjectPanel from './components/SubjectPanel.svelte';
@@ -51,9 +51,16 @@
   let mode = $state<Mode>((saved.mode as Mode) ?? 'browse');
   /** Strumień/katedra — drugi poziom wyboru dla SEM5–7. */
   let grupa = $state<string | null>(saved.grupa ?? null);
-  /** Boczne panele: na tablecie oddają miejsce panelowi roboczemu. */
-  let queueOpen = $state<boolean>(saved.queueOpen ?? true);
-  let listOpen = $state<boolean>(saved.listOpen ?? true);
+  /** Czy ekran jest na tyle wąski, że panele muszą być nakładką, a nie kolumną. */
+  const startsNarrow =
+    typeof window !== 'undefined' && window.matchMedia(`(max-width: ${NARROW}px)`).matches;
+  let narrow = $state(startsNarrow);
+
+  /** Boczne panele: na tablecie oddają miejsce panelowi roboczemu, na telefonie
+   *  startują zwinięte — inaczej pierwszy ekran to sama lista, a nie praca. */
+  const panels = defaultPanels(typeof window === 'undefined' ? 1440 : window.innerWidth);
+  let queueOpen = $state<boolean>(saved.queueOpen ?? panels.queueOpen);
+  let listOpen = $state<boolean>(saved.listOpen ?? panels.listOpen);
   let list: SubjectList | undefined = $state();
 
   /** Grupy (strumień/katedra) dostępne w wybranym semestrze — drugi poziom wyboru.
@@ -189,6 +196,14 @@
       move(-1);
     }
   }
+
+  $effect(() => {
+    if (typeof window === 'undefined') return;
+    const query = window.matchMedia(`(max-width: ${NARROW}px)`);
+    const update = () => (narrow = query.matches);
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  });
 
   $effect(() => {
     loadDashboard();
@@ -382,6 +397,7 @@
     <div class="fatal"><p>Wczytuję indeks…</p></div>
   {:else}
     <main
+      class:narrow
       class:lens={mode === 'graph'}
       class:queue-hidden={!queueOpen}
       class:list-hidden={!listOpen || mode === 'graph'}
@@ -389,7 +405,15 @@
       <!-- Panele boczne zwijają się do pionowej zakładki: na tablecie cała szerokość
            idzie wtedy do panelu roboczego, a wybór wraca jednym kliknięciem. -->
       {#if queueOpen}
-        <QueuePanel {dashboard} {stage} onStage={(value) => (stage = value)} />
+        <QueuePanel
+          {dashboard}
+          {stage}
+          onStage={(value) => {
+            stage = value;
+            if (narrow) queueOpen = false;
+          }}
+          onClose={() => (queueOpen = false)}
+        />
       {:else}
         <button class="rail" onclick={() => (queueOpen = true)} title="Pokaż kolejkę etapów">
           <span>kolejka</span>
@@ -402,12 +426,17 @@
             bind:this={list}
             subjects={filtered}
             {selected}
-            onSelect={select}
+            onSelect={(row) => {
+              select(row);
+              // Na telefonie lista zasłania panel roboczy — po wyborze schodzi z drogi.
+              if (narrow) listOpen = false;
+            }}
             bind:query
             bind:semester
             bind:grupa
             {grupy}
             {semesters}
+            onClose={() => (listOpen = false)}
           />
         {:else}
           <button class="rail" onclick={() => (listOpen = true)} title="Pokaż listę przedmiotów">
@@ -468,12 +497,19 @@
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
     height: 100%;
+    /* Bez tego pasek zakładek rozpychał CAŁĄ stronę: na telefonie `main` robił się
+       szerszy od ekranu (zmierzone 769 px przy 412 px widoku), więc panel roboczy
+       — w tym graf — dostawał ułamek szerokości i wyglądał na zepsuty. */
+    max-width: 100vw;
+    overflow-x: hidden;
   }
 
   header {
     display: flex;
     align-items: center;
     gap: 12px;
+    max-width: 100%;
+    min-width: 0;
     padding: 4px 10px;
     min-height: 44px;
     border-bottom: 1px solid var(--border);
@@ -483,6 +519,7 @@
     display: flex;
     align-items: baseline;
     gap: 8px;
+    flex: none;
   }
   .brand strong {
     font-size: 14px;
@@ -518,6 +555,8 @@
     overflow-x: auto;
     scrollbar-width: none;
     max-width: 100%;
+    min-width: 0;
+    flex: 1 1 auto;
   }
   .right::-webkit-scrollbar {
     display: none;
@@ -545,6 +584,8 @@
     display: grid;
     grid-template-columns: 220px minmax(320px, 0.9fr) minmax(0, 1.3fr);
     min-height: 0;
+    min-width: 0;
+    max-width: 100vw;
   }
   main.queue-hidden {
     grid-template-columns: 28px minmax(320px, 0.9fr) minmax(0, 1.3fr);
@@ -577,6 +618,51 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     white-space: nowrap;
+  }
+
+  /* Telefon: jedna kolumna na pracę, panele wjeżdżają NAD nią.
+     Wcześniej układ trzymał siatkę kolumn także przy 412 px, więc graf dostawał
+     sto kilkadziesiąt pikseli i wyglądał na zepsuty. */
+  main.narrow,
+  main.narrow.lens,
+  main.narrow.queue-hidden,
+  main.narrow.list-hidden,
+  main.narrow.lens.queue-hidden,
+  main.narrow.queue-hidden.list-hidden,
+  main.narrow.lens.queue-hidden.list-hidden {
+    grid-template-columns: minmax(0, 1fr);
+    position: relative;
+  }
+  main.narrow > :global(.side-panel) {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 20;
+    width: min(86vw, 340px);
+    box-shadow: 0 0 28px rgba(1, 4, 9, 0.6);
+  }
+  /* Zwinięty panel na telefonie to wąska zakładka przyklejona do krawędzi. */
+  main.narrow .rail {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 19;
+    width: 30px;
+    border-right: 1px solid var(--border);
+  }
+  main.narrow.queue-hidden .rail:nth-of-type(2),
+  main.narrow .rail + .rail {
+    left: 30px;
+  }
+  /* Zakładka stoi NAD panelem roboczym, więc bez tego zjadała mu lewą krawędź:
+     na telefonie ginął nagłówek grafu i podpis pod nim. Panel zaczyna się za szynami. */
+  main.narrow:has(.rail) > :global(:not(.rail):not(.side-panel)) {
+    margin-left: 30px;
+  }
+  main.narrow:has(.rail + .rail) > :global(:not(.rail):not(.side-panel)) {
+    margin-left: 60px;
   }
 
   .panel-toggle {
@@ -641,12 +727,8 @@
     }
   }
 
-  @media (max-width: 1100px) {
-    main {
-      grid-template-columns: minmax(240px, 0.85fr) minmax(0, 1.15fr);
-    }
-    main > :global(aside) {
-      display: none;
-    }
-  }
+  /* Nie ma tu reguły chowającej panele na wąskim ekranie. Była i szkodziła:
+     `main > aside { display: none }` poniżej 1100 px gasiło panel niezależnie od tego,
+     czy jest rozwinięty, więc na telefonie przycisk „rozwiń" nic nie pokazywał.
+     O tym, co widać, decyduje stan aplikacji (`defaultPanels`), a CSS go rysuje. */
 </style>

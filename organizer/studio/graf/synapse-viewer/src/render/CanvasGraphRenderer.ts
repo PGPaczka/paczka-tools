@@ -504,6 +504,10 @@ export class CanvasGraphRenderer implements IGraphRenderer {
       if (!src || !tgt) continue
 
       const bothVisible = visibleIds.has(edge.source) && visibleIds.has(edge.target)
+      // Filtered-out edges are not drawn at all. Keeping them at a low alpha left a
+      // grey haze around the filtered subgraph, which is exactly what made a filtered
+      // view look like dust instead of an answer.
+      if (!bothVisible) continue
       // Highlight only edges where the focused node is a direct endpoint.
       // Cross-edges between neighbours would misleadingly look like those neighbours are also focused.
       const isHighlighted = hasFocus && (edge.source === dimFocusId || edge.target === dimFocusId)
@@ -562,10 +566,15 @@ export class CanvasGraphRenderer implements IGraphRenderer {
       if (!pos) continue
 
       const isVisible = visibleIds.has(node.id)
+      // A node excluded by a filter disappears. It used to be drawn at alpha 0.08,
+      // so a filtered graph still showed every one of four thousand nodes as a speck —
+      // and since the view fits to the VISIBLE ones, the result looked like the filter
+      // had done nothing.
+      if (!isVisible) continue
       const isSelected = node.id === selected
       const isHovered = node.id === hovered
       const isDim = hasFocus && !adjacent.has(node.id)
-      const alpha = isVisible ? (isDim ? 0.22 : 1) : 0.08
+      const alpha = isDim ? 0.22 : 1
 
       ctx.save()
       ctx.globalAlpha = alpha

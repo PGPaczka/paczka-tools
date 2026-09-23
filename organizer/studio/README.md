@@ -156,6 +156,18 @@ extract (tu: źródło w asemblerze), a `?` rozwija pod kartą pełną ściągę
 
 ![Podgląd tekstu i ściąga skrótów](docs/screens/04-decyzje-pomoc.png)
 
+Tekstem pokazuje się **wszystko, co nie jest obrazem ani PDF-em**: md, txt, kod, pliki
+projektowe. Gdy etap extract danej treści nie dotknął — a nie dotknął ani jednej treści
+`other` i ponad dwustu `text`/`code` — studio czyta głowę **samego pliku źródłowego**,
+tylko do odczytu i tylko wtedy, gdy bajty naprawdę są tekstem. `.obj`, `.jar` i reszta
+binariów nadal uczciwie mówi „bez podglądu”, zamiast wysypywać bajty na ekran.
+
+Nad tekstem stoi nazwa pliku i język; kolorowanie składni robi `highlight.js`, który
+doczytuje się osobnym chunkiem dopiero przy pierwszym takim podglądzie. Język wybiera
+**backend** (`preview.text_language`) — widok nie zgaduje po rozszerzeniu.
+
+![Podgląd pliku tekstowego z kolorowaniem składni](docs/screens/04b-podglad-tekstu.png)
+
 Decyzja idzie przez tę samą funkcję co `just subject-decide` (`orglib/decisions.py`):
 ląduje w `manual_decisions`, w `classifications` (`classification_method='manual'`,
 `confidence=1.0`) i w eksporcie `reports/manual_decisions.jsonl`. Wiersze
@@ -262,8 +274,19 @@ viewera i generatora są w repo: `studio/graf/` — wciągnięte jako `git subtr
   nazwa, kategoria, decyzja, pewność i ścieżka docelowa — z przyciskiem „otwórz przedmiot”.
 
 Na ekranie dotykowym **jeden palec przesuwa, dwa skalują** (sufit powiększenia
-podniesiony z 2,6 do 6 — przy czterech tysiącach węzłów węzeł ma kilka pikseli).
+podniesiony z 2,6 do 6 — przy czterech tysiącach węzłów węzeł ma kilka pikseli, podłoga
+obniżona do 0,04, bo paczka otwiera się przy 0,06 i trzeba umieć wrócić do całości).
 Zoom przeglądarki nie jest zamiennikiem: skaluje gotowy raster, czyli rozmazuje.
+
+**Zakres: semestr → przedmiot.** Dwa pola na górze panelu filtrów wybierają, nad czym
+pracujesz; lista przedmiotów zawęża się do wybranego semestru, a wejście w przedmiot samo
+odsłania typ `file`. Oba filtry działają na tagach, które niesie **każdy poziom** (`sem3`,
+`ako`), więc wybór bierze przedmiot razem z materiałami. Filtrowanie po `category` tego nie
+umiało i wyglądało na zepsute: `SEM3` mają wyłącznie węzły przedmiotów, więc „SEM3 + pliki”
+odpowiadało przedmiotami i zerem plików. Po zmianie filtra widok **dojeżdża do tego, co
+zostało widoczne** — odfiltrowane węzły znikają, zamiast robić kurz dookoła.
+
+![Zakres semestr → przedmiot w grafie](docs/screens/10b-graf-zakres.png)
 
 Tłumaczenie `sha256` ↔ `id` notatki stoi na kontrakcie vaulta: id notatki pliku kończy się
 `sha256[:8]` (`orglib/synapse_vault.ID_SHA_PREFIX`). Gdy skrót pasuje do kilku treści,
@@ -311,11 +334,22 @@ W kolejce decyzji obowiązuje dodatkowo [jej własna ściąga](#kolejka-decyzji)
 
 ## Wąski ekran
 
-Poniżej ~1100 px znika kolejka etapów (jest powtórzona jako filtr), a karta pozycji
-układa się w jedną kolumnę — **podgląd nigdy nie znika**, bo bez niego nie ma po czym
-decydować.
+Poniżej ~1100 px kolejka etapów startuje **zwinięta** (jest powtórzona jako filtr),
+a karta pozycji układa się w jedną kolumnę — **podgląd nigdy nie znika**, bo bez niego
+nie ma po czym decydować.
 
 ![Wąski ekran](docs/screens/13-waski-ekran.png)
+
+Zwinięty panel stoi przy krawędzi jako pionowa zakładka; klik ją rozwija, `×` w nagłówku
+zwija z powrotem. Stan panelu trzyma aplikacja i zapisuje go w `localStorage` —
+to nie jest reguła CSS-a. Wcześniej była i wychodziło z tego zwijanie, które „nie
+działa”: panel dawało się rozwinąć, ale `@media (max-width: 1100px)` i tak go gasił.
+
+Poniżej 700 px panele wjeżdżają **nad** panel roboczy zamiast zabierać mu kolumnę, a
+strona jest domknięta do szerokości ekranu (pasek zakładek przewija się w poziomie
+zamiast rozpychać układ). Dzięki temu wbudowany graf dostaje pełną szerokość:
+
+![Graf na telefonie](docs/screens/13b-telefon-graf.png)
 
 ---
 

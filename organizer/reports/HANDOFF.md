@@ -2,6 +2,11 @@
 
 ## Kontekst ręczny
 
+- **Druga tura zgłoszeń z telefonu (2026-09-23) — cztery realne wady, żadnej nie złapały testy.** (a) Wbudowany graf ładował sam panel boczny: pasek zakładek rozpychał stronę do 769 px przy ekranie 412 px, a zwinięta szyna leżała NA panelu roboczym; układ jest domknięty do `100vw`, panel zaczyna się za szynami, canvas ma pełne 382 px. (b) **Zwijanie paneli „nie działało", bo działać nie mogło**: `@media (max-width: 1100px) { main > aside { display: none } }` gasiło panel niezależnie od stanu aplikacji — reguła usunięta, o widoczności decyduje `defaultPanels(width)` z testami (telefon: oba zwinięte, tablet: kolejka zwinięta, desktop: oba otwarte). **Wniosek: stan interfejsu trzyma aplikacja, CSS go tylko rysuje** — inaczej przycisk kłamie. (c) Nie dało się oddalić grafu: kółko stawało na 0,35, a paczka otwiera się przy 0,06, więc po pierwszym przybliżeniu nie było powrotu do całości; podłoga to teraz 0,04 (`MIN_SCALE` w `Viewport.ts`). (d) Filtr „SEM3 + pliki" pokazywał przedmioty bez plików, bo `category = SEM3` mają WYŁĄCZNIE węzły przedmiotów.
+- **Graf dostał wybór zakresu: semestr → przedmiot** (`studio/graf/synapse-viewer/src/domain/graph/scope.ts` + `FilterPanel`). Reguła jest ogólna, nie zaszyta pod paczkę: notatkę poziomu grubszego nazywa tag, którego **nie niesie żaden jej rówieśnik ani poziom wyżej**, a spośród takich wygrywa ten z największą liczbą potomków. Pierwsza wersja („najrzadszy tag wspólny z poziomem niżej") wywaliła się na przedmiocie bez plików — dostawał tag `sem7` i wybór gasił cały graf; poprawione z testem. Eksport dokłada przedmiotowi jego skrót jako tag (`synapse_export.py`, kontrakt w `docs/SYNAPSE.md`), więc jedno kliknięcie bierze przedmiot RAZEM z materiałami. Po zmianie w vaulcie trzeba przebudować graf: `just studio-graf`.
+- **Pliki nie-obrazy i nie-PDF pokazują się jako tekst.** Extract nie dotknął ani jednej treści `other` (4537) i ponad dwustu `text`/`code`, więc podgląd bywał pusty przy pozycji, o której trzeba zdecydować. Backend czyta wtedy głowę SAMEGO pliku źródłowego (`preview.source_text_head`), ale tylko gdy bajty są tekstem: `.obj`/`.jar` dalej mówią „bez podglądu" zamiast wysypywać bajty. Język do kolorowania składni ustala backend (`preview.text_language`), `highlight.js` doczytuje się osobnym chunkiem (921 KB poza głównym bundlem) dopiero przy pierwszym takim podglądzie.
+- **Uwaga na testy przeglądarkowe na ŻYWEJ bazie:** przechodzenie kolejki klawiszem `s` zapisuje realne decyzje. W tej sesji jedna taka trafiła do `manual_decisions` i została cofnięta przez `/api/decisions/undo` (historia pusta, sprawdzone). Do sterowania widokiem używaj kopii bazy (`--db`) albo klawiszy, które nie zapisują.
+
 - **B10 (`apply`) i B11 (`verify`) zrobione 2026-09-22 — materiałów nadal nikt nie ruszał.** `just subject-apply SEM SKROT` jest domyślnie DRY-RUN; kopiuje dopiero z `--yes`, a `--expect-hash` przypina wykonanie do zaakceptowanego odcisku planu. Bramka B8 jest wykonywana ponownie w `apply` tym samym kodem (`orglib/plan_gate.py` wydzielone z `validate_plan.py`), więc uruchomienie walidatora wcześniej niczego nie „odblokowuje”. Kolizja treści pod ścieżką docelową zatrzymuje CAŁY przebieg, brak pliku źródłowego też; ta sama treść na miejscu to „już jest”. `apply` **nie commituje** — commit należy do człowieka po zielonym `verify`. Dry-run na realnym planie AKO: 2519 pozycji → 1497 do skopiowania, 0 kolizji, 0 brakujących źródeł, 2,1 s; bramka gałęzi odmówiła na żywo, bo repo docelowe stoi na `fix/nazwy-katalogow-przedmiotow`, a nie na `subject/AKO`.
 - **Audyt wszystkich punktów S0–S4 przeprowadzony 2026-09-22 na życzenie użytkownika.** Metoda, którą warto powtarzać: dla każdej funkcji z `studio/web/src/lib/api.ts` policzyć, ile komponentów ją woła. Zero użyć miały `getItemsByFolder` i `postDecisionByFolder` (S1.6 — decyzja hurtem) oraz `searchItems` (S4.3 — wyszukiwanie przekrojowe); brakowało też klawisza `t` z S1.5. **Backend był, interfejsu nie było.** Wszystko uzupełnione: klawisz `f` otwiera pasek decyzji hurtowej z podglądem, `t` edytuje ścieżkę docelową, doszła zakładka `szukaj` (klawisz `w`). Reszta punktów potwierdzona jako realnie zrobiona; świadomie nieużywane zostają `getQueue` (kolejka bierze pozycje przez `/api/items`) i `getGraphNodeFor` (wejście do grafu przez węzeł przedmiotu).
 - **Wydajność studia zmierzona i poprawiona 2026-09-22** (zgłoszenie z tabletu „długo się wczytuje”): gzip na całej aplikacji + JPEG zamiast PNG dla stron PDF + `width` dopasowany do ekranu. `graph.json` 4381 → 241 KiB, drzewo planu 721 → 137 KiB, klastry 432 → 33 KiB, pulpit 43 → 3 KiB, strona PDF 1006 → 110 KiB. **Stronicowanie klastrów i drzewa okazało się niepotrzebne** — po kompresji mieszczą się w dziesiątkach kilobajtów; gdyby wróciło, następnym krokiem są nagłówki klastrów bez członków.
@@ -86,18 +91,43 @@
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-09-22T23:57:41+02:00
+- Odświeżono: 2026-09-23T09:42:07+02:00
 - Branch: `master`
-- Commit: `ea19e70`
+- Commit: `d1de7fb`
 - Git status:
   ```text
-  M studio/TODO-studio.md
+  M docs/SYNAPSE.md
+   M scripts/orglib/preview.py
+   M scripts/synapse_export.py
+   M studio/README.md
+   M studio/TODO-studio.md
    M studio/api/queries.py
+   M studio/graf/synapse-viewer/src/components/filters/FilterPanel.svelte
+   M studio/graf/synapse-viewer/src/layout/ClassicShell.svelte
+   M studio/graf/synapse-viewer/src/layout/CommandShell.svelte
+   M studio/graf/synapse-viewer/src/render/CanvasGraphRenderer.ts
+   M studio/graf/synapse-viewer/src/render/Viewport.test.ts
+   M studio/graf/synapse-viewer/src/render/Viewport.ts
+   M studio/web/package-lock.json
+   M studio/web/package.json
    M studio/web/src/App.svelte
+   M studio/web/src/app.css
    M studio/web/src/components/DecisionPanel.svelte
+   M studio/web/src/components/QueuePanel.svelte
+   M studio/web/src/components/SubjectList.svelte
    M studio/web/src/lib/api.ts
-   M tests/test_studio_api.py
-  ?? studio/web/src/components/SearchPanel.svelte
+   M studio/web/src/lib/prefs.test.ts
+   M studio/web/src/lib/prefs.ts
+   M tests/test_studio_preview.py
+   M tests/test_synapse_export_cli.py
+  ?? studio/docs/screens/04b-podglad-tekstu.png
+  ?? studio/docs/screens/10b-graf-zakres.png
+  ?? studio/docs/screens/13b-telefon-graf.png
+  ?? studio/graf/synapse-viewer/src/domain/graph/scope.test.ts
+  ?? studio/graf/synapse-viewer/src/domain/graph/scope.ts
+  ?? studio/web/src/components/TextPreview.svelte
+  ?? studio/web/src/lib/highlight.test.ts
+  ?? studio/web/src/lib/highlight.ts
   ```
 - Pierwsze otwarte TODO: - [ ] B12. `scripts/provenance.py` — `reports/provenance.jsonl` + README per przedmiot do `paczka_meta/` + `00_SOURCES/linki.txt` z `source_packages`
 <!-- END AUTO -->

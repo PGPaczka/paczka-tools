@@ -720,6 +720,12 @@ def preview(
     source = preview_lib.first_existing_copy(paths, copies)
 
     has_image = source is not None and (kind in preview_lib.PAGE_KINDS or kind in preview_lib.IMAGE_KINDS)
+    # Bez wyekstrahowanego tekstu sięgamy do samego pliku, o ile to tekst: extract
+    # nie dotknął ani jednej treści `other` i ponad dwustu `text`/`code`, a przy
+    # takiej pozycji panel pokazywał pustkę — nie dało się stwierdzić, czym ona jest.
+    if head is None and not has_image and source is not None and kind in preview_lib.SOURCE_TEXT_KINDS:
+        head = preview_lib.source_text_head(source, limit)
+
     if has_image and kind in preview_lib.PAGE_KINDS:
         preview_kind = "page"
     elif has_image:
@@ -734,6 +740,7 @@ def preview(
         "content_kind": row["content_kind"],
         "text_head": head,
         "has_text": head is not None,
+        "text_language": preview_lib.text_language(source.name, kind) if source is not None else None,
         "has_image": has_image,
         "preview_kind": preview_kind,
         "has_thumbnail": (paths.work_thumbnails / f"{sha256}.jpg").is_file(),
