@@ -6,10 +6,10 @@ import {
   DOT_RADIUS_PX,
   adaptRenderScale,
   containerRadius,
-  keepTopContainers,
   detailLevel,
   discInBounds,
   maxEdgePx,
+  placeLabels,
   renderScale,
   segmentOffscreen,
   shouldLabel,
@@ -878,7 +878,10 @@ export class CanvasGraphRenderer implements IGraphRenderer {
           focused: isHovered || isSelected || container,
           bold: isSelected || container,
           dimmed: hasFocus && !adjacent.has(node.id),
-          priority: nodeTypeScale(node.kind === 'real' ? node.type : null),
+          // Wskazany palcem albo wybrany węzeł wygrywa z całą hierarchią: to jego
+          // nazwy człowiek w tej chwili szuka.
+          priority: (isHovered || isSelected ? 10 : 0) +
+            nodeTypeScale(node.kind === 'real' ? node.type : null),
           radiusPx: baseRadius * scale,
         }
         if (container && !isHovered && !isSelected) containerLabels.push(draw)
@@ -902,9 +905,9 @@ export class CanvasGraphRenderer implements IGraphRenderer {
     }
     ctx.globalAlpha = 1
 
-    // Podpisy kontenerów mają pierwszeństwo, ale nie nieograniczone: w widoku całej
-    // paczki 232 nazwy naraz to ściana tekstu, z której nie da się nic odczytać.
-    for (const label of keepTopContainers(containerLabels)) labels.push(label)
+    // Kontenery dorzucamy bez filtrowania: o tym, ile z nich da się podpisać, rozstrzyga
+    // układanie prostokątów niżej — czyli to, czy nazwy na siebie NACHODZĄ.
+    for (const label of containerLabels) labels.push(label)
 
     // --- Labels, in one pass, in SCREEN space ---
     // Tekst rysowany w jednostkach świata kurczy się razem z grafem: przy widoku całej
@@ -917,8 +920,13 @@ export class CanvasGraphRenderer implements IGraphRenderer {
       ctx.textBaseline = 'top'
       const padH = 5
       const padV = 3
+
+      // Najpierw zmierz, potem rozstrzygnij, co się mieści, a dopiero na końcu rysuj.
+      // Bez tego kroku nazwy kategorii skupionych wokół jednego przedmiotu zlepiały się
+      // w plamę — a żaden próg przybliżenia tego nie rozróżni od siedmiu kategorii
+      // rozrzuconych daleko od siebie, gdzie wszystkie da się przeczytać.
       let font = ''
-      for (const label of labels) {
+      const boxes = labels.map((label) => {
         const fontSize = label.focused ? 12 : 10.5
         const wanted = `${label.bold ? 700 : 500} ${fontSize}px Inter, system-ui, sans-serif`
         if (wanted !== font) {
@@ -927,18 +935,29 @@ export class CanvasGraphRenderer implements IGraphRenderer {
         }
         const sx = label.x * scale + tx
         const sy = label.y * scale + ty + label.offset
-        const boxW = ctx.measureText(label.text).width + padH * 2
-        const boxH = fontSize + padV * 2
+        const w = ctx.measureText(label.text).width + padH * 2
+        const h = fontSize + padV * 2
+        return { label, fontSize, x: sx - w / 2, y: sy, w, h, priority: label.priority }
+      })
 
-        ctx.globalAlpha = label.dimmed ? 0 : 0.82
+      font = ''
+      for (const box of placeLabels(boxes)) {
+        const wanted =
+          `${box.label.bold ? 700 : 500} ${box.fontSize}px Inter, system-ui, sans-serif`
+        if (wanted !== font) {
+          ctx.font = wanted
+          font = wanted
+        }
+
+        ctx.globalAlpha = box.label.dimmed ? 0 : 0.82
         ctx.fillStyle = LABEL_BG
         ctx.beginPath()
-        ctx.roundRect(sx - boxW / 2, sy, boxW, boxH, 4)
+        ctx.roundRect(box.x, box.y, box.w, box.h, 4)
         ctx.fill()
 
-        ctx.globalAlpha = label.dimmed ? 0.3 : 1
-        ctx.fillStyle = label.dimmed ? LABEL_COLOR_DIM : LABEL_COLOR
-        ctx.fillText(label.text, sx, sy + padV)
+        ctx.globalAlpha = box.label.dimmed ? 0.3 : 1
+        ctx.fillStyle = box.label.dimmed ? LABEL_COLOR_DIM : LABEL_COLOR
+        ctx.fillText(box.label.text, box.x + box.w / 2, box.y + padV)
       }
       ctx.globalAlpha = 1
     }

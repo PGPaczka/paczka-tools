@@ -169,46 +169,48 @@ export function containerRadius(radius: number, scale: number): number {
   return Math.max(radius, MIN_CONTAINER_PX / scale)
 }
 
-/** Ile podpisów kontenerów da się naraz przeczytać, zanim zlepią się w ścianę tekstu. */
-export const CONTAINER_LABEL_BUDGET = 48
+/**
+ * Kontener ma podpis zawsze, gdy tylko jest dla niego MIEJSCE — o tym rozstrzyga
+ * `placeLabels` niżej. Progi rozmiaru i budżety, które stały tu wcześniej, były
+ * przybliżeniem tego samego pytania i myliły się w obie strony: przy jednym przedmiocie
+ * gasiły siedem nazw, które spokojnie by się zmieściły, a w gęstwinie przepuszczały
+ * dziesięć, które i tak zlepiały się w plamę.
+ */
+
+export interface LabelBox {
+  /** Lewy górny róg i rozmiar prostokąta podpisu, w pikselach EKRANU. */
+  x: number
+  y: number
+  w: number
+  h: number
+  /** Im wyżej, tym wcześniej dostaje miejsce: semestr > przedmiot > kategoria > plik. */
+  priority: number
+}
 
 /**
- * Od tylu pikseli promienia kontener zasługuje na podpis sam z siebie.
+ * Które podpisy naprawdę się mieszczą.
  *
- * Liczony z promienia NATURALNEGO (przed podniesieniem do minimalnej widoczności),
- * bo to on niesie informację o poziomie: przedmiot jest grubszy od kategorii, więc
- * przy oddalaniu kategoria traci podpis wcześniej.
- */
-export const CONTAINER_LABEL_MIN_PX = 3.5
-
-/**
- * Do tylu kontenerów na ekranie podpisujemy wszystkie, niezależnie od przybliżenia.
+ * Progi rozmiaru i budżety były przybliżeniem tego, o co naprawdę chodzi: czy nazwy
+ * NACHODZĄ NA SIEBIE. Przy jednym przedmiocie siedem kategorii leży daleko od siebie
+ * i wszystkie nazwy da się przeczytać nawet z daleka; w gęstwinie dziesięć kategorii
+ * skupionych wokół jednego węzła zlepia się w nieczytelną plamę przy tym samym
+ * przybliżeniu. Żaden próg zoomu tego nie rozróżni, a zwykłe sprawdzenie prostokątów —
+ * tak, i przy okazji samo się reguluje: im więcej miejsca, tym więcej nazw.
  *
- * Tyle nazw da się rozłożyć bez zlepiania. Po wybraniu jednego przedmiotu widać osiem
- * kontenerów — przedmiot i jego kategorie — i wtedy nie ma czego oszczędzać: nazwy są
- * całą treścią tego widoku, także przy pełnym oddaleniu.
+ * Kolejność ma znaczenie: pierwszeństwo dostaje to, co grubsze w hierarchii (i to, co
+ * człowiek właśnie wskazał), więc w tłoku zostaje szkielet, a nie przypadkowy plik.
  */
-export const CONTAINER_LABELS_ALWAYS_BELOW = 24
-
-/**
- * Podpisy kontenerów: najgrubszy poziom zawsze, reszta zależnie od tego, ILU ich jest.
- *
- * Trzy wersje tej reguły, każda poprawiona po obejrzeniu wyniku. „Kontener ma podpis
- * zawsze" dało w widoku całej paczki 232 nazwy zlepione w ścianę. Próg zależny od
- * przybliżenia wyczyścił ścianę, ale zabierał nazwy kategorii także wtedy, gdy wybrany
- * był JEDEN przedmiot i tych nazw było siedem. Decyduje więc liczba kontenerów na
- * ekranie, a przybliżenie dopiero wtedy, gdy jest ich dużo.
- */
-export function keepTopContainers<T extends { priority: number; radiusPx: number }>(
-  items: T[], budget = CONTAINER_LABEL_BUDGET,
-): T[] {
-  if (items.length === 0) return items
-  if (items.length <= CONTAINER_LABELS_ALWAYS_BELOW) return items
-
-  const coarsest = Math.max(...items.map((i) => i.priority))
-  const affordable = items.filter(
-    (item) => item.priority === coarsest || item.radiusPx >= CONTAINER_LABEL_MIN_PX,
-  )
-  if (affordable.length <= budget) return affordable
-  return [...affordable].sort((a, b) => b.priority - a.priority).slice(0, budget)
+export function placeLabels<T extends LabelBox>(items: T[], gap = 2): T[] {
+  const placed: T[] = []
+  for (const item of [...items].sort((a, b) => b.priority - a.priority)) {
+    const collides = placed.some(
+      (other) =>
+        item.x < other.x + other.w + gap &&
+        item.x + item.w + gap > other.x &&
+        item.y < other.y + other.h + gap &&
+        item.y + item.h + gap > other.y,
+    )
+    if (!collides) placed.push(item)
+  }
+  return placed
 }

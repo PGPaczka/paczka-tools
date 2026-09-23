@@ -4,7 +4,7 @@ import {
   adaptRenderScale,
   containerRadius,
   detailLevel,
-  keepTopContainers,
+  placeLabels,
   discInBounds,
   maxEdgePx,
   renderScale,
@@ -156,48 +156,33 @@ describe('rozmiar kontenera', () => {
   })
 })
 
-describe('podpisy kontenerów', () => {
-  const przedmiot = { priority: 1.7, radiusPx: 1.1, id: 'AKO' }
-  const kategorie = [1, 2, 3].map((n) => ({ priority: 1.3, radiusPx: 0.7, id: `kat${n}` }))
+describe('układanie podpisów', () => {
+  const box = (x: number, y: number, priority: number, id: string) =>
+    ({ x, y, w: 100, h: 16, priority, id })
 
-  it('przy wybranym JEDNYM przedmiocie kategorie mają nazwy przy każdym oddaleniu', () => {
-    // Osiem kontenerów na ekranie — przedmiot i jego kategorie. Ich nazwy są całą
-    // treścią tego widoku, więc nie ma czego oszczędzać (zgłoszone z ręki).
-    const widoczne = keepTopContainers([przedmiot, ...kategorie])
+  it('gdy jest miejsce, mieszczą się wszystkie', () => {
+    const wynik = placeLabels([box(0, 0, 1, 'a'), box(0, 200, 1, 'b')])
 
-    expect(widoczne).toHaveLength(4)
+    expect(wynik).toHaveLength(2)
   })
 
-  it('w tłumie kontenerów drobniejsze poziomy milkną przy oddaleniu', () => {
-    // Widok całej paczki: 232 nazwy naraz to ściana, z której nie da się nic odczytać.
-    const tlum = Array.from({ length: 40 }, (_, n) => ({
-      priority: n < 8 ? 1.7 : 1.3, radiusPx: 1, id: `k${n}`,
-    }))
+  it('przy nachodzeniu wygrywa grubszy poziom hierarchii', () => {
+    // Dokładnie ten przypadek ze zrzutu: nazwy kategorii zlepione wokół przedmiotu.
+    const wynik = placeLabels([box(10, 0, 1.3, 'kategoria'), box(0, 0, 1.7, 'przedmiot')])
 
-    expect(keepTopContainers(tlum).every((i) => i.priority === 1.7)).toBe(true)
+    expect(wynik.map((i) => i.id)).toEqual(['przedmiot'])
   })
 
-  it('po przybliżeniu kategorie wracają także w tłumie', () => {
-    const tlum = Array.from({ length: 40 }, (_, n) => ({
-      priority: n < 8 ? 1.7 : 1.3, radiusPx: n < 8 ? 6 : 4.5, id: `k${n}`,
-    }))
+  it('kolejność nie zależy od tego, w jakiej przyszły', () => {
+    const rosnaco = placeLabels([box(0, 0, 1.3, 'kategoria'), box(10, 0, 2.2, 'semestr')])
+    const malejaco = placeLabels([box(10, 0, 2.2, 'semestr'), box(0, 0, 1.3, 'kategoria')])
 
-    expect(keepTopContainers(tlum)).toHaveLength(40)
+    expect(rosnaco.map((i) => i.id)).toEqual(malejaco.map((i) => i.id))
   })
 
-  it('gdy nawet po odsianiu jest ich za dużo, wygrywają najgrubsze poziomy', () => {
-    // Semestr (2,2) przed przedmiotem (1,7) przed kategorią (1,3). Wszystkie na tyle
-    // duże, że przechodzą próg rozmiaru — o kolejności decyduje sam budżet.
-    const items = [
-      ...Array.from({ length: 30 }, (_, n) => ({ priority: 1.3, radiusPx: 9, id: `kat${n}` })),
-      { priority: 2.2, radiusPx: 9, id: 'semestr' },
-      { priority: 1.7, radiusPx: 9, id: 'przedmiot' },
-    ]
+  it('odstęp liczy się do sąsiada, nie tylko do jego ramki', () => {
+    const stykajace = placeLabels([box(0, 0, 1, 'a'), box(101, 0, 1, 'b')], 4)
 
-    expect(keepTopContainers(items, 2).map((i) => i.id)).toEqual(['semestr', 'przedmiot'])
-  })
-
-  it('pusty wybór nie wywraca reguły', () => {
-    expect(keepTopContainers([])).toEqual([])
+    expect(stykajace).toHaveLength(1)
   })
 })

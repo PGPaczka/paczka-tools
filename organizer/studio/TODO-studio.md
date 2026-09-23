@@ -375,12 +375,14 @@ Dwie uwagi z ręki, obie o tym samym — ile tekstu naraz ma sens:
 - **przedmiot podpisany jest skrótem**, nie pełną nazwą. `AKO — Architektura
   Komputerów` przy węźle zasłaniało sąsiadów; pełna nazwa zostaje aliasem (więc
   wyszukiwarka jej nie traci) i pierwszą linią treści notatki;
-- **podpisy kontenerów zależą od tego, ILU ich jest na ekranie.** Trzy wersje tej
-  reguły, każda poprawiona po obejrzeniu wyniku: wariant „zawsze" dał ścianę 232 nazw
-  w widoku całej paczki; próg zależny od przybliżenia wyczyścił ścianę, ale zabierał
-  nazwy kategorii także wtedy, gdy wybrany był jeden przedmiot i tych nazw było siedem.
-  Ostatecznie: do 24 kontenerów na ekranie podpisane są wszystkie, niezależnie od
-  oddalenia; powyżej — najgrubszy poziom zawsze, drobniejsze od 3,5 px promienia.
+- **o podpisach rozstrzyga to, czy się MIESZCZĄ.** Cztery wersje tej reguły i trzy
+  pierwsze były przybliżeniami tego samego pytania: „zawsze" dało ścianę 232 zlepionych
+  nazw; próg przybliżenia czyścił ścianę, ale gasił też siedem nazw kategorii przy
+  wybranym jednym przedmiocie; próg liczbowy (do 24 kontenerów) ratował tamten
+  przypadek, ale wpuszczał plamę tam, gdzie dziesięć kategorii skupiało się wokół
+  jednego przedmiotu. Dopiero układanie prostokątów odpowiada wprost: nazwy są mierzone
+  przed rysowaniem, układane w kolejności ważności, a te, które nachodziłyby na już
+  położone, odpadają. Progi i budżety zniknęły z kodu.
 
 ## Zależności od potoku
 
