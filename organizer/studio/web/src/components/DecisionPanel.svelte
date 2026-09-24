@@ -320,6 +320,7 @@
             text={preview.text_head}
             language={preview.text_language}
             label={current.filename ?? preview.content_kind}
+            truncated={preview.text_truncated}
           />
         {:else if preview && preview.preview_kind === 'none'}
           <div class="no-preview">
@@ -338,7 +339,11 @@
         {#if preview?.text_head && imageUrl}
           <details class="text-toggle">
             <summary>głowa tekstu</summary>
-            <TextPreview text={preview.text_head} language={preview.text_language} />
+            <TextPreview
+              text={preview.text_head}
+              language={preview.text_language}
+              truncated={preview.text_truncated}
+            />
           </details>
         {/if}
       </figure>

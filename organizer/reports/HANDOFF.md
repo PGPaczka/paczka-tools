@@ -2,6 +2,10 @@
 
 ## Kontekst ręczny
 
+- **Zepsute podglądy w grafie to były treści bez kopii w źródłach (2026-09-24).** Te same 890 pozycji, które wcześniej nazywały się skrótem sha: leżą wyłącznie w paczce, więc `files` nie ma dla nich wiersza, a podgląd szukał pliku tylko w drzewie źródeł. `preview.package_copy` sięga teraz po ścieżkę docelową z decyzji, przez `config.resolve_within` (wpis prowadzący poza repo paczki = odmowa, z testem). Przy okazji `source_path` w odpowiedzi API nie wywraca się już na pustej liście kopii.
+- **Urwany tekst jest oznaczony:** `…` plus „fragment — całość w studiu" w notatce grafu (839 notatek) i `text_truncated` w API, po którym panel decyzji dopisuje „… to tylko początek pliku". Osiem linijek bez adnotacji czyta się jak cały plik.
+- **Pułapka przy pisaniu testów podglądu:** fixture `test_studio_preview` ma treści o sha `a`–`f` × 64; użycie takiego samego sha w nowym teście sprawia, że `source_copies` zwraca CUDZY plik i test bada co innego, niż obiecuje jego nazwa. Nowe pozycje bierz spoza tego zakresu (np. `9` × 64).
+
 - **Kaskada podpisów w grafie jest jednokierunkowa (2026-09-24).** Poziom kontenerów, który nie zmieścił się w całości, milkł i ZWALNIAŁ miejsce plikom — więc przy oddaleniu widać było nazwy plików bez nazwy skupiska, do którego należą. Teraz poziom, który nie wszedł, zatrzymuje wszystkie drobniejsze. Zmierzone w zakresie kategorii: podpis kategorii zawsze, nazwy plików od zoomu 0,277.
 - **Notatka pliku w grafie pokazuje materiał, nie tylko metadane.** Obraz albo pierwsza strona PDF-a przez `/api/preview/<sha>/image`, dla tekstu kilka pierwszych linijek, i odnośnik `Otwórz w studiu` → `/?sha=…` (studio otwiera wtedy zakładkę „szukaj" na tej treści; parametr jest walidowany jako sha, bo przychodzi z adresu). Adresy są względne, więc działają tylko wtedy, gdy viewera serwuje studio — czyli tam, gdzie te dane mają sens.
 

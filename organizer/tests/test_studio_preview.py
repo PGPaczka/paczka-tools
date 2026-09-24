@@ -126,6 +126,61 @@ def workspace(tmp_path):
 
 
 @pytest.fixture
+def packaged(workspace):
+    """Treść, która leży WYŁĄCZNIE w paczce — bez ani jednego wiersza w `files`.
+
+    Tak wygląda 890 pozycji ground truth: materiał trafił do paczki dawno temu i nigdy
+    nie był indeksowany jako plik źródłowy. W grafie ich podgląd był zepsutym obrazkiem,
+    bo szukaliśmy pliku wyłącznie w drzewie źródeł (zgłoszone 2026-09-24).
+    """
+    # Własne sha, nieużywane przez pozostałe pozycje fixture'u — inaczej `source_copies`
+    # zwróciłoby cudzy plik i test badałby coś innego, niż nazwa obiecuje.
+    sha = "9" * 64
+    cel = "paczka/SEM3/AKO_X/egzamin/skan.png"
+    (workspace.target_repo / "paczka" / "SEM3" / "AKO_X" / "egzamin").mkdir(parents=True)
+    Image.new("RGB", (48, 24), (12, 34, 56)).save(workspace.target_repo / cel)
+
+    conn = db.connect(workspace.work_db)
+    db.upsert_content(conn, {"sha256": sha, "content_kind": "image"})
+    db.upsert_classification(conn, {
+        "sha256": sha, "semester": 3, "subject_key": "AKO", "category": "egzamin",
+        "target_relative_path": cel, "is_outdated": 0, "classification_method": "manual",
+        "confidence": 1.0, "run_id": "ground_truth", "decided_at": "2026-09-20T00:00:00Z",
+    })
+    conn.commit()
+    conn.close()
+    return sha
+
+
+def test_material_living_only_in_the_package_still_has_a_preview(client, packaged) -> None:
+    body = client.get(f"/api/preview/{packaged}").json()
+
+    assert body["preview_kind"] == "image"
+    assert body["has_image"] is True
+
+    response = client.get(f"/api/preview/{packaged}/image")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("image/")
+
+
+def test_a_target_path_climbing_out_of_the_package_is_refused(
+    client, packaged, workspace
+) -> None:
+    """Ścieżka docelowa to też dane z bazy — przechodzi przez ten sam containment."""
+    (workspace.target_repo.parent / "sekret.png").write_bytes(b"nie czytaj")
+    conn = db.connect(workspace.work_db)
+    conn.execute(
+        "UPDATE classifications SET target_relative_path = ? WHERE sha256 = ?",
+        ("../sekret.png", packaged),
+    )
+    conn.commit()
+    conn.close()
+
+    assert client.get(f"/api/preview/{packaged}").json()["has_image"] is False
+    assert client.get(f"/api/preview/{packaged}/image").status_code == 404
+
+
+@pytest.fixture
 def client(workspace):
     app = create_app(workspace.work_db, paths=workspace, subjects=SUBJECTS, thresholds=THRESHOLDS)
     with TestClient(app) as test_client:
@@ -269,3 +324,18 @@ def test_a_binary_artifact_is_not_pretended_to_be_text(client) -> None:
 
     assert body["preview_kind"] == "none"
     assert body["has_text"] is False and body["text_head"] is None
+
+
+def test_a_cut_off_text_says_that_it_is_cut_off(client, workspace) -> None:
+    """Osiem linijek bez adnotacji czyta się jak cały plik — a to jest wycinek."""
+    dlugi = "linia tekstu\n" * 900
+    (workspace.work_extracted_text / f"{SHA['a']}.txt").write_text(dlugi, encoding="utf-8")
+
+    body = client.get(f"/api/preview/{SHA['a']}").json()
+
+    assert body["has_text"] is True
+    assert body["text_truncated"] is True
+
+
+def test_a_short_text_is_not_marked_as_cut_off(client) -> None:
+    assert client.get(f"/api/preview/{SHA['a']}").json()["text_truncated"] is False

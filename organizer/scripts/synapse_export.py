@@ -118,8 +118,18 @@ def preview_block(sha: str, kind: str, text_head: str | None) -> list[str]:
     if kind in preview.PAGE_KINDS or kind in preview.IMAGE_KINDS:
         lines += [f"![podgląd](/api/preview/{sha}/image?width=720)", ""]
     elif text_head:
-        skrocony = text_head.strip().splitlines()[:8]
-        lines += ["```", *skrocony, "```", ""]
+        wiersze = text_head.strip().splitlines()
+        skrocony = wiersze[:8]
+        # Urwany tekst ma WYGLĄDAĆ na urwany: bez tego czytający bierze osiem linijek
+        # za całą treść pliku (zgłoszone 2026-09-24).
+        urwane = len(wiersze) > 8 or len(text_head) >= PREVIEW_TEXT_CHARS
+        if urwane:
+            skrocony.append("…")
+        lines += ["```", *skrocony, "```"]
+        if urwane:
+            lines += ["_fragment — całość w studiu_", ""]
+        else:
+            lines += [""]
     lines += [f"[Otwórz w studiu](/?sha={sha})", ""]
     return lines
 

@@ -14,9 +14,11 @@
     language?: string | null;
     /** Nazwa pliku i rodzaj treści — podpis nad tekstem, żeby wiadomo było, co to. */
     label?: string | null;
+    /** Czy to tylko początek pliku. Urwany tekst ma wyglądać na urwany. */
+    truncated?: boolean;
   }
 
-  let { text, language = null, label = null }: Props = $props();
+  let { text, language = null, label = null, truncated = false }: Props = $props();
 
   let html = $state<string | null>(null);
 
@@ -41,6 +43,9 @@
   <pre class="text-head"><code class="hljs"
       >{#if html}{@html html}{:else}{text}{/if}</code
     ></pre>
+  {#if truncated}
+    <p class="cut">… to tylko początek pliku</p>
+  {/if}
 </div>
 
 <style>
@@ -71,6 +76,11 @@
     text-transform: uppercase;
     letter-spacing: 0.06em;
     font-size: 10px;
+  }
+  .cut {
+    margin: 0;
+    color: var(--muted);
+    font-size: 11px;
   }
   .text-head {
     margin: 0;

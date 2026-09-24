@@ -323,7 +323,7 @@ Wybór kategorii odsłania jej pliki — 147 egzaminów AKO zamiast 2,5 tysiąca
 przedmioty, przedmiot → kategorie) nie podlegają cięciu długości ani poziomowi szczegółu:
 jest ich kilkanaście, a to one mówią, z czego składa się to, na co patrzysz. Same kontenery
 rysują się na wierzchu, z poświatą i nie schodzą poniżej sześciu pikseli. Kliknięcie węzła pliku pokazuje **sam materiał**: obraz, pierwszą stronę PDF-a albo
-kilka pierwszych linijek tekstu, plus odnośnik „Otwórz w studiu" prowadzący do tej treści
+kilka pierwszych linijek tekstu (oznaczonych jako wycinek), plus odnośnik „Otwórz w studiu" prowadzący do tej treści
 (`/?sha=…` otwiera wyszukiwanie na niej).
 
 Podpisy rozstrzyga jedno

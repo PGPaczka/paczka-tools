@@ -95,7 +95,8 @@ pliku nie są eksportowane.
 
 Treść notatki pliku niesie **podgląd**: obraz albo pierwszą stronę PDF-a
 (`![podgląd](/api/preview/<sha>/image?width=720)`), a dla plików tekstowych kilka
-pierwszych linijek. Na końcu jest odnośnik `[Otwórz w studiu](/?sha=<sha>)`. Adresy są
+pierwszych linijek zakończonych `…` i adnotacją `_fragment — całość w studiu_`, żeby
+urwany tekst wyglądał na urwany. Na końcu jest odnośnik `[Otwórz w studiu](/?sha=<sha>)`. Adresy są
 względne, więc działają wtedy, gdy viewera serwuje studio — czyli tam, gdzie te dane mają
 sens; w upstreamowym demo po prostu ich nie ma.
 

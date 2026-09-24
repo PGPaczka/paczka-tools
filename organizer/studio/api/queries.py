@@ -718,6 +718,9 @@ def preview(
     head = preview_lib.text_head(paths, row["extracted_text_path"], limit)
     copies = preview_lib.source_copies(conn, sha256)
     source = preview_lib.first_existing_copy(paths, copies)
+    # Materiał bez kopii w źródłach, ale obecny w paczce: podgląd bierze go stamtąd.
+    if source is None:
+        source = preview_lib.package_copy(paths, conn, sha256)
 
     has_image = source is not None and (kind in preview_lib.PAGE_KINDS or kind in preview_lib.IMAGE_KINDS)
     # Bez wyekstrahowanego tekstu sięgamy do samego pliku, o ile to tekst: extract
@@ -740,13 +743,19 @@ def preview(
         "content_kind": row["content_kind"],
         "text_head": head,
         "has_text": head is not None,
+        # Widok ma pokazać, że to WYCINEK: bez tego osiem linijek wygląda jak cały plik.
+        "text_truncated": bool(head is not None and len(head) >= limit),
         "text_language": preview_lib.text_language(source.name, kind) if source is not None else None,
         "has_image": has_image,
         "preview_kind": preview_kind,
         "has_thumbnail": (paths.work_thumbnails / f"{sha256}.jpg").is_file(),
         "pages": preview_lib.page_count(source) if (source and kind in preview_lib.PAGE_KINDS) else None,
         "copies": len(copies),
-        "source_path": None if source is None else f"{copies[0][0]}/{copies[0][1]}",
+        # Treść z samej paczki nie ma kopii w źródłach — pokazujemy wtedy, skąd
+        # NAPRAWDĘ wzięliśmy podgląd, zamiast wywracać się na pustej liście.
+        "source_path": f"{copies[0][0]}/{copies[0][1]}" if copies else (
+            None if source is None else str(source.relative_to(paths.target_repo))
+        ),
         "ocr_done": bool(row["ocr_done"]),
     }
 
@@ -772,6 +781,8 @@ def preview_image(
         return None
     kind = str(row["content_kind"] or "")
     source = preview_lib.first_existing_copy(paths, preview_lib.source_copies(conn, sha256))
+    if source is None:
+        source = preview_lib.package_copy(paths, conn, sha256)
     if source is None:
         return None
     if kind in preview_lib.PAGE_KINDS:

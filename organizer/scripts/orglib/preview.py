@@ -138,6 +138,27 @@ def text_head(paths: config.Paths, relative_path: str | None, limit: int) -> str
         return None
 
 
+def package_copy(paths: config.Paths, conn: sqlite3.Connection, sha256: str) -> Path | None:
+    """Kopia treści leżąca w PACZCE, wskazana przez decyzję.
+
+    890 pozycji ground truth nie ma ani jednego wiersza w ``files``: materiał trafił do
+    paczki dawno temu i nikt nie indeksował go jako pliku źródłowego. Bez tej ścieżki
+    ich podgląd w grafie był zepsutym obrazkiem, choć plik leży na dysku i wolno go
+    przeczytać. Ścieżka z bazy przechodzi przez ten sam containment co reszta — wpis
+    prowadzący poza repo paczki to błąd danych, nie prośba o odczyt.
+    """
+    row = conn.execute(
+        "SELECT target_relative_path FROM classifications WHERE sha256 = ? "
+        "AND target_relative_path IS NOT NULL "
+        "ORDER BY (run_id = 'ground_truth') DESC LIMIT 1",
+        (sha256,),
+    ).fetchone()
+    if row is None or not row["target_relative_path"]:
+        return None
+    candidate = config.resolve_within(paths.target_repo, str(row["target_relative_path"]))
+    return candidate if candidate is not None and candidate.is_file() else None
+
+
 def source_copies(conn: sqlite3.Connection, sha256: str) -> list[tuple[str, str]]:
     """Wszystkie materializacje treści jako pary (paczka, ścieżka względem paczki)."""
     rows = conn.execute(

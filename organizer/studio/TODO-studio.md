@@ -460,6 +460,18 @@ progi znowu byłyby zgadywaniem.
   Głowy tekstu czyta `export()`, nie `build_notes` — ta druga zostaje czystą funkcją nad
   wynikiem zapytań.
 
+## Podgląd materiałów z paczki (2026-09-24)
+
+- **Część podglądów była zepsutym obrazkiem.** Nie losowo: dokładnie te 890 treści, które
+  nie mają wiersza w `files`, bo leżą wyłącznie w paczce. Podgląd szukał pliku tylko
+  w drzewie źródeł. Teraz, gdy tam go nie ma, sięga po ścieżkę docelową z decyzji
+  (`preview.package_copy`) — przez ten sam helper containmentu, więc wpis prowadzący poza
+  repo paczki dalej kończy się odmową, a nie odczytem. Sprawdzone na realnych danych:
+  6/6 wcześniej martwych podglądów działa.
+- **Urwany tekst mówi, że jest urwany.** W notatce grafu kończy się `…` i adnotacją
+  „fragment — całość w studiu" (839 notatek), a API podglądu zwraca `text_truncated`,
+  po którym panel decyzji dopisuje „… to tylko początek pliku".
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3
