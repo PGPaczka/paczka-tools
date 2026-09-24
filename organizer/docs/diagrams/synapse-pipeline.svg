@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 820" width="1200" height="820" font-family="Inter, system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <title>Paczka → graf: co z czego powstaje i co jest w repozytorium</title>
+  <desc>Trzy warstwy danych grafu: indeks SQLite, vault notatek .md i graph.json. Pokazuje, co jest wersjonowane w gicie, co odtwarza `just studio-graf` oraz skutki przeniesienia pliku.</desc>
+
+  <defs>
+    <marker id="strzalka" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#58a6ff"/>
+    </marker>
+    <marker id="strzalka-szara" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#8b949e"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="820" fill="#0d1117"/>
+
+  <text x="40" y="46" fill="#e6edf3" font-size="21" font-weight="600">Paczka → graf: co z czego powstaje</text>
+  <text x="40" y="70" fill="#8b949e" font-size="13">Każda warstwa jest wyliczana z poprzedniej. Nic po prawej nie jest źródłem prawdy.</text>
+
+  <!-- ===== materiały ===== -->
+  <text x="40" y="112" fill="#6e7681" font-size="11" letter-spacing="1.5">MATERIAŁY NA DYSKU</text>
+
+  <rect x="40" y="126" width="250" height="74" rx="8" fill="#161b22" stroke="#f85149" stroke-width="1.5"/>
+  <text x="58" y="152" fill="#e6edf3" font-size="14" font-weight="600">00_SOURCES</text>
+  <text x="58" y="172" fill="#f85149" font-size="11.5">READ-ONLY — twarda reguła nr 1</text>
+  <text x="58" y="190" fill="#8b949e" font-size="11.5">48 049 plików, 14 paczek</text>
+
+  <rect x="310" y="126" width="250" height="74" rx="8" fill="#161b22" stroke="#3fb950" stroke-width="1.5"/>
+  <text x="328" y="152" fill="#e6edf3" font-size="14" font-weight="600">10_NEW/…/paczka</text>
+  <text x="328" y="172" fill="#3fb950" font-size="11.5">repo docelowe (ground truth)</text>
+  <text x="328" y="190" fill="#8b949e" font-size="11.5">tu leży 890 treści bez kopii w źródłach</text>
+
+  <!-- ===== indeks ===== -->
+  <path d="M165 200 L165 236" stroke="#58a6ff" stroke-width="1.6" marker-end="url(#strzalka)"/>
+  <path d="M435 200 L435 236" stroke="#58a6ff" stroke-width="1.6" marker-end="url(#strzalka)"/>
+  <text x="178" y="222" fill="#8b949e" font-size="11">scan · hash · extract · classify</text>
+
+  <rect x="40" y="240" width="520" height="80" rx="8" fill="#161b22" stroke="#58a6ff" stroke-width="2"/>
+  <text x="58" y="266" fill="#e6edf3" font-size="14" font-weight="600">20_WORK/organizer.sqlite</text>
+  <text x="58" y="286" fill="#58a6ff" font-size="11.5">ŹRÓDŁO PRAWDY — indeks plików + decyzje</text>
+  <text x="58" y="306" fill="#8b949e" font-size="11.5">files · content · classifications · relations · manual_decisions</text>
+
+  <!-- ===== vault ===== -->
+  <path d="M300 320 L300 360" stroke="#58a6ff" stroke-width="1.6" marker-end="url(#strzalka)"/>
+  <text x="312" y="346" fill="#8b949e" font-size="11">scripts/synapse_export.py</text>
+
+  <rect x="40" y="364" width="520" height="92" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="58" y="390" fill="#e6edf3" font-size="14" font-weight="600">20_WORK/synapse/vault/</text>
+  <text x="58" y="410" fill="#8b949e" font-size="11.5">4 315 notatek .md · 18 MB · semestr → przedmiot → kategoria → plik</text>
+  <text x="58" y="430" fill="#8b949e" font-size="11.5">treść notatki: podgląd, decyzja, prowenancja, odnośnik do studia</text>
+  <text x="58" y="448" fill="#d29922" font-size="11.5">czytany NA ŻYWO przy kliknięciu w węzeł — nie tylko etap pośredni</text>
+
+  <!-- ===== graph.json ===== -->
+  <path d="M300 456 L300 496" stroke="#58a6ff" stroke-width="1.6" marker-end="url(#strzalka)"/>
+  <text x="312" y="482" fill="#8b949e" font-size="11">Synapse.Generator (.NET)</text>
+
+  <rect x="40" y="500" width="520" height="80" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="58" y="526" fill="#e6edf3" font-size="14" font-weight="600">20_WORK/synapse/graph.json</text>
+  <text x="58" y="546" fill="#8b949e" font-size="11.5">4,5 MB (241 KiB po gzipie) · węzły, krawędzie, tagi, kategorie</text>
+  <text x="58" y="566" fill="#8b949e" font-size="11.5">+ search-index.json</text>
+
+  <!-- ===== ramka: poza gitem ===== -->
+  <rect x="24" y="352" width="552" height="244" rx="12" fill="none" stroke="#d29922" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <text x="32" y="614" fill="#d29922" font-size="11.5">poza gitem — artefakty odtwarzane przez `just studio-graf`</text>
+
+  <!-- ===== studio / viewer ===== -->
+  <text x="650" y="112" fill="#6e7681" font-size="11" letter-spacing="1.5">CO TO CZYTA</text>
+
+  <rect x="650" y="126" width="510" height="196" rx="8" fill="#161b22" stroke="#58a6ff" stroke-width="2"/>
+  <text x="668" y="152" fill="#e6edf3" font-size="14" font-weight="600">Paczka Studio — 127.0.0.1:8765</text>
+  <text x="668" y="174" fill="#8b949e" font-size="11.5">FastAPI + zbudowany front; nasłuch tylko na pętli zwrotnej</text>
+  <text x="668" y="200" fill="#e6edf3" font-size="12" font-weight="600">serwuje:</text>
+  <text x="668" y="222" fill="#8b949e" font-size="11.5">/graph.json — struktura grafu</text>
+  <text x="668" y="242" fill="#8b949e" font-size="11.5">/vault/&lt;id&gt;.md — treść notatki, przy kliknięciu</text>
+  <text x="668" y="262" fill="#8b949e" font-size="11.5">/api/preview/&lt;sha&gt;/image — obraz albo strona PDF</text>
+  <text x="668" y="282" fill="#8b949e" font-size="11.5">/api/… — decyzje, plan, klastry, statystyki</text>
+  <text x="668" y="306" fill="#3fb950" font-size="11.5">podgląd czyta materiał ze źródeł, a gdy go tam nie ma — z paczki</text>
+
+  <rect x="650" y="346" width="510" height="130" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1.5"/>
+  <text x="668" y="372" fill="#e6edf3" font-size="14" font-weight="600">Viewer grafu (/graf/)</text>
+  <text x="668" y="394" fill="#8b949e" font-size="11.5">rysuje z graph.json — 4 443 węzły (w tym 128 ghostów), 5 595 krawędzi</text>
+  <text x="668" y="414" fill="#8b949e" font-size="11.5">panel notatki dociąga .md z vaulta dopiero po kliknięciu</text>
+  <text x="668" y="434" fill="#8b949e" font-size="11.5">filtry i zakres zapisane w localStorage przeglądarki</text>
+  <text x="668" y="458" fill="#d29922" font-size="11.5">graf jest MIGAWKĄ — zmiany widać po `just studio-graf`</text>
+
+  <path d="M560 540 C 600 540, 610 420, 648 412" stroke="#58a6ff" stroke-width="1.6" fill="none" marker-end="url(#strzalka)"/>
+  <path d="M560 410 C 620 400, 620 250, 648 236" stroke="#8b949e" stroke-width="1.4" fill="none" stroke-dasharray="5 4" marker-end="url(#strzalka-szara)"/>
+
+  <!-- ===== ramka: w repo ===== -->
+  <rect x="24" y="640" width="1136" height="150" rx="12" fill="none" stroke="#3fb950" stroke-width="1.5" stroke-dasharray="7 5"/>
+  <text x="40" y="668" fill="#3fb950" font-size="12" font-weight="600">W REPOZYTORIUM (paczka-tools)</text>
+  <text x="40" y="692" fill="#8b949e" font-size="11.5">scripts/ · studio/api/ · studio/web/ · studio/graf/ (generator .NET i viewer, wciągnięte przez git subtree) · docs/ · tests/</text>
+  <text x="40" y="716" fill="#f85149" font-size="11.5">NIE w repozytorium: 20_WORK (indeks, vault, graph.json), 00_SOURCES, repo paczki. Po pullu na innym urządzeniu: `just studio-graf`.</text>
+
+  <text x="40" y="750" fill="#e6edf3" font-size="12" font-weight="600">Co się stanie, gdy przeniesiesz plik:</text>
+  <text x="40" y="770" fill="#8b949e" font-size="11.5">• w źródłach — skan nic nie kasuje: stary wpis zostaje jako „brak”, nowy dochodzi; sha i id węzła bez zmian (id zawiera NAZWĘ, nie ścieżkę)</text>
+  <text x="40" y="786" fill="#8b949e" font-size="11.5">• w paczce — `target_relative_path` w decyzji przestaje pasować: znika podgląd i rozmiar, `verify` zgłasza rozjazd &#160;•&#160; w vaulcie — bez znaczenia, jest odtwarzany</text>
+</svg>

@@ -66,6 +66,15 @@ backend studia prosto z `20_WORK`). Studio nie kopiuje vaulta do `public/`: nota
 z `work` przez helper containmentu. Tłumaczenie `sha256` ↔ `id` notatki: `orglib/graph_link.py`,
 po kontrakcie `synapse_vault.ID_SHA_PREFIX` (id notatki pliku kończy się `sha256[:8]`).
 
+## Skąd co się bierze
+
+![Warstwy: indeks SQLite → vault notatek → graph.json → viewer](diagrams/synapse-pipeline.svg)
+
+Trzy rzeczy, które łatwo pomylić, a które ten rysunek rozstrzyga: **źródłem prawdy jest
+baza**, nie graf; **vault jest czytany na żywo** (panel notatki dociąga `.md` przy
+kliknięciu, więc nie jest tylko etapem pośrednim); a **żaden z tych artefaktów nie jest
+w repozytorium** — odtwarza je `just studio-graf`.
+
 ## Model: cztery typy węzłów
 
 ```
