@@ -28,7 +28,7 @@ from fastapi.responses import (
 )
 from fastapi.staticfiles import StaticFiles
 
-from orglib import config, graph_link
+from orglib import config, folder_links, graph_link
 from orglib.classify import load_rules
 from orglib.decisions import (
     GroundTruthConflict,
@@ -373,10 +373,11 @@ def create_app(
     @app.get("/api/decisions/by-folder", tags=["decisions"])
     def get_items_by_folder(
         folder: str = Query(..., min_length=1),
+        include_linked: bool = Query(False, description="Dołóż treści z katalogów powiązanych ręcznie"),
         conn: sqlite3.Connection = Depends(get_conn),
     ) -> dict[str, Any]:
         """Treści z danego katalogu źródłowego — podgląd przed decyzją hurtową (S1.6)."""
-        return queries.items_by_folder(conn, folder, limits)
+        return queries.items_by_folder(conn, folder, limits, include_linked=include_linked)
 
     @app.post("/api/decisions/by-folder", tags=["decisions"])
     def post_decisions_by_folder(
@@ -389,7 +390,11 @@ def create_app(
         decided_by = body.get("decided_by", "studio")
         if not folder:
             raise HTTPException(status_code=422, detail="brak pola folder")
-        preview = queries.items_by_folder(conn, folder, limits)
+        # Powiązane katalogi wchodzą do decyzji tylko na wyraźne życzenie (Q3): człowiek
+        # widzi w podglądzie, ile pozycji dojdzie, zanim cokolwiek zapisze.
+        preview = queries.items_by_folder(
+            conn, folder, limits, include_linked=bool(body.get("include_linked")),
+        )
         decisions = [
             {"sha256": item["sha256"], "decision_type": decision_type,
              **({k: body[k] for k in ("semester", "subject_key", "category", "action") if k in body})}
@@ -522,6 +527,74 @@ def create_app(
     ) -> dict[str, Any]:
         """Wyszukiwanie przekrojowe (S4.3)."""
         return queries.search(conn, q, thresholds=limits, limit=limit)
+
+    # --- Q3: katalogi i ich ręczne powiązania ---
+
+    @app.get("/api/folders/links", tags=["folders"])
+    def get_folder_links(
+        folder: Optional[str] = Query(None, min_length=1),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ) -> dict[str, Any]:
+        """Powiązania między katalogami — wszystkie albo filtrowane po katalogach."""
+        if folder:
+            links = folder_links.links_for(conn, folder)
+        else:
+            links = folder_links.all_links(conn)
+        return {"total": len(links), "links": links}
+
+    @app.post("/api/folders/links", tags=["folders"])
+    def post_folder_link(
+        body: dict[str, Any] = Body(...),
+        conn: sqlite3.Connection = Depends(get_rw_conn),
+    ) -> dict[str, Any]:
+        """Ręczne powiązanie dwóch katalogów (Q3).
+
+        Walidacja siedzi w `orglib.folder_links` — tu jest tylko tłumaczenie wyjątków
+        na kody HTTP, żeby ta sama reguła obowiązywała w studiu i w CLI.
+        """
+        try:
+            folder_a = body["folder_a"]
+            folder_b = body["folder_b"]
+        except KeyError as exc:
+            raise HTTPException(status_code=422, detail=f"brak wymaganego pola: {exc}") from exc
+        try:
+            kind = body.get("kind", "duplicate")
+            result = folder_links.link(
+                conn,
+                folder_a,
+                folder_b,
+                kind=kind,
+                decided_by=body.get("decided_by", "studio"),
+                note=body.get("note"),
+            )
+            conn.commit()
+            return result
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.delete("/api/folders/links", tags=["folders"])
+    def delete_folder_link(
+        folder_a: str = Query(..., min_length=1),
+        folder_b: str = Query(..., min_length=1),
+        conn: sqlite3.Connection = Depends(get_rw_conn),
+    ) -> dict[str, Any]:
+        """Usuń powiązanie między dwoma katalogami."""
+        if folder_links.unlink(conn, folder_a, folder_b):
+            return {"unlinked": {"folder_a": folder_a, "folder_b": folder_b}}
+        raise HTTPException(status_code=404, detail=f"brak powiązania między {folder_a} a {folder_b}")
+
+    @app.get("/api/folders", tags=["folders"])
+    def get_folders(
+        q: Optional[str] = Query(None, description="Fragment ścieżki do wyszukania"),
+        package: Optional[str] = Query(None, description="Filtruj po paczce"),
+        limit: int = Query(100, ge=1, le=500),
+        offset: int = Query(0, ge=0),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ) -> dict[str, Any]:
+        """Katalogi źródłowe — do przeglądania i powiązywania."""
+        return queries.folders(conn, q=q, package=package, limit=limit, offset=offset)
 
     @app.get("/api/stats", tags=["stats"])
     def get_stats(

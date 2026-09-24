@@ -17,7 +17,7 @@ import sqlite3
 from typing import Any, Mapping, Sequence
 
 import status_report
-from orglib import config, preview as preview_lib
+from orglib import config, folder_links, preview as preview_lib
 from orglib.review import TEXT_KINDS, build_clusters
 
 #: Ile znaków głowy tekstu wysyłamy do widoku (podgląd i diff klastra). Tyle
@@ -336,17 +336,39 @@ def items_by_folder(
     conn: sqlite3.Connection,
     folder: str,
     thresholds: Mapping[str, Any] | None = None,
+    *,
+    include_linked: bool = False,
 ) -> dict[str, Any]:
-    """Treści z danego katalogu źródłowego — do podglądu przed decyzją hurtową."""
+    """Treści z katalogu źródłowego — do podglądu przed decyzją hurtową.
+
+    `linked_folders` podajemy ZAWSZE, a treści z nich dokładamy tylko na żądanie:
+    powiązanie ma być widoczne, zanim człowiek kliknie, ale nigdy nie może po cichu
+    rozszerzyć decyzji na cudzy katalog.
+    """
     auto_apply, review_min = confidence_limits(thresholds)
-    rows = conn.execute(
-        f"SELECT {_ITEM_COLUMNS} {_ITEM_FROM} "
-        "WHERE f.folder_path = ? OR f.source_relative_path LIKE ? || '/%' "
-        "ORDER BY f.source_relative_path",
-        (folder, folder),
-    ).fetchall()
+    powiazane = sorted(folder_links.partners(conn, folder))
+    katalogi = [folder, *powiazane] if include_linked else [folder]
+
+    rows: list[sqlite3.Row] = []
+    widziane: set[str] = set()
+    for katalog in katalogi:
+        for row in conn.execute(
+            f"SELECT {_ITEM_COLUMNS} {_ITEM_FROM} "
+            "WHERE f.folder_path = ? OR f.source_relative_path LIKE ? || '/%' "
+            "ORDER BY f.source_relative_path",
+            (katalog, katalog),
+        ):
+            # Ta sama treść potrafi leżeć w obu katalogach: liczymy ją raz, inaczej
+            # „ile pozycji dotknie decyzja" kłamałoby w górę.
+            if row["sha256"] in widziane:
+                continue
+            widziane.add(row["sha256"])
+            rows.append(row)
+
     return {
         "folder": folder,
+        "linked_folders": powiazane,
+        "included_linked": include_linked,
         "total": len(rows),
         "items": [_with_bucket(row, auto_apply, review_min) for row in rows],
     }
@@ -915,3 +937,74 @@ def preview_image(
         payload = preview_lib.render_image(source, width)
         return (payload, "image/jpeg") if payload else None
     return None
+
+
+def folders(
+    conn: sqlite3.Connection,
+    *,
+    q: str | None = None,
+    package: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> dict[str, Any]:
+    """Katalogi do przeglądania i powiązywania, z ręcznymi powiązaniami każdego z nich.
+
+    `linked_to` bierzemy jednym zapytaniem dla całej strony wyników: przy tysiącach
+    katalogów zapytanie na wiersz zamieniłoby listę w setki osobnych odczytów.
+    """
+    clauses: list[str] = []
+    params: list[Any] = []
+
+    if q:
+        clauses.append("folder_path LIKE '%' || ? || '%'")
+        params.append(q)
+    if package:
+        clauses.append("source_package = ?")
+        params.append(package)
+
+    where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+
+    total = int(conn.execute(
+        f"SELECT COUNT(*) AS n FROM folders{where}", params
+    ).fetchone()["n"])
+
+    rows = conn.execute(
+        f"SELECT folder_path, source_package, file_count, total_bytes, duplicate_of "
+        f"FROM folders{where} "
+        f"ORDER BY folder_path ASC LIMIT ? OFFSET ?",
+        [*params, limit, offset],
+    ).fetchall()
+
+    folder_paths = [row["folder_path"] for row in rows]
+    linked_map: dict[str, set[str]] = {fp: set() for fp in folder_paths}
+
+    if folder_paths:
+        placeholders = ",".join("?" * len(folder_paths))
+        link_rows = conn.execute(
+            f"""
+            SELECT folder_a, folder_b FROM manual_folder_links
+            WHERE folder_a IN ({placeholders}) OR folder_b IN ({placeholders})
+            """,
+            [*folder_paths, *folder_paths],
+        ).fetchall()
+
+        for link_row in link_rows:
+            a = link_row["folder_a"]
+            b = link_row["folder_b"]
+            if a in linked_map:
+                linked_map[a].add(b)
+            if b in linked_map:
+                linked_map[b].add(a)
+
+    # `file_count` i `total_bytes` są puste dla katalogów świeżo po `scan.py`, zanim
+    # policzy je `fold_hash` — pusto znaczy „jeszcze nie wiadomo", nie zero.
+    wynik = [{
+        "folder_path": row["folder_path"],
+        "source_package": row["source_package"],
+        "file_count": None if row["file_count"] is None else int(row["file_count"]),
+        "total_bytes": None if row["total_bytes"] is None else int(row["total_bytes"]),
+        "duplicate_of": row["duplicate_of"],
+        "linked_to": sorted(linked_map[row["folder_path"]]),
+    } for row in rows]
+
+    return {"total": total, "limit": limit, "offset": offset, "folders": wynik}

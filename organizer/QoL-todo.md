@@ -72,14 +72,26 @@ etapów i `apply` za bramką. Zapis idzie przez `manual_decisions` — ten sam k
 treści mają relacje `near_duplicate` / `older_version`. **Ręcznego wskazania
 „folderA ≡ folderB” nie ma.**
 
-**Jak.** Tabela `manual_folder_links` (folder_a, folder_b, kind, decided_at, note),
-zapis przez studio, a klasyfikacja i raport przeglądu traktują taką parę jak
-`duplicate_of`. Wymaga migracji schematu (v2 → v3) i reguły w `AGENTS.md`, że to
-decyzja człowieka, więc ma pierwszeństwo przed heurystyką.
+**Jak (zrobione, z jedną świadomą zmianą wobec pierwotnego pomysłu).** Tabela
+`manual_folder_links` (para trzymana w jednej kolejności przez `CHECK folder_a < folder_b`),
+zapis przez studio, reguła 15 w `AGENTS.md`.
 
-- [ ] migracja schematu + zapis w orglib
-- [ ] widok „powiąż katalogi” w studiu (dwie listy + podgląd zawartości obu)
-- [ ] użycie powiązania w klasyfikacji i w raporcie przeglądu
+**Dlaczego NIE „traktujemy pary jak `duplicate_of`”**, choć tak brzmiał plan:
+`duplicate_of` liczy się z `tree_hash`, czyli z równości poddrzewa co do bitu, i służy
+`db.files_pending` do **wycinania poddrzew** z extract i classify. Ręczna para mówi „to
+sobie odpowiada”, a nie „to jest identyczne” — wpisanie jej tam wyrzuciłoby z potoku pliki
+obecne tylko po jednej stronie, bez śladu w żadnym raporcie. Powiązanie podpowiada,
+nie kasuje.
+
+- [x] migracja schematu (v2 → v3, przećwiczona na kopii żywej bazy) + `orglib/folder_links.py`
+      z eksportem i importem JSONL — praca człowieka przeżywa przebudowę bazy, jak
+      `manual_decisions.jsonl` (`just` → `db_admin.py export-links` / `import-links`)
+- [x] widok „katalogi” w studiu: dwie listy z wyszukiwaniem, podgląd zawartości obu stron
+      przed powiązaniem, rozróżnienie „dup” (automat) od „powiązany” (człowiek), lista
+      powiązań z rozwiązywaniem
+- [x] użycie: decyzja hurtem po katalogu widzi powiązane katalogi ZAWSZE, a obejmuje je
+      dopiero po zaznaczeniu (cicha decyzja o cudzym katalogu byłaby gorsza niż jej brak);
+      raport przeglądu ma sekcję „Ręcznie powiązane katalogi”, zawężoną do tego przedmiotu
 
 ---
 

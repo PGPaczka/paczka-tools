@@ -1,4 +1,4 @@
-"""CLI administracyjne bazy organizera: init / reset / stats / eksport decyzji / refresh-kinds.
+"""CLI administracyjne bazy organizera: init / reset / stats / eksport decyzji i powiązań / refresh-kinds.
 
 Uruchamianie: ``python scripts/db_admin.py <komenda>`` (katalog scripts/ trafia
 wtedy na sys.path, więc ``from orglib import ...`` działa bez instalacji pakietu).
@@ -13,7 +13,7 @@ from typing import Optional
 
 import typer
 
-from orglib import config, db, kinds
+from orglib import config, db, folder_links, kinds
 
 app = typer.Typer(add_completion=False, help="Administracja bazą 20_WORK/organizer.sqlite.")
 
@@ -120,6 +120,36 @@ def export_manual(
     finally:
         conn.close()
     typer.echo(f"zapisane decyzje: {count} -> {target}")
+
+
+@app.command("export-links")
+def export_links(
+    db_path: Optional[Path] = DB_OPTION,
+    out: Optional[Path] = typer.Option(None, "--out", help="Plik JSONL (domyślnie reports/)."),
+) -> None:
+    """Eksportuje ręczne powiązania katalogów do JSONL (muszą przeżyć przebudowę bazy)."""
+    target = out if out is not None else folder_links.EXPORT_PATH
+    conn = db.connect(_require_db(db_path), init=False)
+    try:
+        count = folder_links.export(conn, Path(target))
+    finally:
+        conn.close()
+    typer.echo(f"zapisane powiązania katalogów: {count} -> {target}")
+
+
+@app.command("import-links")
+def import_links(
+    db_path: Optional[Path] = DB_OPTION,
+    src: Optional[Path] = typer.Option(None, "--in", help="Plik JSONL (domyślnie reports/)."),
+) -> None:
+    """Wczytuje ręczne powiązania katalogów z JSONL do bazy (UPSERT po parze)."""
+    source = src if src is not None else folder_links.EXPORT_PATH
+    conn = db.connect(_require_db(db_path), init=False)
+    try:
+        count = folder_links.import_links(conn, Path(source))
+    finally:
+        conn.close()
+    typer.echo(f"wczytane powiązania katalogów: {count} <- {source}")
 
 
 @app.command("import-manual")

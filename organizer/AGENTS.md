@@ -64,6 +64,14 @@ Nie hardkoduj `../../…` w Pythonie, promptach, skillach ani testach.
     własnego PR, `git clean` ani resetowania cudzych zmian.
 14. **Nie obchodź sandboxu i hooków.** Nie używaj flag wyłączających ochronę,
     jeśli użytkownik nie zażądał tego wprost.
+15. **Ręczne powiązanie katalogów jest decyzją człowieka i ma pierwszeństwo przed
+    heurystyką, ale niczego nie wycina.** `manual_folder_links` mówi „te dwa katalogi
+    to ten sam materiał", czego automatyczny dedup (`folders.duplicate_of` z `tree_hash`)
+    nie widzi, bo tamten wymaga równości poddrzewa co do bitu. Powiązania NIE wolno
+    wpisywać do `duplicate_of` ani używać do pomijania plików: `db.files_pending` wycina
+    poddrzewa duplikatów z extract i classify, więc pliki obecne tylko po jednej stronie
+    zniknęłyby z potoku bez śladu. Powiązanie podpowiada (decyzja hurtem obejmuje drugi
+    katalog po jawnym zaznaczeniu) i pokazuje się w raporcie przeglądu.
 
 Wspólny guard źródeł: `.agents/hooks/guard-sources.py`. Claude wywołuje go z
 `.claude/settings.json`, a Codex z repozytoryjnego `.codex/hooks.json`.

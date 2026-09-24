@@ -132,6 +132,7 @@ def test_review_counts_and_orders_what_matters_first() -> None:
     assert review.counts == {
         "pozycje": 4, "do_kopiowania": 2, "pomijane": 1, "media": 1, "kwarantanna": 0,
         "needs_review": 2, "unresolved": 1, "klastry": 0, "bledy": 1, "ostrzezenia": 1,
+        "powiazane_katalogi": 0,
     }
     # Najmniej pewne na górze — tam decyzja człowieka zmienia najwięcej.
     assert [item.confidence for item in review.needs_review] == [0.74, 0.86]
@@ -159,3 +160,26 @@ def test_tree_lists_only_folders_that_will_exist() -> None:
     )
 
     assert review.tree == ["paczka/X/kolokwia"]
+
+
+def test_folder_links_are_narrowed_to_this_subject() -> None:
+    """Powiązania są globalne, raport dotyczy jednego przedmiotu.
+
+    Bez zawężenia każdy raport wyglądałby tak samo — a wtedy sekcja nic nie mówi.
+    """
+    from orglib.review import build_review
+
+    review = build_review(
+        plan=[plan_row(SHA["a"])],
+        meta={"subject_key": "AKO"},
+        manifest=[manifest_row(SHA["a"], source_path="P1/AKO2020/wyklady/w1.pdf")],
+        folder_links=[
+            {"folder_a": "P1/AKO2020/wyklady", "folder_b": "P2/ako_stare/w",
+             "kind": "duplicate", "note": "ten sam wykład"},
+            {"folder_a": "P1/SO/lab", "folder_b": "P2/so_stare",
+             "kind": "duplicate", "note": "inny przedmiot"},
+        ],
+    )
+
+    assert [link["folder_b"] for link in review.folder_links] == ["P2/ako_stare/w"]
+    assert review.counts["powiazane_katalogi"] == 1

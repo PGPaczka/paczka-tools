@@ -30,7 +30,7 @@ from typing import Any, Optional
 
 import typer
 
-from orglib import config, preview
+from orglib import config, folder_links, preview
 from orglib.jsonl import read_jsonl
 from orglib.plan_build import META_KEY
 from orglib.review import Item, Review, build_review, is_image, is_text, pair_for_diff
@@ -249,6 +249,13 @@ def render(review: Review, paths: config.Paths, *, max_clusters: int, diff_lines
         for item in review.media
     )
     tree_rows = "".join(f"<li><span class='path'>{_escape(folder)}</span></li>" for folder in review.tree)
+    links_rows = "".join(
+        f"<tr><td class='path'>{_escape(str(link.get('folder_a') or ''))}</td>"
+        f"<td class='path'>{_escape(str(link.get('folder_b') or ''))}</td>"
+        f"<td>{'ten sam materiał' if link.get('kind') == 'duplicate' else 'powiązane'}</td>"
+        f"<td>{_escape(str(link.get('note') or ''))}</td></tr>"
+        for link in review.folder_links
+    )
     return f"""<!doctype html>
 <html lang="pl"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -279,7 +286,13 @@ starsza wersja zostaje w paczce jako relacja, a <code>outdated/</code> to zawsze
 <h2>5. Poza paczkę ({counts['media']})</h2>
 {f"<table><tr><th>źródło</th><th>cel w 90_MEDIA</th><th>rozmiar</th></tr>{media_rows}</table>" if media_rows else "<p class='note'>Brak.</p>"}
 
-<h2>6. Drzewo po zmianie ({len(review.tree)} katalogów)</h2>
+<h2>6. Ręcznie powiązane katalogi ({counts.get('powiazane_katalogi', 0)})</h2>
+<p class="note">Pary wskazane przez człowieka: „to jest ten sam materiał", choć automatyczny
+dedup ich nie łączy (poddrzewa nie są identyczne). Powiązanie niczego nie wycina z potoku —
+podpowiada przy decyzjach hurtowych.</p>
+{f"<table><tr><th>katalog</th><th>katalog</th><th>rodzaj</th><th>notatka</th></tr>{links_rows}</table>" if links_rows else "<p class='note'>Brak.</p>"}
+
+<h2>7. Drzewo po zmianie ({len(review.tree)} katalogów)</h2>
 <details><summary>pokaż katalogi</summary><ul>{tree_rows}</ul></details>
 
 <footer>
@@ -337,6 +350,10 @@ def review(
             validation=read_jsonl(base / "validation.jsonl") if (base / "validation.jsonl").is_file() else [],
             unresolved=read_jsonl(base / "unresolved.jsonl") if (base / "unresolved.jsonl").is_file() else [],
             relations=read_jsonl(base / "relations.jsonl") if (base / "relations.jsonl").is_file() else [],
+            # Powiązania katalogów są globalne, więc leżą w `reports/`, a nie przy przedmiocie.
+            # Raport, jak reszta jego wejść, czyta JSONL — bazy tu świadomie nie otwieramy.
+            folder_links=read_jsonl(folder_links.EXPORT_PATH)
+            if folder_links.EXPORT_PATH.is_file() else [],
         )
         page = render(
             review_model, paths,

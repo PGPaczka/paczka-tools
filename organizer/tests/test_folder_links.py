@@ -114,3 +114,42 @@ def test_manual_link_does_not_touch_duplicate_of(conn) -> None:
     ).fetchone()["n"]
 
     assert duplikaty == 0
+
+
+# --- ślad poza bazą ---------------------------------------------------------
+
+def test_links_survive_a_database_rebuild(conn, tmp_path) -> None:
+    """Baza bywa odtwarzana od zera — praca człowieka ma przeżyć, jak `manual_decisions`."""
+    folder_links.link(conn, "P1/AKO2020/wyklady", "P2/ako_stare/w",
+                      decided_by="test", note="ten sam wykład")
+    plik = tmp_path / "links.jsonl"
+
+    assert folder_links.export(conn, plik) == 1
+
+    # Świeża baza z tymi samymi katalogami, ale bez powiązań.
+    nowa = db.connect(tmp_path / "od-nowa.sqlite")
+    db.upsert(nowa, "source_packages", {"package_name": "P1"}, conflict=("package_name",))
+    db.upsert(nowa, "source_packages", {"package_name": "P2"}, conflict=("package_name",))
+    for sciezka, paczka in (("P1/AKO2020/wyklady", "P1"), ("P2/ako_stare/w", "P2")):
+        db.upsert_folder(nowa, {"folder_path": sciezka, "source_package": paczka})
+    nowa.commit()
+
+    assert folder_links.import_links(nowa, plik) == 1
+    odtworzone = folder_links.all_links(nowa)
+    nowa.close()
+
+    assert odtworzone[0]["note"] == "ten sam wykład"
+    assert odtworzone[0]["folder_a"] == "P1/AKO2020/wyklady"
+
+
+def test_import_refuses_a_link_to_a_folder_that_is_gone(conn, tmp_path) -> None:
+    """Po przebudowie źródeł katalog mógł zniknąć — lepiej głośno niż martwy wiersz."""
+    plik = tmp_path / "links.jsonl"
+    plik.write_text(
+        '{"folder_a": "P1/AKO2020", "folder_b": "P9/nie_ma", "kind": "duplicate",'
+        ' "decided_by": "test", "decided_at": "2026-01-01T00:00:00Z", "note": null}\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(LookupError):
+        folder_links.import_links(conn, plik)

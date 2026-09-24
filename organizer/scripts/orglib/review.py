@@ -86,6 +86,8 @@ class Review:
     media: list[Item]
     tree: list[str]
     counts: dict[str, int]
+    #: Ręczne powiązania katalogów (Q3) dotykające materiałów TEGO przedmiotu.
+    folder_links: list[dict[str, Any]] = field(default_factory=list)
 
 
 def _root(parents: dict[str, str], value: str) -> str:
@@ -143,6 +145,7 @@ def build_review(
     validation: Sequence[Mapping[str, Any]] = (),
     unresolved: Sequence[Mapping[str, Any]] = (),
     relations: Sequence[Mapping[str, Any]] = (),
+    folder_links: Sequence[Mapping[str, Any]] = (),
 ) -> Review:
     """Składa widok przeglądu z artefaktów etapów B1/B3/B6/B7/B8."""
     facts = {str(row.get("sha256")): row for row in manifest if row.get("sha256")}
@@ -185,6 +188,16 @@ def build_review(
         for item in items.values()
         if item.action in ("copy", "media")
     })
+    # Powiązania katalogów są globalne (para katalogów z dwóch paczek), a raport dotyczy
+    # jednego przedmiotu — zostawiamy te, których katalog obejmuje choć jeden materiał
+    # z tego planu. Inaczej każdy raport wyglądałby tak samo, niezależnie od przedmiotu.
+    zrodla = [item.source_path for item in items.values() if item.source_path]
+    powiazania = [
+        dict(link) for link in folder_links
+        if _touches(str(link.get("folder_a") or ""), zrodla)
+        or _touches(str(link.get("folder_b") or ""), zrodla)
+    ]
+
     counts = {
         "pozycje": len(items),
         "do_kopiowania": sum(1 for i in items.values() if i.action == "copy"),
@@ -194,6 +207,7 @@ def build_review(
         "needs_review": len(review_items),
         "unresolved": len(unresolved),
         "klastry": len(clusters),
+        "powiazane_katalogi": len(powiazania),
         "bledy": len(errors),
         "ostrzezenia": len(warnings),
     }
@@ -208,7 +222,16 @@ def build_review(
         media=media,
         tree=tree,
         counts=counts,
+        folder_links=powiazania,
     )
+
+
+def _touches(folder: str, sources: Sequence[str]) -> bool:
+    """Czy ten katalog źródłowy obejmuje choć jeden materiał z planu."""
+    if not folder:
+        return False
+    prefix = folder.rstrip("/") + "/"
+    return any(path == folder or path.startswith(prefix) for path in sources)
 
 
 def pair_for_diff(cluster: Cluster, items: Mapping[str, Item]) -> tuple[Item, Item] | None:

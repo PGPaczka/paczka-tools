@@ -16,14 +16,20 @@ pilnuje tego CHECK w schemacie), więc „A≡B" i „B≡A" to jeden wiersz.
 
 from __future__ import annotations
 
+import json
 import sqlite3
+from pathlib import Path
 from typing import Any, Optional
 
-from orglib import db
+from orglib import config, db
 
 #: Jak mocne jest twierdzenie człowieka. `duplicate` — ten sam materiał w dwóch paczkach;
 #: `related` — te katalogi się ze sobą wiążą (np. ćwiczenia i ich rozwiązania).
 LINK_KINDS = ("duplicate", "related")
+
+#: Ślad w gicie. Baza bywa odtwarzana od zera (ponowne hashowanie źródeł), a praca
+#: człowieka ma to przeżyć — dokładnie tak jak `manual_decisions.jsonl`.
+EXPORT_PATH = config.ORGANIZER_ROOT / "reports" / "manual_folder_links.jsonl"
 
 
 def _pair(folder_a: str, folder_b: str) -> tuple[str, str]:
@@ -100,3 +106,42 @@ def partners(conn: sqlite3.Connection, folder: str) -> set[str]:
         str(row["folder_b"] if row["folder_a"] == folder else row["folder_a"])
         for row in links_for(conn, folder)
     }
+
+
+def export(conn: sqlite3.Connection, path: Optional[Path] = None) -> int:
+    """Zapisuje powiązania do JSONL (posortowane) i zwraca liczbę wierszy."""
+    target = Path(path) if path is not None else EXPORT_PATH
+    rows = conn.execute(
+        "SELECT * FROM manual_folder_links ORDER BY folder_a, folder_b"
+    ).fetchall()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with target.open("w", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write(json.dumps(dict(row), ensure_ascii=False, sort_keys=True) + "\n")
+    return len(rows)
+
+
+def import_links(conn: sqlite3.Connection, path: Optional[Path] = None) -> int:
+    """Wczytuje powiązania z JSONL do bazy (UPSERT po parze). Zwraca liczbę wierszy.
+
+    Idzie przez :func:`link`, więc obowiązują te same reguły co przy zapisie ze studia:
+    nieznany katalog albo nieznany rodzaj zatrzymuje import zamiast wpisać śmieć.
+    """
+    source = Path(path) if path is not None else EXPORT_PATH
+    count = 0
+    for line in source.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        row = json.loads(line)
+        link(
+            conn,
+            str(row["folder_a"]),
+            str(row["folder_b"]),
+            kind=str(row.get("kind") or "duplicate"),
+            decided_by=str(row.get("decided_by") or "import"),
+            note=row.get("note"),
+        )
+        count += 1
+    conn.commit()
+    return count

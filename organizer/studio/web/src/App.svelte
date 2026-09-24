@@ -25,12 +25,13 @@
   import DecisionPanel from './components/DecisionPanel.svelte';
   import ClusterPanel from './components/ClusterPanel.svelte';
   import HistoryPanel from './components/HistoryPanel.svelte';
+  import FolderLinkPanel from './components/FolderLinkPanel.svelte';
   import StatsPanel from './components/StatsPanel.svelte';
   import GraphPanel from './components/GraphPanel.svelte';
   import PlanPanel from './components/PlanPanel.svelte';
   import SearchPanel from './components/SearchPanel.svelte';
 
-  type Mode = 'browse' | 'decide' | 'clusters' | 'history' | 'stats' | 'graph' | 'plan' | 'search';
+  type Mode = 'browse' | 'decide' | 'clusters' | 'history' | 'stats' | 'graph' | 'plan' | 'search' | 'folders';
 
   /** Tryby widoku w jednym miejscu: pasek przycisków i lista na telefonie czytają stąd. */
   const MODES: { id: Mode; label: string; title: string }[] = [
@@ -41,6 +42,7 @@
     { id: 'search', label: 'szukaj', title: 'w / b — wyszukiwanie w całej paczce' },
     { id: 'plan', label: 'plan', title: 'p / b — plan, bramka i apply' },
     { id: 'graph', label: 'graf', title: 'g / b — graf jako soczewka' },
+    { id: 'folders', label: 'katalogi', title: 'ręczne powiązania katalogów między paczkami' },
     { id: 'stats', label: 'statystyki', title: 'statystyki' },
   ];
 
@@ -326,6 +328,7 @@
         mode === 'graph' ? 'S4 · graf' :
         mode === 'plan' ? 'S3 · plan' :
         mode === 'search' ? 'S4 · szukaj' :
+        mode === 'folders' ? 'Q3 · katalogi' :
         'S4 · statystyki'
       }</span>
     </div>
@@ -467,6 +470,8 @@
           grupa={selected?.grupa}
           onOpenSubject={openSubjectFromGraph}
         />
+      {:else if mode === 'folders'}
+        <FolderLinkPanel />
       {:else if mode === 'stats'}
         <StatsPanel />
       {:else}

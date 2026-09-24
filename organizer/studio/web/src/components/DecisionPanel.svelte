@@ -46,8 +46,13 @@
   let zoomed = $state(false);
 
   /** Decyzja hurtem po katalogu (S1.6): najpierw pokaż, czego dotknie, potem zapisz. */
-  let bulk = $state<{ folder: string; total: number; names: string[] } | null>(null);
+  let bulk = $state<
+    { folder: string; total: number; names: string[]; linked: string[] } | null
+  >(null);
   let bulkBusy = $state(false);
+  /** Czy decyzja hurtowa ma objąć katalogi powiązane ręcznie (Q3). Domyślnie NIE:
+   *  powiązanie podpowiada, ale nie decyduje za człowieka o cudzym katalogu. */
+  let bulkLinked = $state(false);
 
   /** Zmiana ścieżki docelowej (klawisz `t`) — bez niej jedyną drogą byłoby
    *  „przenieś tu” w zakładce plan, czyli wyjście z kolejki. */
@@ -128,11 +133,12 @@
     if (!folder) return;
     error = null;
     try {
-      const preview = await getItemsByFolder(folder);
+      const preview = await getItemsByFolder(folder, bulkLinked);
       bulk = {
         folder,
         total: preview.total,
         names: preview.items.slice(0, 8).map((item) => item.filename ?? item.sha256.slice(0, 12)),
+        linked: preview.linked_folders,
       };
     } catch (exc) {
       error = exc instanceof Error ? exc.message : String(exc);
@@ -144,7 +150,10 @@
     bulkBusy = true;
     error = null;
     try {
-      const result = await postDecisionByFolder(bulk.folder, decisionType, extra);
+      const result = await postDecisionByFolder(bulk.folder, decisionType, {
+        ...extra,
+        include_linked: bulkLinked,
+      });
       success = `katalog ${bulk.folder}: ${result.count} decyzji`;
       bulk = null;
       onDecided?.();
@@ -536,6 +545,22 @@
           <div class="bulk-names mono dim">
             {bulk.names.join(' · ')}{bulk.total > bulk.names.length ? ' · …' : ''}
           </div>
+          {#if bulk.linked.length}
+            <!-- Powiązanie ręczne (Q3) jest podpowiedzią, nie automatem: widać je zawsze,
+                 ale decyzja obejmuje drugi katalog dopiero po zaznaczeniu. -->
+            <label class="bulk-linked">
+              <input
+                type="checkbox"
+                checked={bulkLinked}
+                onchange={(e) => {
+                  bulkLinked = (e.currentTarget as HTMLInputElement).checked;
+                  openBulk();
+                }}
+              />
+              obejmij też katalogi powiązane ręcznie
+              <span class="mono dim">{bulk.linked.join(' · ')}</span>
+            </label>
+          {/if}
           <div class="bulk-actions">
             <button disabled={bulkBusy} onclick={() => applyBulk('skip')}>pomiń wszystko</button>
             <button
@@ -904,6 +929,19 @@
     align-items: baseline;
     gap: 10px;
     flex-wrap: wrap;
+  }
+  .bulk-linked {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 11px;
+  }
+  .bulk-linked .mono {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
   }
   .bulk-names {
     overflow: hidden;

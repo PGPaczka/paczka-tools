@@ -597,6 +597,27 @@ sprawdzał przynależności do klastra. Ograniczeniem był widok.
 - przy okazji: na ekranie węższym niż 700 px strony diffa układają się jedna pod drugą —
   dwie kolumny na telefonie to dwa nieczytelne paski.
 
+## Ręczne powiązania katalogów (QoL Q3, 2026-09-24)
+
+`schema_version 3`, `orglib/folder_links.py`, zakładka „katalogi” w studiu.
+
+- **nie jest to `duplicate_of`** i to jest najważniejsza decyzja w tym kroku. Automatyczny
+  dedup wymaga równości poddrzewa co do bitu i służy do WYCINANIA poddrzew z potoku
+  (`db.files_pending`). Ręczna para mówi „to sobie odpowiada”, więc wpisanie jej tam
+  wyrzuciłoby z extract i classify pliki obecne tylko po jednej stronie. Reguła 15
+  w `AGENTS.md` mówi to wprost;
+- **skutek jest opt-in**: decyzja hurtem po katalogu pokazuje powiązane katalogi zawsze,
+  ale obejmuje je dopiero po zaznaczeniu. Test pilnuje obu stron tej reguły;
+- **powiązania przeżywają przebudowę bazy**: eksport/import JSONL jak przy
+  `manual_decisions`, bo baza bywa odtwarzana od zera;
+- raport przeglądu czyta je z `reports/manual_folder_links.jsonl` (nie z bazy — raport
+  z założenia powstaje z wyeksportowanych artefaktów) i pokazuje tylko te pary, których
+  katalog obejmuje materiał tego przedmiotu.
+
+Do sprawdzenia na żywych danych: round-trip endpointów przeszedł na prawdziwej bazie
+(zapis, widoczność przy katalogu, usunięcie w odwrotnej kolejności argumentów), baza
+została czysta.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3
