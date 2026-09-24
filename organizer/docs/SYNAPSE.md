@@ -100,6 +100,10 @@ urwany tekst wyglądał na urwany. Na końcu jest odnośnik `[Otwórz w studiu](
 względne, więc działają wtedy, gdy viewera serwuje studio — czyli tam, gdzie te dane mają
 sens; w upstreamowym demo po prostu ich nie ma.
 
+Rozmiar też: z wiersza w `files`, a gdy go nie ma — ze `stat` pliku w paczce. Podawany
+jest w bajtach poniżej kilobajta, bo zaokrąglanie robiło z 271 B „0 kB". Pusty rozmiar
+znaczy „nie wiem", nie „mało".
+
 Nazwa pliku bierze się z kopii źródłowej, a gdy jej nie ma — ze **ścieżki docelowej**
 z decyzji. Ground truth opisuje materiały leżące już w paczce, których nikt nie indeksował
 jako plików źródłowych: 890 takich treści nazywało się w grafie skrótem sha.

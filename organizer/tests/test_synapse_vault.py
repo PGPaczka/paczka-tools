@@ -187,3 +187,14 @@ def test_readme_says_what_level_means_and_that_there_is_no_git() -> None:
     assert "L1" in page and "L3" in page
     assert "nie jest repozytorium gita" in page
     assert "--no-git" in page
+
+
+def test_small_files_are_not_rounded_down_to_zero():
+    """„0 kB" ma znaczyć „nie wiem", a nie „mniej niż pół kilobajta"."""
+    from orglib.synapse_vault import human_size
+
+    assert human_size(271) == "271 B"
+    assert human_size(4096) == "4 kB"
+    assert human_size(579843) == "566 kB"
+    assert human_size(5 * 1024 * 1024) == "5.0 MB"
+    assert human_size(0) == ""

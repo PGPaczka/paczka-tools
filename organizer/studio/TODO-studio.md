@@ -509,6 +509,23 @@ Cztery zgłoszenia z jednego ekranu, wszystkie o układzie, nie o danych:
   rogach nie miało końca — dopóki dwa panele walczą o ten sam ekran, zawsze coś zasłania
   coś innego.
 
+## „0 kB" w notatkach grafu (2026-09-24)
+
+Jedno pytanie użytkownika, dwie różne przyczyny — warto je rozróżniać:
+
+- **materiały bez wiersza w `files`** (te same 890 co przy nazwach i podglądach) nie
+  miały skąd wziąć rozmiaru. Teraz eksport czyta go ze `stat` pliku w paczce;
+- **pliki mniejsze niż pół kilobajta** pokazywały „0 kB" przez samo formatowanie:
+  `271 / 1024` zaokrąglone do jedności to zero. Dotyczyło 761 notatek, czyli więcej niż
+  pierwsza przyczyna. `human_size` podaje bajty poniżej kilobajta i megabajty powyżej,
+  a pusty rozmiar znaczy „nie wiem", nie „mało".
+
+Po przebudowie: zero notatek z „0 kB".
+
+Ścieżka `.md` w nagłówku notatki to **ścieżka samej notatki w vaulcie**, nie materiału —
+tak działa viewer dla każdego vaulta. Ścieżka materiału jest niżej, przy decyzji
+(`paczka/SEM…`) i w sekcji „Prowenancja".
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

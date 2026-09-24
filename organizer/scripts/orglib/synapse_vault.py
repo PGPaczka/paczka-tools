@@ -171,6 +171,22 @@ def subject_id(semester: int, skrot: str, grupa: str = "", *, ambiguous: bool = 
     return "-".join(parts)
 
 
+def human_size(size_bytes: int) -> str:
+    """Rozmiar pliku dla człowieka.
+
+    Dzielenie przez 1024 z zaokrągleniem do jedności robiło z każdego pliku poniżej
+    pół kilobajta „0 kB" — 761 notatek w paczce wyglądało na puste, choć miały po
+    kilkaset bajtów (zgłoszone 2026-09-24). Zero ma znaczyć „nie wiem", nie „mało".
+    """
+    if size_bytes <= 0:
+        return ""
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    if size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.0f} kB"
+    return f"{size_bytes / (1024 * 1024):.1f} MB"
+
+
 def category_id(subject_note_id: str, category: str) -> str:
     """Id węzła kategorii w obrębie przedmiotu.
 

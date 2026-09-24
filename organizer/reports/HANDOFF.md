@@ -2,6 +2,9 @@
 
 ## Kontekst ręczny
 
+- **„0 kB" w notatkach grafu miało DWIE przyczyny (2026-09-24).** Pierwsza znana: materiały bez wiersza w `files` (te same 890) nie miały skąd wziąć rozmiaru — teraz idzie on ze `stat` pliku w paczce. Druga, większa: `{size / 1024:.0f}` robiło z każdego pliku poniżej pół kilobajta „0 kB", co dotyczyło **761** notatek. `orglib.synapse_vault.human_size` podaje bajty poniżej kilobajta i megabajty powyżej; pusty rozmiar znaczy „nie wiem", nie „mało". Warto pamiętać, że pierwsza znaleziona przyczyna nie musi być główną.
+- Ścieżka `.md` w nagłówku notatki to ścieżka SAMEJ NOTATKI w vaulcie (tak viewer pokazuje każdy vault), a nie materiału — ten jest przy decyzji i w „Prowenancji". Nie błąd, ale pytanie wróci.
+
 - **Pływające przyciski ustępują otwartej notatce (2026-09-24, propozycja użytkownika).** Na telefonie mieści się jeden panel, więc przycisk szuflady filtrów i plakietka `kl./s` znikają, gdy panel notatki jest otwarty, i wracają po zamknięciu. To był trzeci podejście do tego samego zderzenia — dwa poprzednie tylko przesuwały przyciski po rogach. **Dopóki dwa panele walczą o ten sam ekran, przesuwanie nie ma końca; trzeba rozstrzygnąć, który jest ważniejszy.**
 
 - **Filtry grafu przeżywają odświeżenie (2026-09-24).** `localStorage`, ale z przycinaniem do słownika BIEŻĄCEGO grafu — tagi, typy węzłów, kategorie i rodzaje relacji potrafią zniknąć przy przebudowie vaulta, a filtr wskazujący nieistniejący tag gasi widok bez śladu, dlaczego. Pusty wybór nie jest przywracany (wchodzi widok domyślny). Moduł `stores/filterPersistence.ts` z testami.

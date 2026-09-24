@@ -49,6 +49,7 @@ from orglib.synapse_vault import (
     semester_id,
     slugify,
     category_id,
+    human_size,
     subject_id,
     subject_level,
     subject_status,
@@ -160,6 +161,7 @@ def build_notes(
     include_unassigned: bool,
     scope: tuple[int, str] | None = None,
     text_heads: Mapping[str, str] | None = None,
+    package_sizes: Mapping[str, int] | None = None,
 ) -> list[Note]:
     """Cały vault jako lista notatek. Czysta funkcja nad wynikiem zapytań."""
     ambiguous = {
@@ -223,9 +225,11 @@ def build_notes(
         provenance = "\n".join(
             f"- `{row['source_package']}/{row['source_relative_path']}`" for row in copies[:12]
         ) or "_brak kopii w indeksie_"
-        size = int(copies[0]["size_bytes"]) if copies else 0
+        # Rozmiar niesie tylko tabela `files`; materiał leżący wyłącznie w paczce ma go
+        # z pliku na dysku. Zero byłoby nieprawdą, a nie informacją o braku danych.
+        size = int(copies[0]["size_bytes"]) if copies else (package_sizes or {}).get(sha, 0)
         body = "\n".join([
-            f"**{filename}** · `{kind}` · {size / 1024:.0f} kB",
+            f"**{filename}** · `{kind}`" + (f" · {human_size(size)}" if size else ""),
             "",
             *podglad,
             f"- Decyzja: **{action or 'brak'}** → `{decision['target_relative_path']}`",
@@ -517,10 +521,20 @@ def export(
             and (head := preview.text_head(paths, path, PREVIEW_TEXT_CHARS))
         }
 
+        # Rozmiary materiałów, których nie ma w `files` — czytane z paczki, tak jak
+        # podgląd. Stat jednego pliku jest tani, a bez tego notatka kłamie „0 kB".
+        package_sizes: dict[str, int] = {}
+        for sha, decision in decisions.items():
+            if files.get(sha) or not decision.get("target_relative_path"):
+                continue
+            plik = config.resolve_within(paths.target_repo, str(decision["target_relative_path"]))
+            if plik is not None and plik.is_file():
+                package_sizes[sha] = plik.stat().st_size
+
         notes = build_notes(
             subjects=subjects, decisions=decisions, relations=relations, files=files,
             kinds=kinds, auto_apply=auto_apply, include_unassigned=include_unassigned,
-            scope=scope, text_heads=text_heads,
+            scope=scope, text_heads=text_heads, package_sizes=package_sizes,
         )
         for note in notes:
             note.validate()

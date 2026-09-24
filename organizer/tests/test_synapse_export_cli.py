@@ -164,6 +164,36 @@ def test_file_note_carries_a_preview_and_a_link_back_to_studio(workspace):
     assert "Pierwsza linia notatki" in tresc, "dla tekstu pierwsze linijki"
 
 
+def test_size_of_packaged_material_comes_from_the_package(workspace):
+    """Materiał bez wiersza w `files` ma rozmiar wzięty z pliku w paczce.
+
+    Notatki takich treści pokazywały „0 kB", bo rozmiar niesie tylko tabela `files`,
+    a te pozycje leżą wyłącznie w paczce (zgłoszone 2026-09-24). Zero to nieprawda,
+    a nie brak danych.
+    """
+    sha = "7" * 64
+    cel = "paczka/SEM3/AKO_X/wyklad/Wyklad_1.pdf"
+    (workspace.target_repo / "paczka" / "SEM3" / "AKO_X" / "wyklad").mkdir(parents=True)
+    (workspace.target_repo / cel).write_bytes(b"x" * 4096)
+
+    conn = db.connect(workspace.work_db)
+    db.upsert_content(conn, {"sha256": sha, "content_kind": "pdf"})
+    db.upsert_classification(conn, {
+        "sha256": sha, "semester": 3, "subject_key": "AKO", "category": "wyklad",
+        "target_relative_path": cel, "is_outdated": 0, "classification_method": "manual",
+        "confidence": 1.0, "run_id": "ground_truth", "decided_at": "2026-09-20T00:00:00Z",
+    })
+    conn.commit()
+    conn.close()
+
+    assert runner.invoke(cli.app, []).exit_code == 0
+    notes = notes_of(vault(workspace))
+    _, tresc = frontmatter(notes[next(n for n in notes if n.startswith("ako-wyklad-1"))])
+
+    assert "4 kB" in tresc
+    assert "0 kB" not in tresc
+
+
 def test_files_hang_off_a_category_node_not_off_the_subject(workspace):
     """Między przedmiotem a plikami stoi kategoria — decyzja użytkownika 2026-09-23.
 
