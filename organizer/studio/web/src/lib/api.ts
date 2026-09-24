@@ -394,6 +394,44 @@ export const mergeContents = (
     decided_by: decidedBy,
   });
 
+/** Treść walcząca o ścieżkę — tyle, żeby dało się wybrać bez wchodzenia w każdą z osobna. */
+export interface ConflictContent {
+  sha256: string;
+  filename: string | null;
+  source_relative_path: string | null;
+  size_bytes: number | null;
+  confidence: number | null;
+  classification_method: string | null;
+  category: string | null;
+  needs_review: number | null;
+}
+
+export interface PlanConflict {
+  /** `plan` — dwie zaplanowane treści; `applied` — zderzenie z tym, co leży w paczce. */
+  kind: 'plan' | 'applied';
+  path: string;
+  applied_sha256: string | null;
+  contents: ConflictContent[];
+}
+
+export interface PlanConflicts {
+  total: number;
+  conflicts: PlanConflict[];
+}
+
+/** Konflikty liczone z bazy, nie z pliku planu — zmiana nazwy gasi je od razu. */
+export const getPlanConflicts = (
+  filters: { semester?: number; skrot?: string } = {},
+  signal?: AbortSignal,
+) => {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
+  }
+  const query = params.toString();
+  return fetchJson<PlanConflicts>(`/api/plan/conflicts${query ? `?${query}` : ''}`, signal);
+};
+
 export const getQueue = (filters: { semester?: number; skrot?: string; limit?: number } = {}, signal?: AbortSignal) => {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) {

@@ -48,8 +48,16 @@ etapów i `apply` za bramką. Zapis idzie przez `manual_decisions` — ten sam k
       kasuje wyłącznie własne wiersze `near_dupe:%` — pilnuje tego test wołający prawdziwe
       `replace_own_relations`. W klastrach przycisk scala zamiast tylko pomijać, z wyborem
       „ten sam materiał / starsze wersje”.
-- [ ] rozstrzyganie konfliktów ścieżek docelowych z poziomu widoku planu
-      (bramka je wykrywa, ale naprawia się je poza studiem)
+- [x] rozstrzyganie konfliktów ścieżek docelowych z poziomu widoku planu —
+      `GET /api/plan/conflicts` liczy je z żywej bazy (nie z pliku planu), więc zmiana nazwy
+      gasi konflikt bez ponownego budowania planu. Dwa rodzaje: dwie zaplanowane treści
+      w jednej ścieżce oraz zderzenie z plikiem, który już leży w paczce (`applied`).
+      W widoku planu sekcja „Konflikty ścieżek” pokazuje obie strony (nazwa, rozmiar,
+      pewność, ścieżka źródłowa) i pozwala zmienić nazwę w miejscu.
+      **Na dzisiejszych danych jest ich zero** — `build_plan.resolve_collisions` rozstrzyga
+      kolizje automatycznie przy budowie planu, więc to siatka bezpieczeństwa dla ręcznych
+      zmian, nie naprawa istniejącego bałaganu. Sprawdzone na podstawionych kolizjach
+      w kopii bazy, w tym różniących się samą wielkością liter.
 - [ ] porównanie diffów dwóch dowolnych treści, nie tylko w obrębie klastra
 
 ---

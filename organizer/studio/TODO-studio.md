@@ -569,6 +569,22 @@ obok decyzji powstaje wiersz w `relations` — od treści wchłoniętej do kanon
   chronioną nie może zostawić czterech zapisanych i wyjątku;
 - w widoku klastrów przycisk scala (zamiast tylko pomijać), z wyborem rodzaju powiązania.
 
+## Konflikty ścieżek docelowych w widoku planu (QoL Q2, 2026-09-24)
+
+`GET /api/plan/conflicts`. Liczymy z bazy, nie z pliku planu — dzięki temu zmiana nazwy
+gasi konflikt od razu, bez czekania na ponowne zbudowanie planu.
+
+- **na dzisiejszych danych konfliktów jest zero.** `build_plan.resolve_collisions` rozstrzyga
+  kolizje automatycznie (dokłada poziom katalogu źródłowego), więc lista jest siatką
+  bezpieczeństwa dla ręcznych zmian, a nie naprawą zastanego bałaganu. Sprawdzone przez
+  podstawienie kolizji w kopii bazy: łapie obie odmiany, także różnicę samej wielkości liter;
+- **wydajność była problemem, nie detalem**: pierwsza wersja (pełne złączenie z `files` dla
+  wszystkich 4083 zaplanowanych pozycji) liczyła 5,5 s, wersja ze zwijaniem liter funkcją
+  SQLite — 1,9 s (miliony wywołań w złączeniu z `applied`). Teraz wykrywanie idzie po dwóch
+  płaskich odczytach i słownikach, a szczegóły dociągamy tylko dla spornych sha: **4 ms**;
+- zwijanie wielkości liter musi być pythonowe: `lower()` SQLite-a zna tylko ASCII, a nazwy
+  są polskie.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

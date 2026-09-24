@@ -545,6 +545,18 @@ def create_app(
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+    @app.get("/api/plan/conflicts", tags=["plan"])
+    def get_plan_conflicts(
+        semester: Optional[int] = Query(None, ge=1, le=7),
+        skrot: Optional[str] = Query(None, max_length=64),
+        limit: int = Query(200, ge=1, le=1000),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ) -> dict[str, Any]:
+        """Konflikty ścieżek docelowych: wiele treści lub nadpisanie pliku z paczki."""
+        return queries.plan_conflicts(
+            conn, semester=semester, skrot=skrot, limit=limit,
+        )
+
     @app.get("/api/plan/{semester}/{skrot}", tags=["plan"])
     def get_plan(
         semester: int = PathParam(ge=1, le=7),

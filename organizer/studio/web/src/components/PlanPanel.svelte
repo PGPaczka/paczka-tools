@@ -1,14 +1,17 @@
 <script lang="ts">
   import {
     getPlan,
+    getPlanConflicts,
     getPlanTree,
     postDecision,
+    renameTarget,
     runStage,
+    type PlanConflicts,
     type PlanOverview,
     type PlanTree,
     type Stage,
   } from '../lib/api';
-  import { count, percent } from '../lib/format';
+  import { basename, bytes, count, percent } from '../lib/format';
   import { collisionAt, moveTarget } from '../lib/plan';
 
   interface Props {
@@ -34,6 +37,13 @@
   let pickedFolder = $state<string | null>(null);
   let moveNote = $state<string | null>(null);
 
+  /** Konflikty ścieżek docelowych. Liczone z bazy, nie z pliku planu, więc naprawa
+   *  widać od razu — bez ponownego budowania planu. */
+  let conflicts = $state<PlanConflicts | null>(null);
+  /** sha treści, której nazwę właśnie poprawiamy, i brudnopis nazwy. */
+  let renaming = $state<string | null>(null);
+  let renameDraft = $state('');
+
   /** Katalogi rozwinięte ręcznie. Domyślnie zwinięte: przedmiot ma ich sto
    *  kilkadziesiąt i po rozwinięciu wszystkich drzewo przestaje być drzewem. */
   let expanded = $state<Record<string, boolean>>({});
@@ -57,11 +67,37 @@
   async function load(): Promise<void> {
     if (!semester || !skrot) return;
     try {
-      [plan, tree] = await Promise.all([
+      [plan, tree, conflicts] = await Promise.all([
         getPlan(semester, skrot, grupa ?? undefined),
         getPlanTree(semester, skrot, grupa ?? undefined),
+        getPlanConflicts({ semester, skrot }),
       ]);
       error = null;
+    } catch (exc) {
+      error = exc instanceof Error ? exc.message : String(exc);
+    }
+  }
+
+  function startRename(sha: string, path: string): void {
+    renaming = sha;
+    renameDraft = basename(path);
+  }
+
+  /** Kursor w nazwie, zaznaczony rdzeń: poprawia się nazwę, nie rozszerzenie. */
+  function focusName(node: HTMLInputElement): void {
+    node.focus();
+    const dot = node.value.lastIndexOf('.');
+    node.setSelectionRange(0, dot > 0 ? dot : node.value.length);
+  }
+
+  async function saveRename(sha: string): Promise<void> {
+    if (!renameDraft.trim()) return;
+    error = null;
+    try {
+      await renameTarget(sha, renameDraft.trim());
+      renaming = null;
+      onChanged?.();
+      await load();
     } catch (exc) {
       error = exc instanceof Error ? exc.message : String(exc);
     }
@@ -174,6 +210,55 @@
       {/if}
       <span class="verdict">{plan.can_apply ? 'plan przechodzi bramkę' : plan.reason}</span>
     </div>
+
+    {#if conflicts && conflicts.total}
+      <!-- Bramka mówi „kolizja_celu" dopiero przy validate i tylko tekstem. Tu widać,
+           KTO się bije o ścieżkę, i da się to rozstrzygnąć bez wychodzenia z widoku. -->
+      <div class="conflicts">
+        <div class="conflicts-head">
+          <strong>Konflikty ścieżek</strong>
+          <span class="num">{count(conflicts.total)}</span>
+          <span class="dim">dwie treści w jednym pliku — zmień nazwę jednej z nich</span>
+        </div>
+        {#each conflicts.conflicts as conflict (conflict.path)}
+          <div class="conflict">
+            <div class="conflict-path mono">
+              {conflict.path}
+              {#if conflict.kind === 'applied'}
+                <span class="tag applied">leży już w paczce</span>
+              {/if}
+            </div>
+            {#each conflict.contents as item (item.sha256)}
+              <div class="rival">
+                <span class="mono">{item.filename ?? item.sha256.slice(0, 12)}</span>
+                {#if item.size_bytes}<span class="dim">{bytes(item.size_bytes)}</span>{/if}
+                {#if item.confidence !== null}
+                  <span class="dim">{percent(item.confidence)}</span>
+                {/if}
+                <span class="mono dim src" title={item.source_relative_path ?? ''}>
+                  {item.source_relative_path ?? ''}
+                </span>
+                {#if renaming === item.sha256}
+                  <input
+                    class="mono rename-input"
+                    bind:value={renameDraft}
+                    spellcheck="false"
+                    use:focusName
+                    onkeydown={(e) => {
+                      if (e.key === 'Enter') { e.preventDefault(); saveRename(item.sha256); }
+                      if (e.key === 'Escape') { e.preventDefault(); renaming = null; }
+                    }}
+                  />
+                  <button onclick={() => saveRename(item.sha256)}>zapisz</button>
+                {:else}
+                  <button onclick={() => startRename(item.sha256, conflict.path)}>zmień nazwę</button>
+                {/if}
+              </div>
+            {/each}
+          </div>
+        {/each}
+      </div>
+    {/if}
 
     <div class="stages">
       {#each stages as stage (stage.id)}
@@ -354,6 +439,79 @@
     color: var(--border);
   }
 
+  .conflicts {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--amber);
+    border-radius: 7px;
+    background: rgba(210, 153, 34, 0.06);
+  }
+  .conflicts-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .conflict {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .conflict-path {
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .conflict-path .tag.applied {
+    margin-left: 6px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--amber);
+    color: var(--bg-deep);
+    font-size: 10px;
+  }
+  .rival {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding-left: 12px;
+    font-size: 11px;
+  }
+  /* Ścieżka źródłowa ustępuje miejsca: to ona mówi, która kopia jest która,
+     ale nie może zepchnąć przycisku poza ekran telefonu. */
+  .rival .src {
+    flex: 1 1 8rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .rival button,
+  .conflicts button {
+    padding: 2px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 10px;
+  }
+  .rival button:hover {
+    color: var(--text);
+    border-color: var(--accent-dim);
+  }
+  .rename-input {
+    flex: 1 1 10rem;
+    min-width: 8rem;
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg-deep);
+    color: var(--text);
+    font-size: 11px;
+  }
   .stages {
     display: flex;
     align-items: center;
