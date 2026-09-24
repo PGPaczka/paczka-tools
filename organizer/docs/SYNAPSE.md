@@ -75,11 +75,12 @@ baza**, nie graf; **vault jest czytany na żywo** (panel notatki dociąga `.md` 
 kliknięciu, więc nie jest tylko etapem pośrednim); a **żaden z tych artefaktów nie jest
 w repozytorium** — odtwarza je `just studio-graf`.
 
-## Model: cztery typy węzłów
+## Model: pięć typów węzłów
 
 ```
-semester (7) ←belongs_to— subject (98) ←belongs_to— category (127) ←belongs_to— file (4 083)
-                                                                          ↕ near_duplicate / older_version
+semester ←belongs_to— subject ←belongs_to— category ←belongs_to— group ←belongs_to— file
+                                         category ←belongs_to— file (bez grupy)
+file ↔ near_duplicate / older_version ↔ file
 ```
 
 Relacja zawierania jest zapisywana **na dziecku** (`belongs_to`), nie na rodzicu: przedmiot
@@ -92,15 +93,15 @@ przedmiot pokazuje kilka skupisk podpisanych `Kolokwia`, `Laboratoria`, `Wykład
 leżą przy swojej kategorii, więc krawędzie są krótkie i lokalne. Kategorie bez ani jednego
 pliku nie są eksportowane.
 
-| pole | `semester` | `subject` | `category` | `file` |
-|---|---|---|---|---|
-| `id` = nazwa pliku | `sem3` | `sem3-ako` | `sem3-ako-kat-kolokwia` | `ako-{nazwa}-{sha8}` |
-| `title` | `Semestr 3` | `AKO` (sam skrót) | `Kolokwia · AKO` | nazwa pliku (źródłowego albo docelowego) |
-| `category` | `semestr` | `SEM1`…`SEM7` | nazwa kategorii | kategoria z `syntax.yaml` |
-| `level` | — | 1–3 wg stanu prac | j.w. dla swoich plików | 1 = w paczce · 2 = plan pewny · 3 = wymaga człowieka |
-| `status` | zbiorczy | `completed`/`in-progress`/`not-started` | zbiorczy dla swoich plików | j.w. wg etapu potoku |
-| `tags` | `semestr`, `semN` | `semN`, skrót (`ako`), grupa, formy, katedra | `semN`, skrót, `kategoria-…` | `semN`, skrót, `rodzaj-…`, `kategoria-…`, `akcja-…`, `metoda-…`, `rok-…`, `w-paczce` |
-| `relations` | — | `belongs_to` → semestr | `belongs_to` → przedmiot | `belongs_to` → **kategoria** + relacje z B6 |
+| pole | `semester` | `subject` | `category` | `group` | `file` |
+|---|---|---|---|---|---|
+| `id` = nazwa pliku | `sem3` | `sem3-ako` | `sem3-ako-kat-kolokwia` | `{id kategorii}-grp-{slug katalogu}` | `ako-{nazwa}-{sha8}` |
+| `title` | `Semestr 3` | `AKO` (sam skrót) | `Kolokwia · AKO` | `lab_05 · AKO` | nazwa pliku (źródłowego albo docelowego) |
+| `category` | `semestr` | `SEM1`…`SEM7` | nazwa kategorii | kategoria swoich plików | kategoria z `syntax.yaml` |
+| `level` | — | 1–3 wg stanu prac | j.w. dla swoich plików | j.w. dla swoich plików | 1 = w paczce · 2 = plan pewny · 3 = wymaga człowieka |
+| `status` | zbiorczy | `completed`/`in-progress`/`not-started` | zbiorczy dla swoich plików | zbiorczy dla swoich plików | j.w. wg etapu potoku |
+| `tags` | `semestr`, `semN` | `semN`, skrót (`ako`), grupa studencka, formy, katedra | `semN`, skrót, `kategoria-…` | `semN`, skrót, `kategoria-…`, `katalog-…` | `semN`, skrót, `rodzaj-…`, `kategoria-…`, opcjonalnie `katalog-…`, `akcja-…`, `metoda-…`, `rok-…`, `w-paczce` |
+| `relations` | — | `belongs_to` → semestr | `belongs_to` → przedmiot | `belongs_to` → kategoria | `belongs_to` → **grupa albo kategoria** + relacje z B6 |
 
 Treść notatki pliku niesie **podgląd**: obraz albo pierwszą stronę PDF-a
 (`![podgląd](/api/preview/<sha>/image?width=720)`), a dla plików tekstowych kilka
@@ -126,15 +127,27 @@ ze skrótem innego przedmiotu dałaby kolizję id, a kolizja w tym vaulcie to os
 `duplicate-id` i notatka, która przestaje być celem relacji.
 
 Tag semestru (`sem3`), skrót przedmiotu (`ako`) i `kategoria-…` niesie **każdy poziom
-poniżej** tego, co nazywa: kategorie i pliki mają `sem3` i `ako`, pliki mają dodatkowo
-`kategoria-kolokwia`. To one pozwalają wybrać w viewerze zakres „semestr → przedmiot →
-kategoria" trzema kliknięciami — `category` do tego nie służy, bo `SEM3` mają wyłącznie przedmioty
-i filtr po niej pokazuje przedmioty bez ich materiałów.
+poniżej** tego, co nazywa: kategorie, grupy i pliki mają `sem3` i `ako`, grupy i pliki mają
+dodatkowo `kategoria-kolokwia`, a pliki grupy także jej `katalog-…` (własna przestrzeń nazw,
+bo `grupa-…` opisuje już grupę studencką przedmiotu z `subjects.yaml`). To one pozwalają wybrać
+w viewerze zakres „semestr → przedmiot → kategoria → katalog” — `category` do tego nie służy,
+bo `SEM3` mają wyłącznie przedmioty i filtr po niej pokazuje przedmioty bez ich materiałów.
 
 **Do grafu wchodzą tylko materiały z DECYZJĄ** (ground truth albo plan) — decyzja
 użytkownika. Relacja do treści bez decyzji zostaje zapisana jako cel spoza vaulta, więc
 generator robi z niej **ghost node**: „istnieje duplikat poza paczką” jest widoczne.
 `--include-unassigned` zamienia te ghosty w zwykłe notatki.
+
+## Grupa: konkretny katalog źródłowy (Q9)
+
+`group` zachowuje dawny podział materiałów na zestawy, np. `lab_05` albo `kol1`.
+Id ma postać `{id kategorii}-grp-{slug katalogu}` (slug do 20 znaków),
+np. `sem3-ako-kat-laboratoria-grp-lab-05`. Kluczem jest nazwa katalogu-liścia
+z `source_relative_path` pierwszej kopii po sortowaniu po paczce i ścieżce.
+Grupa powstaje, gdy w tej samej kategorii przedmiotu ma **co najmniej dwa pliki**
+i **nie obejmuje całej kategorii**: inaczej wydłużałaby ścieżkę lub powtarzała kategorię.
+Pliki bez kopii źródłowej nie należą do grupy; ich `belongs_to` wskazuje kategorię.
+Pliki utworzonej grupy wskazują ją, a ona kategorię; `level` i `status` zbierają stan jej plików.
 
 ## Twarde zasady kontraktu (łatwo złamać, trudno zauważyć)
 

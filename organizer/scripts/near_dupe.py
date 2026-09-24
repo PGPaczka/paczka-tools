@@ -41,7 +41,7 @@ EXPORT_NAME = "relations.jsonl"
 
 
 def load_signatures(
-    conn: sqlite3.Connection, wanted: set[str] | None
+    conn: sqlite3.Connection, wanted: set[str] | None, *, work_root: Path | None = None
 ) -> list[Signature]:
     """Podpisy per TREŚĆ (jedna treść = jeden wiersz), z rokiem ze ścieżek źródłowych.
 
@@ -49,6 +49,21 @@ def load_signatures(
     z zawartości, więc są identyczne — bierzemy pierwszą niepustą wartość, a rok
     liczymy ze WSZYSTKICH ścieżek tej treści (jedna kopia bywa w katalogu bez roku).
     """
+    # Rozmiar pliku z tekstem jest wystarczającym przybliżeniem jego długości, a kosztuje
+    # jedno `stat` na treść. Bez tego nie odróżnimy „OCR zwrócił dwa słowa" od „tu naprawdę
+    # jest inna treść", a tylko ta druga sytuacja może unieważnić zgodność pikseli.
+    text_chars: dict[str, int] = {}
+    if work_root is not None:
+        for row in conn.execute(
+            "SELECT sha256, extracted_text_path FROM content "
+            "WHERE extracted_text_path IS NOT NULL"
+        ):
+            target = config.resolve_within(work_root, str(row["extracted_text_path"]))
+            try:
+                text_chars[str(row["sha256"])] = target.stat().st_size if target else 0
+            except OSError:
+                text_chars[str(row["sha256"])] = 0
+
     signatures: dict[str, dict[str, Any]] = {}
     paths: dict[str, list[str]] = defaultdict(list)
     # Katalog źródłowy niesie decyzję człowieka sprzed lat (`kol1/`, `lab_05/`), więc
@@ -77,6 +92,7 @@ def load_signatures(
             perceptual_hash=entry.get("perceptual_hash"),
             year=detect_year(paths[sha]),
             folders=frozenset(folders[sha]),
+            text_chars=text_chars.get(sha),
         )
         for sha, entry in sorted(signatures.items())
     ]
@@ -190,7 +206,7 @@ def relate(
                 err=True,
             )
             raise typer.Exit(code=1)
-        signatures = load_signatures(conn, wanted)
+        signatures = load_signatures(conn, wanted, work_root=paths.work)
     finally:
         conn.close()
 

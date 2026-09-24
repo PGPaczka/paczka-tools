@@ -633,6 +633,21 @@ została czysta.
   zbudować plan od nowa;
 - sprawdzone na żywej paczce (zmiana i powrót): `git status` czysty, baza bez śladu.
 
+## OCR obrazów i relacje po nim (QoL Q5/Q6, 2026-09-24)
+
+5058 obrazów ma tekst (50 minut przebiegu). Dwie rzeczy warte zapamiętania:
+
+- **`--ocr-images` sam z siebie nie zrobiłby nic.** `db.files_pending` wycina poddrzewa
+  duplikatów, a kanoniczne kopie obrazów miały już status `extracted` — czekające 6314 plików
+  leżało w duplikatach. Trzeba było cofnąć 6928 plików-obrazów do `hashed`;
+- **weto tekstem ma próg długości.** Zmierzone na odrzuconych parach: mediana krótszego tekstu
+  to 205 znaków, ale 3% ma poniżej czterdziestu — tam simhash opisuje szum OCR, nie treść.
+  Bez progu znikały też pary w rodzaju „ten sam wykres, inaczej rozpoznane osie". Próg
+  `phash_text_min_chars: 40` uratował 88 par.
+
+Bilans po przeliczeniu: 8181 near-dupe (było 11 556), 4102 `related` z sygnału katalogu,
+286 wersji starszych. 3479 par obrazów odpadło, bo piksele się zgadzały, a treść nie.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

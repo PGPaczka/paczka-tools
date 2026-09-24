@@ -17,7 +17,8 @@ wynikają i których nie wolno „uprościć”:
 - `status` musi być jednym z `not-started` / `in-progress` / `completed` (inaczej
   generator zapisze `null`), a `level` liczbą >= 1.
 
-Hierarchia: `semester` → `subject` → `file`. Dziecko wskazuje rodzica relacją
+Hierarchia: `semester` → `subject` → `category` → opcjonalna `group` → `file`.
+Dziecko wskazuje rodzica relacją
 `belongs_to` — jedna pozycja na notatkę, zamiast listy kilku tysięcy dzieci w jednej.
 """
 
@@ -35,6 +36,9 @@ NODE_SUBJECT = "subject"
 #: przedmiotem a plikami. Bez niej przedmiot jest gwiazdą o tysiącach szprych: nie widać
 #: w niej, co jest czym, a każda szprycha biegnie przez pół grafu.
 NODE_CATEGORY = "category"
+#: Konkretny katalog (lab_05, kol1) zachowuje decyzje ludzi sprzed lat: wspólny
+#: folder mówi, które pliki stanowią jeden zestaw w obrębie kategorii.
+NODE_GROUP = "group"
 NODE_FILE = "file"
 
 #: Rodzaje krawędzi. `belongs_to` to szkielet hierarchii, reszta pochodzi z etapu B6.
@@ -195,6 +199,11 @@ def category_id(subject_note_id: str, category: str) -> str:
     ostrzeżenie ``duplicate-id`` i notatkę, która przestaje być celem relacji.
     """
     return f"{subject_note_id}-kat-{slugify(category, limit=20)}"
+
+
+def group_id(category_note_id: str, group: str) -> str:
+    """Wstawka ``-grp-`` oddziela katalog źródłowy od tożsamości jego kategorii."""
+    return f"{category_note_id}-grp-{slugify(group, limit=20)}"
 
 
 def file_id(skrot: str, sha256: str, filename: str = "") -> str:

@@ -5,7 +5,8 @@ Kontrakt wejściowy jest cudzy i opisany w `docs/SYNAPSE.md`; ten skrypt produku
 
 Co trafia do vaulta (decyzja użytkownika 2026-09-19):
 
-- **węzły**: semestr → przedmiot → plik; plik tylko wtedy, gdy ma DECYZJĘ w bazie
+- **węzły**: semestr → przedmiot → kategoria → opcjonalna grupa → plik;
+  plik tylko wtedy, gdy ma DECYZJĘ w bazie
   (ground truth albo plan). Surowe materiały bez decyzji nie zaśmiecają grafu paczki;
 - **krawędzie**: `belongs_to` (szkielet hierarchii) oraz relacje z etapu B6
   (`near_duplicate`, `older_version`, `related`) z ich pewnością;
@@ -25,7 +26,7 @@ from __future__ import annotations
 import shutil
 import sqlite3
 from collections import defaultdict
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Mapping, Optional
 
 import typer
@@ -36,6 +37,7 @@ from orglib.synapse_vault import (
     LEVEL_NEEDS_HUMAN,
     NODE_CATEGORY,
     NODE_FILE,
+    NODE_GROUP,
     NODE_SEMESTER,
     NODE_SUBJECT,
     STATUS_TODO,
@@ -45,6 +47,7 @@ from orglib.synapse_vault import (
     file_id,
     file_level,
     file_status,
+    group_id,
     render_note,
     semester_id,
     slugify,
@@ -184,6 +187,7 @@ def build_notes(
     per_category: dict[tuple[int, str, str], dict[str, int]] = defaultdict(
         lambda: {"files": 0, "ground_truth": 0, "planned": 0, "needs_review": 0}
     )
+    per_group: dict[tuple[int, str, str, str], list[str]] = defaultdict(list)
     file_ids: dict[str, str] = {}
     file_notes: list[Note] = []
     for sha, decision in sorted(decisions.items()):
@@ -267,8 +271,72 @@ def build_notes(
         bucket["files"] += 1
         bucket["ground_truth" if in_package else "planned"] += 1
         bucket["needs_review"] += 1 if decision["needs_review"] else 0
+        # load_index sortuje kopie po paczce i ścieżce: pierwsza daje jeden stabilny
+        # przydział. Ścieżka docelowa nie świadczy o dawnym podziale źródeł.
+        source_path = copies[0]["source_relative_path"] if copies else None
+        group = PurePosixPath(str(source_path)).parent.name if source_path else ""
+        if group:
+            per_group[(semester, skrot, category, group)].append(sha)
 
     notes_by_id = {note.id: note for note in file_notes}
+
+    # ── grupy (konkretne katalogi źródłowe) ──────────────────────────────────
+    group_notes: list[Note] = []
+    for (semester, skrot, category, group), shas in sorted(per_group.items()):
+        # Jeden plik nie tworzy zestawu, a cała kategoria nie potrzebuje drugiego
+        # węzła o tej samej zawartości — oba przypadki tylko wydłużałyby nawigację.
+        if not 2 <= len(shas) < per_category[(semester, skrot, category)]["files"]:
+            continue
+        parent_id = category_id(subject_ids[(semester, skrot)], category)
+        note_id = group_id(parent_id, group)
+        # `grupa-…` należy już do grupy studenckiej przedmiotu (subjects.yaml),
+        # więc katalog źródłowy dostaje własną przestrzeń nazw.
+        group_tag = f"katalog-{slugify(group, limit=20)}"
+        counts = {"ground_truth": 0, "planned": 0, "needs_review": 0}
+        for sha in shas:
+            decision = decisions[sha]
+            in_package = str(decision["run_id"]) == GROUND_TRUTH_RUN_ID
+            counts["ground_truth" if in_package else "planned"] += 1
+            counts["needs_review"] += 1 if decision["needs_review"] else 0
+            member = notes_by_id[file_ids[sha]]
+            # Podmieniamy WYŁĄCZNIE szkielet hierarchii: relacje podobieństwa (B6) dochodzą
+            # niżej w tej funkcji, ale nadpisanie całej listy byłoby pułapką przy zmianie
+            # kolejności sekcji.
+            member.relations = [
+                Relation(note_id, EDGE_BELONGS_TO),
+                *[r for r in member.relations if r.kind != EDGE_BELONGS_TO],
+            ]
+            # Wybór grupy po tagu ma pokazać również jej pliki.
+            member.tags.append(group_tag)
+        group_notes.append(Note(
+            id=note_id,
+            title=f"{group} · {skrot}",
+            type=NODE_GROUP,
+            category=category,
+            level=subject_level(**counts),
+            status=subject_status(**counts),
+            # Tagi budujemy jawnie, tak samo jak notatka kategorii: suma tagów plików
+            # wciągnęłaby tu `rodzaj-…`, `akcja-…` i `metoda-…`, czyli rzeczy, które
+            # opisują pojedynczy plik, a nie katalog.
+            tags=[
+                f"sem{semester}",
+                slugify(skrot, limit=16),
+                f"kategoria-{slugify(category, limit=20)}",
+                group_tag,
+            ],
+            aliases=[group],
+            relations=[Relation(parent_id, EDGE_BELONGS_TO)],
+            body="\n".join([
+                f"Katalog źródłowy **{group}** w kategorii `{category}` "
+                f"przedmiotu `{skrot}` (semestr {semester}).",
+                "",
+                f"- Plików: **{len(shas)}**",
+                f"- W paczce (ground truth): **{counts['ground_truth']}**",
+                f"- Zaplanowane decyzje: **{counts['planned']}** "
+                f"(do obejrzenia: {counts['needs_review']})",
+            ]),
+            folder=f"sem{semester}/{slugify(skrot, limit=16)}",
+        ))
 
     # ── relacje podobieństwa (B6) ────────────────────────────────────────────
     unassigned: dict[str, str] = {}
@@ -375,7 +443,7 @@ def build_notes(
             folder=f"sem{subject.semester}",
         ))
 
-    # ── kategorie (poziom między przedmiotem a plikami) ──────────────────────
+    # ── kategorie (poziom między przedmiotem a grupami i plikami) ─────────────
     # Czytelność: przedmiot pokazuje kilka skupisk zamiast tysięcy szprych, a nazwa
     # skupiska od razu mówi, co w nim jest. Wydajność wychodzi przy okazji: pliki leżą
     # przy swojej kategorii, więc krawędzie robią się krótkie i lokalne.
@@ -444,7 +512,9 @@ def build_notes(
             ]),
         ))
 
-    return dedupe_ids([*semester_notes, *subject_notes, *category_notes, *file_notes])
+    return dedupe_ids([
+        *semester_notes, *subject_notes, *category_notes, *group_notes, *file_notes,
+    ])
 
 
 def write_vault(notes: list[Note], root: Path, generated_at: str) -> dict[str, int]:

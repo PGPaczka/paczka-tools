@@ -29,6 +29,10 @@ near_duplicate:
                              # w tym samym katalogu źródłowym => relacja `related` (kontekst,
                              # nie duplikat). Sam wspólny katalog, bez podobieństwa, to NIE relacja.
   folder_confirm_bonus: 0.05 # o tyle rośnie pewność pary, którą tłumaczy też wspólny katalog
+  phash_text_min_chars: 40   # poniżej tylu znaków OCR nie rozstrzyga niczego o obrazie:
+                             # kilkanaście liter to szum. Zmierzone na tej paczce: mediana
+                             # krótszego tekstu w odrzuconej parze to 205 znaków, a poniżej
+                             # 40 znaków ma tylko 3% odrzuceń — i to te wątpliwe.
   phash_text_hamming_max: 12 # obrazy z OCR: maks. odległość simhasha TEKSTU, przy której
                              # para z phasha zostaje. Luźniej niż `simhash_hamming_max`,
                              # bo OCR dwóch zdjęć tej samej kartki nigdy nie wychodzi

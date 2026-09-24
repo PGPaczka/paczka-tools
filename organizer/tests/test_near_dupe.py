@@ -27,7 +27,8 @@ SHA_A = "a" * 64
 SHA_B = "b" * 64
 SHA_C = "c" * 64
 THRESHOLDS = {"simhash_hamming_max": 3, "phash_hamming_max": 8,
-              "phash_text_hamming_max": 12, "simhash_related_max": 8}
+              "phash_text_hamming_max": 12, "simhash_related_max": 8,
+              "phash_text_min_chars": 40}
 
 
 def hexed(value: int) -> str:
@@ -160,6 +161,34 @@ def test_two_images_with_matching_text_stay_near_duplicates() -> None:
     )
 
     assert [r.relation_type for r in relations] == ["near_duplicate"]
+
+
+def test_a_scrap_of_ocr_text_cannot_veto_a_pixel_match() -> None:
+    """Kilkanaście znaków z OCR to szum, nie treść.
+
+    Zmierzone na tej paczce: w odrzuconych parach mediana krótszego tekstu to 205 znaków,
+    ale 3% ma poniżej czterdziestu — i tam simhash mówi o przypadkowych literach,
+    a nie o materiale. Taka para zostaje przy ocenie po pikselach.
+    """
+    daleki_tekst = sum(1 << bit for bit in range(20))
+
+    relations, _ = relate(
+        Signature(SHA_A, perceptual_hash=hexed(0), simhash=hexed(0), text_chars=500),
+        Signature(SHA_B, perceptual_hash=hexed(1), simhash=hexed(daleki_tekst), text_chars=12),
+    )
+
+    assert [r.relation_type for r in relations] == ["near_duplicate"]
+
+
+def test_long_texts_on_both_sides_still_veto() -> None:
+    daleki_tekst = sum(1 << bit for bit in range(20))
+
+    relations, _ = relate(
+        Signature(SHA_A, perceptual_hash=hexed(0), simhash=hexed(0), text_chars=500),
+        Signature(SHA_B, perceptual_hash=hexed(1), simhash=hexed(daleki_tekst), text_chars=400),
+    )
+
+    assert relations == []
 
 
 def test_images_without_text_are_judged_by_pixels_alone() -> None:
@@ -412,6 +441,7 @@ def test_real_thresholds_have_the_keys_this_stage_reads() -> None:
     # Near-miss w jednym katalogu (Q6) musi być LUŹNIEJSZY niż sam próg near-dupe,
     # inaczej ta warstwa nigdy by się nie odezwała.
     assert data["simhash_related_max"] > data["simhash_hamming_max"]
+    assert isinstance(data["phash_text_min_chars"], int) and data["phash_text_min_chars"] > 0
 
 
 def test_row_shape_matches_the_relations_table() -> None:

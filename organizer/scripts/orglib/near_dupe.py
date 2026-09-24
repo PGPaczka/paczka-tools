@@ -65,6 +65,9 @@ class Signature:
     #: Katalogi źródłowe wszystkich kopii tej treści. Katalog niesie decyzję człowieka
     #: sprzed lat (`kol1/`, `lab_05/`), więc wspólny katalog jest sygnałem kontekstu.
     folders: frozenset[str] = frozenset()
+    #: Ile znaków ma wyekstrahowany tekst. `None` znaczy „nie wiadomo" (wtedy ufamy
+    #: tekstowi), a mała wartość — że to za mało, by tekstem cokolwiek rozstrzygać.
+    text_chars: int | None = None
 
 
 @dataclass(frozen=True)
@@ -215,15 +218,21 @@ def _shared_folder(left: Signature, right: Signature) -> str | None:
     return min(wspolne) if wspolne else None
 
 
-def _text_distance(left: Signature, right: Signature) -> int | None:
-    """Odległość simhasha TEKSTU obu treści albo ``None``, gdy któraś go nie ma.
+def _text_distance(
+    left: Signature, right: Signature, *, min_chars: int = 0
+) -> int | None:
+    """Odległość simhasha TEKSTU obu treści albo ``None``, gdy nie ma czym rozstrzygać.
 
-    ``None`` znaczy „nie ma czym potwierdzić", a nie „nie pasuje": rysunek, wykres
-    i zdjęcie bez liter nigdy nie dostaną tekstu, więc brak nie może unieważniać pary
-    znalezionej po pikselach.
+    ``None`` znaczy „nie ma czym potwierdzić", a nie „nie pasuje". Zwracamy je w dwóch
+    przypadkach: gdy któraś treść nie ma tekstu (rysunek, wykres, zdjęcie bez liter nigdy
+    go nie dostaną) albo gdy tekst jest KRÓTSZY niż ``min_chars`` — kilkanaście znaków
+    z OCR to szum, a nie treść, i nie może unieważnić zgodności pikseli.
     """
     if not left.simhash or not right.simhash:
         return None
+    for signature in (left, right):
+        if signature.text_chars is not None and signature.text_chars < min_chars:
+            return None
     return hamming_distance(str(left.simhash), str(right.simhash))
 
 
@@ -243,6 +252,7 @@ def build_relations(
     phash_max = int(thresholds.get("phash_hamming_max", 8))
     phash_text_max = int(thresholds.get("phash_text_hamming_max", 12))
     related_max = int(thresholds.get("simhash_related_max", 8))
+    text_min_chars = int(thresholds.get("phash_text_min_chars", 40))
     folder_bonus = float(thresholds.get("folder_confirm_bonus", 0.05))
     items = list(signatures)
 
@@ -310,7 +320,7 @@ def build_relations(
     pairs, skipped = _pairs_by_distance(items, "perceptual_hash", phash_max, max_bucket=max_bucket)
     stats["skipped_buckets"] += skipped
     for left, right, distance in pairs:
-        tekst = _text_distance(left, right)
+        tekst = _text_distance(left, right, min_chars=text_min_chars)
         if tekst is not None and tekst > phash_text_max:
             # Piksele się zgadzają, treść nie. Dwie zapisane kartki wyglądają podobnie,
             # więc bez tego dwa różne kolokwia lądowały w jednym klastrze.

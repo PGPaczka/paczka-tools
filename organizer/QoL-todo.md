@@ -131,10 +131,15 @@ potem ponowne liczenie relacji. Warto rozważyć próg: OCR tylko dla obrazów p
 pewnego rozmiaru i z dużą ilością krawędzi (skan kartki), a nie dla memów.
 
 - [x] pomiar czasu OCR na próbce 50 obrazów — mediana 0,22 s, średnia 0,47 s, tekst w 46/50
-- [~] przebieg na całości — **W TOKU** (tempo 120 obrazów/min, 5785 treści).
-      Pułapka: sam `--ocr-images` nie zrobiłby nic, bo wszystkie obrazy czekające na extract
-      leżą w poddrzewach duplikatów, a kanoniczne kopie miały już status `extracted`.
-      Trzeba było cofnąć 6928 plików-obrazów do `hashed`. Po przebiegu: `just relate`.
+- [x] przebieg na całości + relacje policzone ponownie — **5058 obrazów ma tekst z OCR**
+      (z 5775 przerobionych; 705 to obrazy bez ani jednej litery, 12 formatów nieobsługiwanych,
+      10 błędów). Czas: 2977 s, czyli 50 minut, zgodnie z pomiarem na próbce.
+      Pułapka: sam `--ocr-images` nie zrobiłby NIC, bo wszystkie obrazy czekające na extract
+      leżą w poddrzewach duplikatów, a kanoniczne kopie miały już status `extracted` —
+      trzeba było cofnąć 6928 plików-obrazów do `hashed`.
+      Po przeliczeniu relacji: **8181 near-dupe (było 11 556), 4102 nowe `related`, 286 wersji
+      starszych**. Różnica to 3479 par obrazów odrzuconych przez niezgodny tekst — czyli
+      dokładnie te „dwie białe kartki", o które chodziło.
 - [x] near-dupe dla obrazów wymaga zgodności tekstu — para z phasha odpada, gdy simhash
       tekstu obu stron rozjeżdża się powyżej `phash_text_hamming_max` (12; luźniej niż próg
       dla samego tekstu, bo OCR dwóch zdjęć tej samej kartki nigdy nie wychodzi identycznie).
