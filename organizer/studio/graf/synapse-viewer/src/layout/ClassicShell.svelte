@@ -84,7 +84,8 @@
         class="view-select"
         aria-label="View"
         value={view}
-        on:change={(event) => dispatch('switchView', event.currentTarget.value)}
+        on:change={(event) =>
+          dispatch('switchView', event.currentTarget.value as (typeof views)[number]['id'])}
       >
         {#each views as v}
           <option value={v.id}>{v.label}</option>
@@ -100,6 +101,7 @@
   <!-- Content row -->
   <button
     class="filters-toggle"
+    class:open={filtersOpen}
     aria-label={filtersOpen ? 'Hide filters' : 'Show filters'}
     on:click={() => (filtersOpen = !filtersOpen)}
   >{filtersOpen ? '×' : '☰'}</button>
@@ -318,6 +320,13 @@
       transform: translateX(0);
     }
 
+    /* Otwarta szuflada: przycisk przenosi się na JEJ prawą krawędź. W rogu zasłaniał
+       tytuł panelu filtrów, a po zamknięciu wchodził na panel notatki. */
+    .filters-toggle.open {
+      left: auto;
+      right: 8px;
+    }
+
     /* Panel notatki jest wtedy arkuszem na całą szerokość, nie trzecią kolumną. */
     .content-row > :global(.detail-panel) {
       position: absolute;
@@ -339,6 +348,25 @@
     }
     .view-select {
       display: block;
+    }
+
+    /* Pasek ma się MIEŚCIĆ: nazwa vaulta schodzi, wyszukiwarka oddaje szerokość,
+       a koło zębate przestaje wystawać poza krawędź (zgłoszone 2026-09-24). */
+    .topbar {
+      padding: 0 6px;
+      gap: 6px;
+    }
+    .vault-name,
+    .trigger-kbd {
+      display: none;
+    }
+    .palette-trigger {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .topbar-right {
+      gap: 4px;
+      min-width: 0;
     }
   }
 </style>

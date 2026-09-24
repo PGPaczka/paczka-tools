@@ -480,4 +480,13 @@
     padding: 3px 7px;
     opacity: 0.75;
   }
+
+  /* Na wąskim ekranie plakietka idzie na LEWĄ stronę: w prawym rogu siedzi „×"
+     panelu notatki i zasłanialiśmy mu przycisk zamknięcia (zgłoszone 2026-09-24). */
+  @media (max-width: 820px) {
+    .diag {
+      right: auto;
+      left: 54px;
+    }
+  }
 </style>

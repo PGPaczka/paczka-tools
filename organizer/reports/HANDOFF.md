@@ -2,6 +2,9 @@
 
 ## Kontekst ręczny
 
+- **Filtry grafu przeżywają odświeżenie (2026-09-24).** `localStorage`, ale z przycinaniem do słownika BIEŻĄCEGO grafu — tagi, typy węzłów, kategorie i rodzaje relacji potrafią zniknąć przy przebudowie vaulta, a filtr wskazujący nieistniejący tag gasi widok bez śladu, dlaczego. Pusty wybór nie jest przywracany (wchodzi widok domyślny). Moduł `stores/filterPersistence.ts` z testami.
+- **Druga tura poprawek mobilnych:** pasek viewera chowa nazwę vaulta i skrót `⌘K` poniżej 720 px (koło zębate wystawało), plakietka `kl./s` przenosi się na lewo (zasłaniała `×` panelu notatki), przycisk szuflady filtrów po otwarciu idzie na prawą krawędź szuflady (siedział na tytule panelu), a menu trybów w samym studiu poniżej 1100 px jest listą rozwijaną. Przyciski i lista trybów czytają z jednej tablicy `MODES` — dwa źródła tej samej prawdy rozjechałyby się przy pierwszej zmianie.
+
 - **Układ viewera domknięty do telefonu (2026-09-24).** Cztery wady z jednego ekranu: `100vh` zamiast `100dvh` (spychało legendę i minimapę pod pasek adresu), panel notatki szerszy od ekranu przez blok kodu (teraz `overflow-x` na `pre` i `max-width: min(640px, 100vw)`), cztery zakładki `Graph/Venn/Cards/Dash` uciekające poza krawędź (poniżej 720 px lista rozwijana) oraz podgląd `?diag=1` zasłaniający notatkę (na telefonie startuje zwinięty do plakietki, dotknięcie przełącza). **`vh` na telefonie to nie to samo co widoczna wysokość** — warto sprawdzić przy każdym nowym widoku.
 
 - **Zepsute podglądy w grafie to były treści bez kopii w źródłach (2026-09-24).** Te same 890 pozycji, które wcześniej nazywały się skrótem sha: leżą wyłącznie w paczce, więc `files` nie ma dla nich wiersza, a podgląd szukał pliku tylko w drzewie źródeł. `preview.package_copy` sięga teraz po ścieżkę docelową z decyzji, przez `config.resolve_within` (wpis prowadzący poza repo paczki = odmowa, z testem). Przy okazji `source_path` w odpowiedzi API nie wywraca się już na pustej liście kopii.

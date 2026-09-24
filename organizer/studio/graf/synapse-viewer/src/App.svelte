@@ -5,6 +5,27 @@
   import { startPolling } from './data/pollGraphJson'
   import { graph, loadError, filters } from './stores/graphStore'
   import { defaultFiltersFor } from './domain/graph/selectors'
+  import {
+    narrowsAnything,
+    readStoredFilters,
+    sanitizeFilters,
+    writeStoredFilters,
+    type FilterVocabulary,
+  } from './stores/filterPersistence'
+  import type { KnowledgeGraph } from './domain/graph/GraphModel'
+
+  /** Co w TYM grafie w ogóle istnieje — po tym przycinamy zapamiętany wybór. */
+  function vocabularyOf(loaded: KnowledgeGraph): FilterVocabulary {
+    const real = loaded.nodes.filter((n) => n.kind === 'real')
+    return {
+      categories: new Set(real.map((n) => n.category)),
+      statuses: new Set(real.map((n) => String(n.status))),
+      levels: new Set(real.map((n) => n.level)),
+      tags: new Set(real.flatMap((n) => n.tags)),
+      nodeTypes: new Set(real.map((n) => n.type ?? '')),
+      relationKinds: new Set(loaded.edges.map((e) => e.kind ?? 'link')),
+    }
+  }
   import { selectedId } from './stores/selectionStore'
   import { settings } from './stores/settingsStore'
   import type { LayoutId } from './layout/layoutRegistry'
@@ -43,8 +64,14 @@
     try {
       const loaded = await loadGraph('/graph.json')
       graph.set(loaded.graph)
-      // Open a large, typed vault at its coarse level instead of as a cloud of files.
-      filters.set(defaultFiltersFor(loaded.graph))
+      // Open a large, typed vault at its coarse level instead of as a cloud of files —
+      // chyba że poprzednim razem zawężono widok. Wybór przeżywa odświeżenie, ale
+      // przycinamy go do tego, co W TYM grafie nadal istnieje.
+      const zapisane = sanitizeFilters(readStoredFilters(), vocabularyOf(loaded.graph))
+      filters.set(
+        zapisane && narrowsAnything(zapisane) ? zapisane : defaultFiltersFor(loaded.graph),
+      )
+      filters.subscribe(writeStoredFilters)
       etag = loaded.etag
       lastModified = loaded.lastModified
     } catch (e) {

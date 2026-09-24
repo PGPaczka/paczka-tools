@@ -32,6 +32,18 @@
 
   type Mode = 'browse' | 'decide' | 'clusters' | 'history' | 'stats' | 'graph' | 'plan' | 'search';
 
+  /** Tryby widoku w jednym miejscu: pasek przycisków i lista na telefonie czytają stąd. */
+  const MODES: { id: Mode; label: string; title: string }[] = [
+    { id: 'browse', label: 'przegląd', title: 'b — przegląd przedmiotu' },
+    { id: 'decide', label: 'decyzje', title: 'd / b — tryb decyzji' },
+    { id: 'clusters', label: 'klastry', title: 'c / b — klastry' },
+    { id: 'history', label: 'historia', title: 'h / b — historia' },
+    { id: 'search', label: 'szukaj', title: 'w / b — wyszukiwanie w całej paczce' },
+    { id: 'plan', label: 'plan', title: 'p / b — plan, bramka i apply' },
+    { id: 'graph', label: 'graf', title: 'g / b — graf jako soczewka' },
+    { id: 'stats', label: 'statystyki', title: 'statystyki' },
+  ];
+
   /** Ile pozycji dokłada „Pokaż więcej”. */
   const PAGE = 30;
 
@@ -345,62 +357,27 @@
         title="Zwiń/rozwiń listę przedmiotów"
       >⟨lista⟩</button>
       <button onclick={loadDashboard} title="Przeładuj liczby z bazy">odśwież</button>
+      {#each MODES.filter((m) => m.id !== 'browse') as entry}
         <button
           class="mode-toggle"
-          class:active={mode === 'decide'}
-          onclick={() => (mode = mode === 'decide' ? 'browse' : 'decide')}
-          title="d / b — tryb decyzji"
+          class:active={mode === entry.id}
+          onclick={() => (mode = mode === entry.id ? 'browse' : entry.id)}
+          title={entry.title}
         >
-          decyzje
+          {entry.label}
         </button>
-        <button
-          class="mode-toggle"
-          class:active={mode === 'clusters'}
-          onclick={() => (mode = mode === 'clusters' ? 'browse' : 'clusters')}
-          title="c / b — klastry"
-        >
-          klastry
-        </button>
-        <button
-          class="mode-toggle"
-          class:active={mode === 'history'}
-          onclick={() => (mode = mode === 'history' ? 'browse' : 'history')}
-          title="h / b — historia"
-        >
-          historia
-        </button>
-        <button
-          class="mode-toggle"
-          class:active={mode === 'search'}
-          onclick={() => (mode = mode === 'search' ? 'browse' : 'search')}
-          title="w / b — wyszukiwanie w całej paczce"
-        >
-          szukaj
-        </button>
-        <button
-          class="mode-toggle"
-          class:active={mode === 'plan'}
-          onclick={() => (mode = mode === 'plan' ? 'browse' : 'plan')}
-          title="p / b — plan, bramka i apply"
-        >
-          plan
-        </button>
-        <button
-          class="mode-toggle"
-          class:active={mode === 'graph'}
-          onclick={() => (mode = mode === 'graph' ? 'browse' : 'graph')}
-          title="g / b — graf jako soczewka"
-        >
-          graf
-        </button>
-        <button
-          class="mode-toggle"
-          class:active={mode === 'stats'}
-          onclick={() => (mode = mode === 'stats' ? 'browse' : 'stats')}
-          title="statystyki"
-        >
-          statystyki
-        </button>
+      {/each}
+      <!-- Na telefonie osiem zakładek nie mieści się w pasku i uciekały poza ekran. -->
+      <select
+        class="mode-select mono"
+        aria-label="Widok"
+        bind:value={mode}
+        title="Widok"
+      >
+        {#each MODES as entry}
+          <option value={entry.id}>{entry.label}</option>
+        {/each}
+      </select>
     </div>
   </header>
 
@@ -681,6 +658,17 @@
     margin-left: 60px;
   }
 
+  .mode-select {
+    display: none;
+    max-width: 128px;
+    padding: 3px 6px;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 11px;
+  }
+
   .panel-toggle {
     padding: 2px 8px;
     border: 1px solid var(--border);
@@ -722,6 +710,14 @@
   /* Poniżej tej szerokości liczniki i ścieżka bazy ustępują miejsca zakładkom:
      te same liczby są w zakładce „statystyki", a zakładki muszą być klikalne. */
   @media (max-width: 1100px) {
+    /* Przyciski trybów ustępują liście: w pasku mieści się ich najwyżej kilka,
+       a jest ich osiem (zgłoszone 2026-09-24). */
+    .mode-toggle {
+      display: none;
+    }
+    .mode-select {
+      display: block;
+    }
     .totals {
       display: none;
     }

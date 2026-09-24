@@ -488,6 +488,22 @@ Cztery zgłoszenia z jednego ekranu, wszystkie o układzie, nie o danych:
   z liczbą klatek, dotknięcie rozwija go i zwija z powrotem. To narzędzie pomiarowe,
   więc ustępuje treści, którą mierzy.
 
+## Druga tura poprawek mobilnych (2026-09-24)
+
+- **pasek viewera nadal wystawał** — poniżej 720 px znika nazwa vaulta i skrót `⌘K`,
+  a wyszukiwarka oddaje szerokość, więc koło zębate mieści się w kadrze;
+- **plakietka `kl./s` zasłaniała `×` panelu notatki** — na wąskim ekranie idzie na lewą
+  stronę, obok przycisku filtrów;
+- **przycisk szuflady filtrów siedział na tytule panelu** i po zamknięciu wchodził na
+  panel notatki — po otwarciu przenosi się na prawą krawędź szuflady;
+- **filtry nie przeżywały odświeżenia** — teraz zapisują się w `localStorage`.
+  Wczytany wybór jest PRZYCINANY do słownika bieżącego grafu (tagi, typy, kategorie,
+  rodzaje relacji): po przebudowie vaulta wpis po nieistniejącym przedmiocie wygasiłby
+  widok bez śladu, dlaczego. Pusty wybór nie jest przywracany — wtedy wchodzi widok
+  domyślny, czyli szkielet paczki;
+- **menu trybów w studiu** poniżej 1100 px też jest listą rozwijaną; przyciski i lista
+  czytają z jednej tablicy `MODES`, żeby nie rozjechały się przy kolejnej zmianie.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

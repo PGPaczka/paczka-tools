@@ -293,11 +293,20 @@ który wcześniej nie kończył się przez 45 s, staje w ~10 s. Minimapa rysuje 
 elementów DOM przemalowywanych przy każdej klatce przesuwania i to ona, a nie graf,
 odpowiadała za większość zacięć na telefonie.
 
+Menu trybów studia (`decyzje`, `klastry`, `plan`, `graf`…) poniżej 1100 px zwija się
+w listę rozwijaną — osiem zakładek nie mieści się w pasku telefonu.
+
 Sam viewer też jest ułożony pod telefon: wysokość liczona w `dvh` (a nie `vh`, bo ta
 druga ignoruje pasek adresu i spychała legendę oraz minimapę pod krawędź), zakładki
 `Graph/Venn/Cards/Dash` zwijają się w listę rozwijaną poniżej 720 px, panel notatki nie
 przekracza szerokości ekranu (blok kodu przewija się sam, zamiast rozpychać stronę),
-a podgląd `?diag=1` startuje na telefonie zwinięty do plakietki i rozwija się dotknięciem.
+a podgląd `?diag=1` startuje na telefonie zwinięty do plakietki, rozwija się dotknięciem
+i stoi po lewej, żeby nie zasłaniać `×` panelu notatki. Przycisk szuflady filtrów po
+otwarciu przenosi się na jej prawą krawędź — w rogu zasłaniał tytuł panelu.
+
+**Wybór filtrów przeżywa odświeżenie.** Zapisany w `localStorage`, a przy wczytaniu
+przycinany do tego, co w TYM grafie istnieje: po przebudowie vaulta tag po przedmiocie,
+którego już nie ma, gasiłby widok bez śladu, dlaczego.
 
 Na telefonie dochodzi gęstość pikseli: przy `devicePixelRatio` 3 każda klatka to
 dziewięciokrotność pracy laptopa, więc rysowanie jest ograniczone do dpr 2, a przy wolnych
