@@ -187,6 +187,20 @@ export const getSubject = (semester: number, skrot: string, grupa?: string, sign
 export const getItems = (filters: ItemFilters, signal?: AbortSignal) =>
   fetchJson<ItemsPage>(itemsUrl(filters), signal);
 
+/** Szczegóły jednej treści — wszystkie kopie, relacje i nazwy, pod którymi leży (Q7). */
+export interface ItemDetail {
+  item: Item;
+  files: Array<{ filename: string | null; source_relative_path: string | null; size_bytes: number | null }>;
+  relations: Array<Record<string, unknown>>;
+  /** Wszystkie nazwy tej treści, posortowane. Jedna treść bywa pod kilkunastoma. */
+  names: string[];
+  /** Najbardziej mówiąca z nich albo `null`, gdy nazwa jest tylko jedna. */
+  suggested_name: string | null;
+}
+
+export const getItemDetail = (sha256: string, signal?: AbortSignal) =>
+  fetchJson<ItemDetail>(`/api/items/${sha256}`, signal);
+
 // --- S1: decisions ---
 
 export interface DecisionRequest {

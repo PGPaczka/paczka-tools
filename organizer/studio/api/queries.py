@@ -18,6 +18,7 @@ from typing import Any, Mapping, Sequence
 
 import status_report
 from orglib import config, folder_links, preview as preview_lib
+from orglib.naming import best_name
 from orglib.review import TEXT_KINDS, build_clusters
 
 #: Ile znaków głowy tekstu wysyłamy do widoku (podgląd i diff klastra). Tyle
@@ -393,6 +394,9 @@ def item_detail(
         "FROM files WHERE sha256 = ? ORDER BY file_id",
         (sha256,),
     ).fetchall()
+    names = sorted({
+        f["filename"] for f in files if f["filename"] and f["filename"].strip()
+    })
     relations = conn.execute(
         "SELECT source_sha256, target_sha256, relation_type, confidence, detection_method, reason "
         "FROM relations WHERE source_sha256 = ? OR target_sha256 = ? "
@@ -415,6 +419,8 @@ def item_detail(
     return {
         "item": _with_bucket(row, auto_apply, review_min),
         "files": [dict(f) for f in files],
+        "names": names,
+        "suggested_name": best_name(names) if len(names) > 1 else None,
         "relations": [dict(r) for r in relations],
         "plan_items": [dict(p) for p in plan],
         "applied": [dict(a) for a in applied],

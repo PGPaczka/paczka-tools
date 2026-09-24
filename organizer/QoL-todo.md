@@ -174,8 +174,14 @@ mających więcej niż jedną nazwę (rekordzista: 81 różnych nazw).
 
 **Czego brakuje.** Widać to dopiero po wejściu w notatkę. Przydałoby się:
 
-- [ ] w kolejce decyzji: „ta treść występuje pod 3 nazwami” + lista
-- [ ] podpowiedź wyboru najlepszej nazwy (najdłuższa sensowna, bez `(1)`, `kopia`)
+- [x] w kolejce decyzji: „ta treść leży pod N nazwami” + lista (panel dociąga szczegóły treści; przy jednej nazwie nie ma czego pokazywać)
+- [x] podpowiedź najlepszej nazwy — `orglib/naming.py: best_name`, wystawiona jako
+      `suggested_name` w szczegółach treści, z przyciskiem „użyj: …” (idzie tą samą drogą
+      co ręczna zmiana nazwy z Q2). Kryteria: brak znacznika kopii → nazwa opisowa zamiast
+      nadanej przez urządzenie → więcej członów → dłuższa → alfabetycznie (ostatnie po to,
+      żeby podpowiedź była POWTARZALNA). Sprawdzone na prawdziwych zestawach z indeksu:
+      wybiera `SO_2017_egzamin_grupaB.jpeg` zamiast `received_1711184305595532.jpg`
+      i `AiSD_2014_egzamin.pdf` zamiast `Kopia aisd 1termin 2015.pdf`.
 
 ---
 

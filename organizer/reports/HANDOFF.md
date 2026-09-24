@@ -144,43 +144,12 @@
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-09-23T09:42:07+02:00
+- Odświeżono: 2026-09-24T18:09:19+02:00
 - Branch: `master`
-- Commit: `d1de7fb`
+- Commit: `cac750d`
 - Git status:
   ```text
-  M docs/SYNAPSE.md
-   M scripts/orglib/preview.py
-   M scripts/synapse_export.py
-   M studio/README.md
-   M studio/TODO-studio.md
-   M studio/api/queries.py
-   M studio/graf/synapse-viewer/src/components/filters/FilterPanel.svelte
-   M studio/graf/synapse-viewer/src/layout/ClassicShell.svelte
-   M studio/graf/synapse-viewer/src/layout/CommandShell.svelte
-   M studio/graf/synapse-viewer/src/render/CanvasGraphRenderer.ts
-   M studio/graf/synapse-viewer/src/render/Viewport.test.ts
-   M studio/graf/synapse-viewer/src/render/Viewport.ts
-   M studio/web/package-lock.json
-   M studio/web/package.json
-   M studio/web/src/App.svelte
-   M studio/web/src/app.css
-   M studio/web/src/components/DecisionPanel.svelte
-   M studio/web/src/components/QueuePanel.svelte
-   M studio/web/src/components/SubjectList.svelte
-   M studio/web/src/lib/api.ts
-   M studio/web/src/lib/prefs.test.ts
-   M studio/web/src/lib/prefs.ts
-   M tests/test_studio_preview.py
-   M tests/test_synapse_export_cli.py
-  ?? studio/docs/screens/04b-podglad-tekstu.png
-  ?? studio/docs/screens/10b-graf-zakres.png
-  ?? studio/docs/screens/13b-telefon-graf.png
-  ?? studio/graf/synapse-viewer/src/domain/graph/scope.test.ts
-  ?? studio/graf/synapse-viewer/src/domain/graph/scope.ts
-  ?? studio/web/src/components/TextPreview.svelte
-  ?? studio/web/src/lib/highlight.test.ts
-  ?? studio/web/src/lib/highlight.ts
+  (clean)
   ```
 - Pierwsze otwarte TODO: - [ ] B12. `scripts/provenance.py` — `reports/provenance.jsonl` + README per przedmiot do `paczka_meta/` + `00_SOURCES/linki.txt` z `source_packages`
 <!-- END AUTO -->

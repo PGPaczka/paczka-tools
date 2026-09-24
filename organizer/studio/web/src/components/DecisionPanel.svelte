@@ -5,6 +5,7 @@
     postDecision,
     postUndo,
     postDecisionBatch,
+    getItemDetail,
     getItems,
     getPreview,
     getItemsByFolder,
@@ -12,6 +13,7 @@
     renameTarget,
     previewImageUrl,
     type Item,
+    type ItemDetail,
     type ItemsPage,
     type DecisionRequest,
     type Preview,
@@ -63,6 +65,11 @@
    *  ścieżce łatwo przy okazji przenieść plik gdzie indziej, a tu katalog jest stały. */
   let editingName = $state(false);
   let nameDraft = $state('');
+
+  /** Szczegóły bieżącej treści: potrzebne dla nazw, pod którymi leży (Q7).
+   *  Lista pozycji podaje jedną nazwę, a „ten sam plik pod czterema nazwami"
+   *  zmienia decyzję: nazwa w paczce jest wtedy wyborem, nie faktem. */
+  let detail = $state<ItemDetail | null>(null);
 
   let preview = $state<Preview | null>(null);
   let previewError = $state<string | null>(null);
@@ -204,6 +211,13 @@
     node.setSelectionRange(0, dot > 0 ? dot : node.value.length);
   }
 
+  /** Przyjmuje podpowiedzianą nazwę: ta sama droga co ręczna zmiana (`r`). */
+  async function useSuggestedName(): Promise<void> {
+    if (!current || !detail?.suggested_name) return;
+    nameDraft = detail.suggested_name;
+    await saveName();
+  }
+
   async function saveName(): Promise<void> {
     if (!current || !nameDraft.trim()) return;
     error = null;
@@ -312,6 +326,21 @@
   $effect(() => {
     const _deps = [semester, skrot];
     loadNext();
+  });
+
+  $effect(() => {
+    const sha = current?.sha256;
+    detail = null;
+    if (!sha) return;
+    const controller = new AbortController();
+    getItemDetail(sha, controller.signal)
+      .then((value) => {
+        detail = value;
+      })
+      .catch(() => {
+        // Nazwy to dodatek do decyzji, nie jej warunek — cicho, bez straszenia błędem.
+      });
+    return () => controller.abort();
   });
 
   $effect(() => {
@@ -446,6 +475,21 @@
         </div>
         {#if current.reason}
           <div class="reason dim">{current.reason}</div>
+        {/if}
+        {#if detail && detail.names.length > 1}
+          <!-- Ta sama treść pod kilkoma nazwami (Q7). Widać to było dotąd dopiero
+               po wejściu w szczegóły, a to informacja, która zmienia decyzję. -->
+          <div class="names">
+            <span class="dim">ta treść leży pod {detail.names.length} nazwami:</span>
+            <span class="mono dim names-list" title={detail.names.join('\n')}>
+              {detail.names.join(' · ')}
+            </span>
+            {#if detail.suggested_name && detail.suggested_name !== basename(current.target_relative_path)}
+              <button class="use-name" onclick={useSuggestedName}>
+                użyj: {detail.suggested_name}
+              </button>
+            {/if}
+          </div>
         {/if}
         {#if current.target_relative_path}
           <div class="target mono dim">
@@ -884,6 +928,31 @@
   .name-actions {
     display: flex;
     gap: 8px;
+  }
+  .names {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 11px;
+  }
+  .names-list {
+    flex: 1 1 12rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .use-name {
+    padding: 0 8px;
+    border: 1px solid var(--accent-dim);
+    border-radius: 999px;
+    color: var(--text);
+    font-size: 10px;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .rename-link {
     margin-left: 8px;
