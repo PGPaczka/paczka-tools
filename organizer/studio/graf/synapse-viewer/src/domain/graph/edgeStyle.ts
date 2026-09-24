@@ -69,7 +69,9 @@ export function presentNodeTypes(types: readonly (string | null | undefined)[]):
   // `category` sits between a subject and its files: a course package puts its material
   // into kolokwia / laboratoria / wykład, and without that level a subject is a star with
   // thousands of spokes — unreadable, and expensive to draw.
-  const preferred = ['semester', 'subject', 'category', 'file']
+  // `group` is one lab or one test inside a category (`lab_05`, `kol1`): it exists only
+  // where two or more files share a source folder, so it belongs with the containers.
+  const preferred = ['semester', 'subject', 'category', 'group', 'file']
   const present = new Set(types.filter((t): t is string => typeof t === 'string' && t.length > 0))
   const ordered = preferred.filter((t) => present.has(t))
   const extra = [...present].filter((t) => !preferred.includes(t)).sort()
@@ -85,6 +87,8 @@ export function nodeTypeScale(type: string | null | undefined): number {
       return 1.7
     case 'category':
       return 1.3
+    case 'group':
+      return 1.15
     default:
       return 1
   }

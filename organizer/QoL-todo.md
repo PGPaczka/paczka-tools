@@ -223,5 +223,12 @@ Pliki jednej labki leżą obok siebie, ale nic nie mówi, że należą do `lab_0
 węzeł między kategorią a plikami — tak samo jak kategorię dołożyliśmy między przedmiot
 a pliki. Tam, gdzie katalogu nie ma, pliki wiszą bezpośrednio na kategorii.
 
-- [ ] węzeł `group` w eksporcie (tylko gdy katalog-liść jest wspólny dla ≥2 plików)
-- [ ] czwarty poziom w wyborze zakresu w viewerze
+- [x] węzeł `group` w eksporcie — powstaje, gdy katalog-liść dzielą ≥2 pliki kategorii
+      I gdy nie obejmuje całej kategorii (inaczej byłby jej kopią o poziom niżej).
+      Na tym indeksie: **346 grup**. Tag to `katalog-…`, nie `grupa-…`, bo ten drugi
+      opisuje już grupę studencką przedmiotu z `subjects.yaml`.
+- [x] poziom w wyborze zakresu w viewerze — `presentNodeTypes` miało stałą kolejność
+      `semester → subject → category → file`, więc nowy typ wpadał między „nieznane" i lądował
+      ZA plikami (wybór „pokaż grupę" pod „pokaż plik" wygląda jak usterka). Grupa ma teraz
+      swoje miejsce w kolejności i rozmiar między kategorią a plikiem, czyli liczy się jako
+      kontener: zawsze podpisana i rysowana na wierzchu.

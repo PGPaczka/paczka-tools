@@ -91,12 +91,31 @@ describe('presentNodeTypes', () => {
     ])
   })
 
+  it('puts a group between its category and the files', () => {
+    // A group is one lab or one test (`lab_05`, `kol1`). Without naming it here it would
+    // land among the unknown types, i.e. AFTER `file` — and the scope picker would offer
+    // "pick a group" below "pick a file", which reads as a mistake.
+    expect(presentNodeTypes(['file', 'group', 'semester', 'category', 'subject'])).toEqual([
+      'semester',
+      'subject',
+      'category',
+      'group',
+      'file',
+    ])
+  })
+
   it('keeps unknown types rather than dropping them', () => {
     expect(presentNodeTypes(['lecture', 'file'])).toEqual(['file', 'lecture'])
   })
 })
 
 describe('nodeTypeScale', () => {
+  it('sizes a group between its category and its files, and treats it as a container', () => {
+    expect(nodeTypeScale('group')).toBeGreaterThan(nodeTypeScale('file'))
+    expect(nodeTypeScale('group')).toBeLessThan(nodeTypeScale('category'))
+    expect(isContainerType('group')).toBe(true)
+  })
+
   it('makes containers bigger than what they contain', () => {
     expect(nodeTypeScale('semester')).toBeGreaterThan(nodeTypeScale('subject'))
     expect(nodeTypeScale('subject')).toBeGreaterThan(nodeTypeScale('category'))
