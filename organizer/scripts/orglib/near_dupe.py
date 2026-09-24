@@ -33,7 +33,7 @@ planu i review, nie wyrokiem.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Iterable, Mapping, Sequence
 
 from orglib.textextract import hamming_distance
@@ -44,6 +44,12 @@ METHOD_PREFIX = "near_dupe"
 
 #: Ile bitów ma podpis (simhash i phash z ``imagehash`` mają po 64).
 _DEFAULT_BITS = 64
+
+#: O ile słabsza jest relacja „powiązane" od near-dupe o tej samej odległości podpisu.
+#: `related` mówi „to się ze sobą wiąże", a nie „to jest ta sama treść", więc musi zostać
+#: poniżej progu review (`thresholds.yaml: confidence.review_min`) — inaczej czytałoby się
+#: jak twierdzenie o duplikacie.
+_RELATED_SCALE = 0.6
 
 
 @dataclass(frozen=True)
@@ -56,6 +62,9 @@ class Signature:
     perceptual_hash: str | None = None
     #: Rok materiału rozpoznany ze ścieżek (patrz ``orglib.classify.detect_year``).
     year: str | None = None
+    #: Katalogi źródłowe wszystkich kopii tej treści. Katalog niesie decyzję człowieka
+    #: sprzed lat (`kol1/`, `lab_05/`), więc wspólny katalog jest sygnałem kontekstu.
+    folders: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -200,6 +209,12 @@ def _relation_for(
     )
 
 
+def _shared_folder(left: Signature, right: Signature) -> str | None:
+    """Katalog źródłowy, w którym leżą obie treści, albo ``None``."""
+    wspolne = left.folders & right.folders
+    return min(wspolne) if wspolne else None
+
+
 def _text_distance(left: Signature, right: Signature) -> int | None:
     """Odległość simhasha TEKSTU obu treści albo ``None``, gdy któraś go nie ma.
 
@@ -227,11 +242,13 @@ def build_relations(
     simhash_max = int(thresholds.get("simhash_hamming_max", 3))
     phash_max = int(thresholds.get("phash_hamming_max", 8))
     phash_text_max = int(thresholds.get("phash_text_hamming_max", 12))
+    related_max = int(thresholds.get("simhash_related_max", 8))
+    folder_bonus = float(thresholds.get("folder_confirm_bonus", 0.05))
     items = list(signatures)
 
     best: dict[tuple[str, str, str], Relation] = {}
     stats = {"normalized_text": 0, "simhash": 0, "phash": 0, "skipped_buckets": 0,
-             "phash_odrzucone_tekstem": 0}
+             "phash_odrzucone_tekstem": 0, "katalog_potwierdzil": 0, "katalog_related": 0}
 
     def remember(relation: Relation, layer: str) -> None:
         current = best.get(relation.key)
@@ -239,18 +256,57 @@ def build_relations(
             best[relation.key] = relation
         stats[layer] += 1
 
-    for left, right, distance in _pairs_by_equality(items, "normalized_text_hash"):
-        remember(
-            _relation_for(left, right, distance, 0, "normalized_text", "ten sam tekst po normalizacji"),
-            "normalized_text",
+    def potwierdz_katalogiem(relation: Relation, left: Signature, right: Signature) -> Relation:
+        """Podnosi pewność pary, którą dodatkowo tłumaczy wspólny katalog źródłowy."""
+        katalog = _shared_folder(left, right)
+        if katalog is None:
+            return relation
+        stats["katalog_potwierdzil"] += 1
+        return replace(
+            relation,
+            confidence=min(1.0, round(relation.confidence + folder_bonus, 4)),
+            reason=f"{relation.reason}; wspólny katalog {katalog}",
         )
+
+    for left, right, distance in _pairs_by_equality(items, "normalized_text_hash"):
+        relacja = _relation_for(
+            left, right, distance, 0, "normalized_text", "ten sam tekst po normalizacji"
+        )
+        remember(potwierdz_katalogiem(relacja, left, right), "normalized_text")
     pairs, skipped = _pairs_by_distance(items, "simhash", simhash_max, max_bucket=max_bucket)
     stats["skipped_buckets"] += skipped
     for left, right, distance in pairs:
-        remember(
-            _relation_for(left, right, distance, simhash_max, "simhash", f"simhash, odległość {distance}"),
-            "simhash",
+        relacja = _relation_for(
+            left, right, distance, simhash_max, "simhash", f"simhash, odległość {distance}"
         )
+        remember(potwierdz_katalogiem(relacja, left, right), "simhash")
+
+    # Warstwa kontekstu (Q6): podpis NIE mieści się w progu near-dupe, ale obie treści leżą
+    # w tym samym katalogu źródłowym. To „powiązane", nie „duplikat" — i tylko tak wolno to
+    # nazwać, bo od rodzaju zależy, czy para trafi do rozstrzygania duplikatów.
+    # Sam wspólny katalog, bez żadnego podobieństwa, relacją NIE jest: katalog z dwudziestoma
+    # plikami dałby 190 par szumu. Od grupowania „to leży razem" jest poziom `group` w grafie.
+    if related_max > simhash_max:
+        blisko, skipped = _pairs_by_distance(
+            items, "simhash", related_max, max_bucket=max_bucket
+        )
+        stats["skipped_buckets"] += skipped
+        for left, right, distance in blisko:
+            if distance <= simhash_max:
+                continue
+            katalog = _shared_folder(left, right)
+            if katalog is None:
+                continue
+            stats["katalog_related"] += 1
+            first, second = sorted((left, right), key=lambda s: s.sha256)
+            remember(Relation(
+                source_sha256=first.sha256,
+                target_sha256=second.sha256,
+                relation_type="related",
+                confidence=round(confidence_for(distance, related_max) * _RELATED_SCALE, 4),
+                detection_method=f"{METHOD_PREFIX}:katalog",
+                reason=f"wspólny katalog {katalog}; simhash, odległość {distance}",
+            ), "simhash")
     pairs, skipped = _pairs_by_distance(items, "perceptual_hash", phash_max, max_bucket=max_bucket)
     stats["skipped_buckets"] += skipped
     for left, right, distance in pairs:
@@ -263,7 +319,11 @@ def build_relations(
         detail = f"phash, odległość {distance}"
         if tekst is not None:
             detail += f"; tekst zgodny (odległość {tekst})"
-        remember(_relation_for(left, right, distance, phash_max, "phash", detail), "phash")
+        remember(
+            potwierdz_katalogiem(_relation_for(left, right, distance, phash_max, "phash", detail),
+                                 left, right),
+            "phash",
+        )
 
     relations = sorted(best.values(), key=lambda r: r.key)
     return relations, stats

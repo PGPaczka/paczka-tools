@@ -25,6 +25,10 @@ near_duplicate:
   simhash_hamming_max: 3     # maks. odległość Hamminga simhash uznawana za near-dupe
   minhash_jaccard_min: 0.85  # min. Jaccard (MinHash/LSH) uznawany za near-dupe
   phash_hamming_max: 8       # obrazy: maks. odległość perceptual hash
+  simhash_related_max: 8     # near-miss: podpis poza progiem near-dupe, ale obie treści leżą
+                             # w tym samym katalogu źródłowym => relacja `related` (kontekst,
+                             # nie duplikat). Sam wspólny katalog, bez podobieństwa, to NIE relacja.
+  folder_confirm_bonus: 0.05 # o tyle rośnie pewność pary, którą tłumaczy też wspólny katalog
   phash_text_hamming_max: 12 # obrazy z OCR: maks. odległość simhasha TEKSTU, przy której
                              # para z phasha zostaje. Luźniej niż `simhash_hamming_max`,
                              # bo OCR dwóch zdjęć tej samej kartki nigdy nie wychodzi

@@ -25,7 +25,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from collections import defaultdict
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Optional
 
 import typer
@@ -51,6 +51,9 @@ def load_signatures(
     """
     signatures: dict[str, dict[str, Any]] = {}
     paths: dict[str, list[str]] = defaultdict(list)
+    # Katalog źródłowy niesie decyzję człowieka sprzed lat (`kol1/`, `lab_05/`), więc
+    # wspólny katalog jest w B6 sygnałem kontekstu (Q6). Zbieramy go dla KAŻDEJ kopii.
+    folders: dict[str, set[str]] = defaultdict(set)
     for row in conn.execute(
         "SELECT sha256, source_package, source_relative_path, normalized_text_hash, "
         "simhash, perceptual_hash FROM files WHERE sha256 IS NOT NULL "
@@ -63,7 +66,9 @@ def load_signatures(
         for column in ("normalized_text_hash", "simhash", "perceptual_hash"):
             if not entry.get(column) and row[column]:
                 entry[column] = str(row[column])
-        paths[sha].append(f"{row['source_package']}/{row['source_relative_path']}")
+        sciezka = f"{row['source_package']}/{row['source_relative_path']}"
+        paths[sha].append(sciezka)
+        folders[sha].add(str(PurePosixPath(sciezka).parent))
     return [
         Signature(
             sha256=sha,
@@ -71,6 +76,7 @@ def load_signatures(
             simhash=entry.get("simhash"),
             perceptual_hash=entry.get("perceptual_hash"),
             year=detect_year(paths[sha]),
+            folders=frozenset(folders[sha]),
         )
         for sha, entry in sorted(signatures.items())
     ]
@@ -208,6 +214,11 @@ def relate(
         f"trafienia warstw: tekst={stats['normalized_text']}, simhash={stats['simhash']}, "
         f"phash={stats['phash']}"
     )
+    if stats.get("katalog_potwierdzil") or stats.get("katalog_related"):
+        typer.echo(
+            f"wspólny katalog: potwierdził {stats.get('katalog_potwierdzil', 0)} par · "
+            f"dał {stats.get('katalog_related', 0)} relacji `related`"
+        )
     if stats.get("phash_odrzucone_tekstem"):
         # Widoczne w podsumowaniu, bo to jedyny moment, w którym widać, ile par
         # „zgodne piksele, inna treść" odsiał OCR (Q5).

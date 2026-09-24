@@ -97,13 +97,21 @@ def _root(parents: dict[str, str], value: str) -> str:
     return value
 
 
+#: Rodzaje relacji, które MOGĄ znaczyć „to jest ta sama treść". `related` do klastra
+#: nie wchodzi: to sygnał kontekstu (wspólny katalog źródłowy, Q6), a klaster jest
+#: miejscem, w którym rozstrzyga się duplikaty — wciągnięcie tam sąsiadów z katalogu
+#: zamieniłoby tę listę w spis treści przedmiotu.
+CLUSTER_RELATIONS = ("near_duplicate", "older_version")
+
+
 def build_clusters(
     relations: Iterable[Mapping[str, Any]], *, known: set[str] | None = None
 ) -> list[Cluster]:
     """Łączy pary w grupy (union-find) i sortuje: najpierw duże i najpewniejsze.
 
     ``known`` zawęża do treści obecnych w planie — relacja do czegoś, czego w tym
-    przedmiocie nie ma, nie pomaga w decyzji o tym przedmiocie.
+    przedmiocie nie ma, nie pomaga w decyzji o tym przedmiocie. Relacje `related`
+    są pomijane — patrz :data:`CLUSTER_RELATIONS`.
     """
     parents: dict[str, str] = {}
     edges: list[dict[str, Any]] = []
@@ -113,6 +121,8 @@ def build_clusters(
         if not source or not target:
             continue
         if known is not None and (source not in known or target not in known):
+            continue
+        if str(relation.get("relation_type") or "") not in CLUSTER_RELATIONS:
             continue
         for value in (source, target):
             parents.setdefault(value, value)

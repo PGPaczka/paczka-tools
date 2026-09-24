@@ -27,7 +27,7 @@ SHA_A = "a" * 64
 SHA_B = "b" * 64
 SHA_C = "c" * 64
 THRESHOLDS = {"simhash_hamming_max": 3, "phash_hamming_max": 8,
-              "phash_text_hamming_max": 12}
+              "phash_text_hamming_max": 12, "simhash_related_max": 8}
 
 
 def hexed(value: int) -> str:
@@ -220,7 +220,95 @@ def test_missing_signatures_never_pair_up(empty) -> None:
 
     assert relations == []
     assert stats == {"normalized_text": 0, "simhash": 0, "phash": 0, "skipped_buckets": 0,
-                     "phash_odrzucone_tekstem": 0}
+                     "phash_odrzucone_tekstem": 0, "katalog_potwierdzil": 0,
+                     "katalog_related": 0}
+
+
+# -- wspólny katalog jako sygnał kontekstu (Q6) -----------------------------
+
+
+def test_a_shared_source_folder_strengthens_a_pair() -> None:
+    """Katalog niesie decyzję człowieka sprzed lat: `kol1/`, `lab_05/`.
+
+    Dwie treści, które ktoś kiedyś położył obok siebie, to mocniejsza przesłanka
+    niż sama bliskość podpisu — i nic nie kosztuje, bo ścieżki już mamy.
+    """
+    osobno, _ = relate(
+        Signature(SHA_A, simhash=hexed(0), folders=frozenset({"P/AKO/lab_05"})),
+        Signature(SHA_B, simhash=hexed(1), folders=frozenset({"P/SO/inne"})),
+    )
+    razem, _ = relate(
+        Signature(SHA_A, simhash=hexed(0), folders=frozenset({"P/AKO/lab_05"})),
+        Signature(SHA_B, simhash=hexed(1), folders=frozenset({"P/AKO/lab_05"})),
+    )
+
+    assert razem[0].confidence > osobno[0].confidence
+    assert "katalog" in razem[0].reason
+
+
+def test_the_bonus_never_pushes_confidence_over_one() -> None:
+    relations, _ = relate(
+        Signature(SHA_A, normalized_text_hash="t", folders=frozenset({"P/AKO/kol1"})),
+        Signature(SHA_B, normalized_text_hash="t", folders=frozenset({"P/AKO/kol1"})),
+    )
+
+    assert relations[0].confidence == 1.0
+
+
+def test_a_near_miss_in_the_same_folder_becomes_related() -> None:
+    """Podpis nie mieści się w progu near-dupe, ale pliki leżą w jednym katalogu.
+
+    To jest „powiązane", a nie „duplikat" — i dokładnie tak trzeba to nazwać,
+    bo od tej nazwy zależy, czy para trafi do rozstrzygania duplikatów.
+    """
+    tuz_za_progiem = sum(1 << bit for bit in range(5))
+
+    relations, _ = relate(
+        Signature(SHA_A, simhash=hexed(0), folders=frozenset({"P/AKO/lab_05"})),
+        Signature(SHA_B, simhash=hexed(tuz_za_progiem), folders=frozenset({"P/AKO/lab_05"})),
+    )
+
+    assert [r.relation_type for r in relations] == ["related"]
+    assert relations[0].confidence < 0.7
+
+
+def test_a_near_miss_in_different_folders_is_nothing() -> None:
+    """Sam podpis za progiem to za mało — inaczej próg near-dupe przestałby cokolwiek znaczyć."""
+    tuz_za_progiem = sum(1 << bit for bit in range(5))
+
+    relations, _ = relate(
+        Signature(SHA_A, simhash=hexed(0), folders=frozenset({"P/AKO/lab_05"})),
+        Signature(SHA_B, simhash=hexed(tuz_za_progiem), folders=frozenset({"P/SO/inne"})),
+    )
+
+    assert relations == []
+
+
+def test_a_shared_folder_alone_relates_nothing() -> None:
+    """Katalog bez żadnego podobieństwa treści to nie relacja.
+
+    Inaczej każdy katalog z dwudziestoma plikami dawałby 190 par „powiązanych",
+    czyli szum w miejscu, w którym zapadają decyzje o duplikatach. Grupowanie
+    „to leży razem" robi poziom `group` w grafie (Q9), nie tabela relacji.
+    """
+    relations, _ = relate(
+        Signature(SHA_A, folders=frozenset({"P/AKO/lab_05"})),
+        Signature(SHA_B, folders=frozenset({"P/AKO/lab_05"})),
+    )
+
+    assert relations == []
+
+
+def test_related_pairs_are_not_duplicates_to_resolve() -> None:
+    """`related` nie może wejść do klastrów przeglądu — tam rozstrzyga się duplikaty."""
+    from orglib.review import build_clusters
+
+    klastry = build_clusters([
+        {"source_sha256": SHA_A, "target_sha256": SHA_B, "relation_type": "related",
+         "confidence": 0.4},
+    ])
+
+    assert klastry == []
 
 
 # -- kierunek i rodzaj ------------------------------------------------------
@@ -321,6 +409,9 @@ def test_real_thresholds_have_the_keys_this_stage_reads() -> None:
     # Potwierdzenie tekstem (Q5) jest LUŹNIEJSZE niż próg near-dupe dla samego tekstu:
     # OCR dwóch zdjęć tej samej kartki nigdy nie wychodzi identycznie.
     assert data["phash_text_hamming_max"] > data["simhash_hamming_max"]
+    # Near-miss w jednym katalogu (Q6) musi być LUŹNIEJSZY niż sam próg near-dupe,
+    # inaczej ta warstwa nigdy by się nie odezwała.
+    assert data["simhash_related_max"] > data["simhash_hamming_max"]
 
 
 def test_row_shape_matches_the_relations_table() -> None:

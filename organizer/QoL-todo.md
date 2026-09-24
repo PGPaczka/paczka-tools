@@ -152,8 +152,17 @@ dziś sygnałem.
 pewność relacji i grupuje pliki jako „ten sam materiał”. To jest tania i mocna
 przesłanka — katalog już niesie decyzję człowieka sprzed lat.
 
-- [ ] sygnał „wspólny katalog” w `near_dupe`
-- [ ] próg: katalog + zgodny tekst = `near_duplicate`; sam katalog = `related`
+- [x] sygnał „wspólny katalog” w `near_dupe` — podpis treści niesie teraz katalogi źródłowe
+      wszystkich kopii; wspólny katalog podnosi pewność pary o `folder_confirm_bonus` (0,05)
+      i dopisuje się do uzasadnienia
+- [x] próg — z jedną poprawką wobec pierwotnego pomysłu: **sam wspólny katalog to NIE relacja**.
+      Katalog z dwudziestoma plikami dałby 190 par „powiązanych”, czyli szum dokładnie tam,
+      gdzie rozstrzyga się duplikaty. `related` powstaje przy near-miss: podpis POZA progiem
+      near-dupe (do `simhash_related_max` = 8), ale obie treści w jednym katalogu. Pewność
+      takiej pary jest skalowana (×0,6), więc zawsze zostaje poniżej progu review — to kontekst,
+      nie werdykt. Do tego `build_clusters` pomija `related`: klaster służy do rozstrzygania
+      duplikatów, a nie do pokazywania sąsiadów z katalogu. Grupowanie „to leży razem” robi
+      poziom `group` w grafie (Q9).
 
 ---
 
