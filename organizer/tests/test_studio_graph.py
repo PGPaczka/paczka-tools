@@ -157,7 +157,8 @@ def test_status_says_what_is_missing(client) -> None:
 
     assert body["notes"] == len(SHA)
     assert body["graph_json"].endswith("graph.json")
-    assert body["hint"] == "just studio-graf"
+    # Wskazówka ma prowadzić do OBU dróg: komendy i przycisku w zakładce graf.
+    assert "just studio-graf" in body["hint"] and "przebuduj" in body["hint"]
 
 
 def test_graph_json_is_served_where_the_viewer_looks_for_it(client) -> None:

@@ -4,6 +4,7 @@
     getGraphStatus,
     getGraphSubject,
     graphUrl,
+    rebuildGraph,
     type GraphContentRef,
     type GraphStatus,
   } from '../lib/api';
@@ -31,6 +32,38 @@
 
   /** Ostatni adres, jaki sami ustawiliśmy — żeby nie przeładowywać ramki w kółko. */
   let applied = '';
+
+  /** Przebudowa danych grafu — graf jest migawką, więc decyzje widać dopiero po niej. */
+  let rebuilding = $state(false);
+  let log = $state<string[]>([]);
+  let rebuildError = $state<string | null>(null);
+  let rebuiltAt = $state<string | null>(null);
+
+  async function rebuild(): Promise<void> {
+    if (rebuilding) return;
+    rebuilding = true;
+    rebuildError = null;
+    log = [];
+    try {
+      const code = await rebuildGraph((line) => {
+        // Trzymamy ogon logu: generator wypisuje kilkaset linii, a liczy się koniec.
+        log = [...log, line].slice(-14);
+      });
+      if (code !== 0) {
+        rebuildError = `przebudowa zakończyła się kodem ${code}`;
+        return;
+      }
+      status = await getGraphStatus();
+      rebuiltAt = new Date().toLocaleTimeString('pl-PL');
+      // Viewer czyta `graph.json` przy starcie, więc świeże dane widać dopiero po
+      // przeładowaniu ramki. Samo podmienienie `src` nie wystarcza (ten sam adres).
+      frame?.contentWindow?.location.reload();
+    } catch (exc) {
+      rebuildError = exc instanceof Error ? exc.message : String(exc);
+    } finally {
+      rebuilding = false;
+    }
+  }
 
   /**
    * Viewer czyta zaznaczony węzeł z fragmentu URL-a, ale TYLKO przy montowaniu.
@@ -126,8 +159,22 @@
     {#if status}
       <span class="dim num">{status.notes} notatek</span>
     {/if}
+    {#if rebuiltAt}
+      <span class="dim num">odświeżony {rebuiltAt}</span>
+    {/if}
+    <button class="rebuild" onclick={rebuild} disabled={rebuilding}
+      title="Przelicz dane grafu z bazy — decyzje podjęte w studiu stają się widoczne">
+      {rebuilding ? 'przebudowuję…' : 'przebuduj'}
+    </button>
     <a class="external" href={src} target="_blank" rel="noreferrer">otwórz osobno ↗</a>
   </header>
+
+  {#if rebuilding || rebuildError || log.length > 0}
+    <div class="rebuild-log" class:failed={rebuildError !== null}>
+      {#if rebuildError}<p class="error">{rebuildError}</p>{/if}
+      <pre>{log.join('\n') || 'start…'}</pre>
+    </div>
+  {/if}
 
   {#if error}
     <p class="error">{error}</p>
@@ -177,6 +224,41 @@
 </section>
 
 <style>
+  .rebuild {
+    padding: 2px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--text);
+    font-size: 11px;
+  }
+  .rebuild:hover:not(:disabled) {
+    border-color: var(--accent-dim);
+  }
+  .rebuild:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  .rebuild-log {
+    max-height: 168px;
+    overflow: auto;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-deep);
+  }
+  .rebuild-log.failed {
+    border-left: 2px solid var(--red);
+  }
+  .rebuild-log pre {
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--muted);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
   .graph-panel {
     display: flex;
     flex-direction: column;

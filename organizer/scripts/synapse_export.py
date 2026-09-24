@@ -572,8 +572,9 @@ def export(
         raise typer.Exit(code=1)
     typer.echo(f"vault: {root} ({sum(counts.values())} notatek)")
     typer.echo(
-        "graf: dotnet run --project vendor/synapse/Synapse.Generator/Synapse.Generator "
-        f"-- --vault {root} --out vendor/synapse/synapse-viewer/public/graph.json --no-git"
+        # Podpowiedź pokazywała ścieżki sprzed wciągnięcia grafu do repo (`vendor/synapse`)
+        # i sugerowała zapis do artefaktów viewera, których studio już nie czyta.
+        "graf: `just studio-graf` albo przycisk „przebuduj” w zakładce graf"
     )
 
 

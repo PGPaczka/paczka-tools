@@ -318,6 +318,13 @@ klatkach schodzi do 1 i wraca, gdy graf się uspokoi. Gdy coś mimo to zwalnia, 
 **`/graf/?diag=1`** — w rogu pojawią się liczby z TEGO urządzenia: przerysowania na
 sekundę, czas rysowania w ms, liczba węzłów i krawędzi, zoom i realna gęstość pikseli.
 
+**Przycisk „przebuduj" odświeża dane grafu bez wychodzenia do terminala.** Graf jest
+migawką, więc decyzja podjęta w studiu nie jest w nim widoczna, dopóki nie przeliczy się
+vault i `graph.json`. Przycisk robi dokładnie te dwa kroki (bez budowania paczki JS —
+viewer czyta dane przy starcie), pokazuje log na żywo i po sukcesie przeładowuje ramkę.
+Łańcuch pęka na pierwszym błędzie: generator uruchomiony po nieudanym eksporcie zbudowałby
+graf ze starych notatek i zameldowałby sukces.
+
 **Hierarchia ma cztery poziomy: semestr → przedmiot → kategoria → plik.** Kategoria
 (`Kolokwia`, `Laboratoria`, `Wykład`…) jest węzłem pośrednim: bez niej przedmiot był
 gwiazdą o dwóch i pół tysiącach szprych — nieczytelną i drogą w rysowaniu, bo każda

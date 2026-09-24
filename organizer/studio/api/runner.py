@@ -48,6 +48,34 @@ WRITING_STAGES: frozenset[str] = frozenset({"apply"})
 TIMEOUT_S = 3600
 
 
+#: Projekt generatora .NET i katalog danych grafu — obie ścieżki liczone od modułu,
+#: nie od katalogu roboczego procesu (ta sama pułapka co przy `SCRIPTS_DIR`).
+GENERATOR_PROJECT = (
+    SCRIPTS_DIR.parent / "studio" / "graf" / "Synapse.Generator" / "Synapse.Generator"
+)
+
+
+def graph_commands(*, db_path: Path, work_dir: Path | None = None) -> list[list[str]]:
+    """Dwie komendy, które odświeżają DANE grafu: eksport vaulta i generator.
+
+    Budowania frontu tu nie ma i nie powinno być: viewer czyta `graph.json` z `work`
+    przy starcie, więc po zmianie decyzji wystarczy przebudować dane. Przebudowa
+    paczki JS trwa dłużej niż cała reszta i niczego by nie zmieniła.
+
+    Ścieżki idą bezwzględne, bo generator startuje z katalogiem roboczym swojego
+    projektu — względne `../../20_WORK` z `justfile` działa tylko stamtąd.
+    """
+    praca = (work_dir or db_path.parent).resolve()
+    vault = praca / "synapse" / "vault"
+    graph = praca / "synapse" / "graph.json"
+    return [
+        [sys.executable, str(SCRIPTS_DIR / "synapse_export.py"), "--db", str(db_path),
+         "--out-dir", str(vault)],
+        ["dotnet", "run", "--project", str(GENERATOR_PROJECT), "-c", "Release", "--nologo",
+         "--", "--vault", str(vault), "--out", str(graph), "--no-git"],
+    ]
+
+
 class UnknownStage(ValueError):
     """Nazwa etapu spoza zamkniętej listy."""
 
@@ -90,7 +118,27 @@ def _frame(event: str, payload: dict[str, Any]) -> str:
     return f"event: {event}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
-def stream(argv: Sequence[str], *, cwd: Path | None = None) -> Iterator[str]:
+def stream_all(commands: Sequence[Sequence[str]], *, cwd: Path | None = None) -> Iterator[str]:
+    """Łańcuch komend jako JEDEN strumień: wspólny log, jedna ramka ``done``.
+
+    Łańcuch pęka na pierwszym niezerowym kodzie. To nie jest ostrożność na zapas:
+    generator grafu uruchomiony po nieudanym eksporcie zbudowałby graf ze STARYCH
+    notatek i zameldował sukces — czyli widok pokazałby nieaktualne dane, wyglądając
+    na odświeżony.
+    """
+    ostatni = 0
+    for argv in commands:
+        for frame in stream(argv, cwd=cwd, final=False):
+            if frame.startswith("event: exit"):
+                ostatni = json.loads(frame.split("data: ", 1)[1])["code"]
+                break
+            yield frame
+        if ostatni != 0:
+            break
+    yield _frame("done", {"code": ostatni})
+
+
+def stream(argv: Sequence[str], *, cwd: Path | None = None, final: bool = True) -> Iterator[str]:
     """Uruchamia etap i oddaje jego wyjście linia po linii jako zdarzenia SSE.
 
     Kończy ramką ``done`` z kodem wyjścia — to on, a nie treść logu, mówi
@@ -109,10 +157,15 @@ def stream(argv: Sequence[str], *, cwd: Path | None = None) -> Iterator[str]:
         for line in process.stdout:
             yield _frame("line", {"text": line.rstrip("\n")})
         code = process.wait(timeout=TIMEOUT_S)
-        yield _frame("done", {"code": code})
+        # `final=False` znaczy „to ogniwo łańcucha": kod wyjścia idzie ramką `exit`,
+        # a o `done` decyduje `stream_all` po ostatniej komendzie.
+        yield _frame("done" if final else "exit", {"code": code})
     except subprocess.TimeoutExpired:
         process.kill()
-        yield _frame("done", {"code": 124, "detail": f"etap przekroczył {TIMEOUT_S}s"})
+        yield _frame(
+            "done" if final else "exit",
+            {"code": 124, "detail": f"etap przekroczył {TIMEOUT_S}s"},
+        )
     finally:
         if process.poll() is None:
             process.terminate()

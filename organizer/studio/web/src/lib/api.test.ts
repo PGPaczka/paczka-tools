@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
-import { itemsUrl, previewImageUrl, subjectUrl } from './api';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { itemsUrl, previewImageUrl, rebuildGraph, subjectUrl } from './api';
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe('itemsUrl', () => {
   it('przenosi filtry do zapytania', () => {
@@ -39,5 +41,44 @@ describe('previewImageUrl', () => {
   it('adresuje stronę podglądu po treści, nie po ścieżce pliku', () => {
     expect(previewImageUrl('a'.repeat(64))).toBe(`/api/preview/${'a'.repeat(64)}/image?page=1`);
     expect(previewImageUrl('b'.repeat(64), 3)).toBe(`/api/preview/${'b'.repeat(64)}/image?page=3`);
+  });
+});
+
+/** Odpowiedź SSE jako strumień — tak, jak oddaje ją backend. */
+function strumien(tekst: string): Response {
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode(tekst));
+      controller.close();
+    },
+  });
+  return new Response(body, { status: 200, headers: { 'content-type': 'text/event-stream' } });
+}
+
+describe('przebudowa grafu', () => {
+  it('oddaje KOD WYJŚCIA, a linie przekazuje na bieżąco', async () => {
+    // O powodzeniu mówi kod, nie treść logu: generator wypisuje ostrzeżenia także
+    // przy udanym przebiegu.
+    const linie: string[] = [];
+    vi.stubGlobal('fetch', async () =>
+      strumien(
+        'event: start\ndata: {"argv":["python","synapse_export.py"]}\n\n' +
+          'event: line\ndata: {"text":"notatek: 4315"}\n\n' +
+          'event: done\ndata: {"code":0}\n\n',
+      ),
+    );
+
+    const kod = await rebuildGraph((l) => linie.push(l));
+
+    expect(kod).toBe(0);
+    expect(linie).toContain('notatek: 4315');
+  });
+
+  it('niepowodzenie backendu zamienia w wyjątek z powodem', async () => {
+    vi.stubGlobal('fetch', async () =>
+      new Response(JSON.stringify({ detail: 'brak dotnet w PATH' }), { status: 500 }),
+    );
+
+    await expect(rebuildGraph(() => {})).rejects.toThrow('brak dotnet w PATH');
   });
 });

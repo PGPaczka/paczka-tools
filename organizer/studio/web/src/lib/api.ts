@@ -570,32 +570,27 @@ export const getPlanTree = (semester: number, skrot: string, grupa?: string, sig
  * zwykłym kodem 409 ZANIM cokolwiek wystartuje — widok ma ją pokazać, a nie
  * tłumaczyć „coś poszło nie tak”.
  */
-export async function runStage(
-  semester: number,
-  skrot: string,
-  body: { stage: Stage; plan_hash?: string; confirm?: boolean },
-  onLine: (line: string) => void,
-  grupa?: string,
-): Promise<number> {
-  const response = await fetch(
-    `/api/plan/${semester}/${encodeURIComponent(skrot)}/run` +
-      (grupa ? `?grupa=${encodeURIComponent(grupa)}` : ''),
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-    },
-  );
-  if (!response.ok) {
-    let detail: unknown = `${response.status} ${response.statusText}`;
-    try {
-      detail = (await response.json()).detail ?? detail;
-    } catch {
-      /* odpowiedź bez JSON-a */
-    }
-    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail, null, 1));
+/** Treść błędu z odpowiedzi API — backend wkłada powód do `detail`. */
+async function failure(response: Response): Promise<Error> {
+  let detail: unknown = `${response.status} ${response.statusText}`;
+  try {
+    detail = (await response.json()).detail ?? detail;
+  } catch {
+    /* odpowiedź bez JSON-a */
   }
+  return new Error(typeof detail === 'string' ? detail : JSON.stringify(detail, null, 1));
+}
 
+/**
+ * Czyta strumień SSE etapu i oddaje jego KOD WYJŚCIA.
+ *
+ * To kod, a nie treść logu, mówi widokowi, czy się udało — log bywa pełen ostrzeżeń
+ * przy udanym przebiegu i pusty przy nieudanym.
+ */
+async function readStageStream(
+  response: Response,
+  onLine: (line: string) => void,
+): Promise<number> {
   const reader = response.body?.getReader();
   if (!reader) throw new Error('przeglądarka nie oddała strumienia');
   const decoder = new TextDecoder();
@@ -618,4 +613,36 @@ export async function runStage(
     }
   }
   return code;
+}
+
+/**
+ * Przebudowa DANYCH grafu: eksport vaulta z bazy i generator.
+ *
+ * Graf jest migawką, więc bez tego decyzja podjęta w studiu nie jest w nim widoczna.
+ * Paczki JS viewera się nie buduje — czyta on `graph.json` przy starcie.
+ */
+export async function rebuildGraph(onLine: (line: string) => void): Promise<number> {
+  const response = await fetch('/api/graph/rebuild', { method: 'POST' });
+  if (!response.ok) throw await failure(response);
+  return readStageStream(response, onLine);
+}
+
+export async function runStage(
+  semester: number,
+  skrot: string,
+  body: { stage: Stage; plan_hash?: string; confirm?: boolean },
+  onLine: (line: string) => void,
+  grupa?: string,
+): Promise<number> {
+  const response = await fetch(
+    `/api/plan/${semester}/${encodeURIComponent(skrot)}/run` +
+      (grupa ? `?grupa=${encodeURIComponent(grupa)}` : ''),
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  );
+  if (!response.ok) throw await failure(response);
+  return readStageStream(response, onLine);
 }

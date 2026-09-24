@@ -594,8 +594,22 @@ def create_app(
             "viewer_built": (VIEWER_DIST / "index.html").is_file(),
             "graph_json": None if graph is None else str(graph),
             "notes": sum(len(ids) for ids in index.values()),
-            "hint": "just studio-graf",
+            "hint": "just studio-graf (albo przycisk „przebuduj” w tej zakładce)",
         }
+
+    @app.post("/api/graph/rebuild", tags=["graph"])
+    def rebuild_graph() -> StreamingResponse:
+        """Przebudowuje dane grafu (migawka decyzji w vaulcie) i streami log przez SSE.
+
+        Bez tego zmienione decyzje nie są widoczne w widoku grafu — dane to migawka,
+        a wizualizacja je czyta przy starcie.
+        """
+        commands = runner.graph_commands(db_path=database_path)
+        return StreamingResponse(
+            runner.stream_all(commands),
+            media_type="text/event-stream",
+            headers={"cache-control": "no-store", "x-accel-buffering": "no"},
+        )
 
     @app.get("/api/graph/node/{sha256}", tags=["graph"])
     def graph_node(
