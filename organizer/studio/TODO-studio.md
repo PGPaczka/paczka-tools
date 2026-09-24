@@ -502,7 +502,12 @@ Cztery zgłoszenia z jednego ekranu, wszystkie o układzie, nie o danych:
   widok bez śladu, dlaczego. Pusty wybór nie jest przywracany — wtedy wchodzi widok
   domyślny, czyli szkielet paczki;
 - **menu trybów w studiu** poniżej 1100 px też jest listą rozwijaną; przyciski i lista
-  czytają z jednej tablicy `MODES`, żeby nie rozjechały się przy kolejnej zmianie.
+  czytają z jednej tablicy `MODES`, żeby nie rozjechały się przy kolejnej zmianie;
+- **pływające przyciski ustępują otwartej notatce** (propozycja użytkownika): na wąskim
+  ekranie mieści się jeden panel, więc przycisk filtrów i plakietka pomiarów znikają,
+  gdy notatka jest otwarta, i wracają po jej zamknięciu. Przesuwanie ich w kółko po
+  rogach nie miało końca — dopóki dwa panele walczą o ten sam ekran, zawsze coś zasłania
+  coś innego.
 
 ## Zależności od potoku
 

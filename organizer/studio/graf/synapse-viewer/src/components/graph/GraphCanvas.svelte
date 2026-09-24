@@ -59,6 +59,8 @@
    * właśnie tę część ekranu, na którą się patrzy.
    */
   let diagMini = $state(typeof window !== 'undefined' && window.innerWidth <= 720)
+  /** Otwarta notatka zajmuje na telefonie cały ekran — pomiary ustępują jej miejsca. */
+  let detalOtwarty = $state(false)
   let stats = $state({
     fps: 0, drawMs: 0, nodesDrawn: 0, edgesDrawn: 0, labelsDrawn: 0,
     scale: 1, renderDpr: 1, deviceDpr: 1,
@@ -388,7 +390,12 @@
 
     // Immediately redraw when selection/visibility/hover changes
     const scheduleRender = () => renderer?.scheduleRender()
-    const unsubSelected  = selectedId.subscribe(scheduleRender)
+    const unsubSelected = selectedId.subscribe((id) => {
+      // Na wąskim ekranie panel notatki jest arkuszem na całą szerokość: plakietka
+      // pomiarów zasłaniałaby jego nagłówek, więc na ten czas znika.
+      detalOtwarty = id !== null && window.innerWidth <= 820
+      scheduleRender()
+    })
     // Relayout when the visible SET changes (not merely when something re-renders).
     let lastVisibleKey = [...get(visibleNodeIds)].sort().join(',')
     let relayoutTimer: ReturnType<typeof setTimeout> | null = null
@@ -446,6 +453,7 @@
   <button
     class="diag"
     class:mini={diagMini}
+    class:hidden={detalOtwarty}
     title={diagMini ? 'Pokaż pomiary' : 'Schowaj pomiary'}
     onclick={() => (diagMini = !diagMini)}
   >
@@ -475,6 +483,9 @@
     line-height: 1.45;
     text-align: left;
     cursor: pointer;
+  }
+  .diag.hidden {
+    display: none;
   }
   .diag.mini {
     padding: 3px 7px;

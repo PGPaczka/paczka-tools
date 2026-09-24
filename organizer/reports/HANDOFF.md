@@ -2,6 +2,8 @@
 
 ## Kontekst ręczny
 
+- **Pływające przyciski ustępują otwartej notatce (2026-09-24, propozycja użytkownika).** Na telefonie mieści się jeden panel, więc przycisk szuflady filtrów i plakietka `kl./s` znikają, gdy panel notatki jest otwarty, i wracają po zamknięciu. To był trzeci podejście do tego samego zderzenia — dwa poprzednie tylko przesuwały przyciski po rogach. **Dopóki dwa panele walczą o ten sam ekran, przesuwanie nie ma końca; trzeba rozstrzygnąć, który jest ważniejszy.**
+
 - **Filtry grafu przeżywają odświeżenie (2026-09-24).** `localStorage`, ale z przycinaniem do słownika BIEŻĄCEGO grafu — tagi, typy węzłów, kategorie i rodzaje relacji potrafią zniknąć przy przebudowie vaulta, a filtr wskazujący nieistniejący tag gasi widok bez śladu, dlaczego. Pusty wybór nie jest przywracany (wchodzi widok domyślny). Moduł `stores/filterPersistence.ts` z testami.
 - **Druga tura poprawek mobilnych:** pasek viewera chowa nazwę vaulta i skrót `⌘K` poniżej 720 px (koło zębate wystawało), plakietka `kl./s` przenosi się na lewo (zasłaniała `×` panelu notatki), przycisk szuflady filtrów po otwarciu idzie na prawą krawędź szuflady (siedział na tytule panelu), a menu trybów w samym studiu poniżej 1100 px jest listą rozwijaną. Przyciski i lista trybów czytają z jednej tablicy `MODES` — dwa źródła tej samej prawdy rozjechałyby się przy pierwszej zmianie.
 

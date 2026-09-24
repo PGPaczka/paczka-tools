@@ -304,6 +304,10 @@ a podgląd `?diag=1` startuje na telefonie zwinięty do plakietki, rozwija się 
 i stoi po lewej, żeby nie zasłaniać `×` panelu notatki. Przycisk szuflady filtrów po
 otwarciu przenosi się na jej prawą krawędź — w rogu zasłaniał tytuł panelu.
 
+Gdy na ekran wchodzi tylko JEDEN panel, otwarta notatka jest na wierzchu: przycisk filtrów
+i plakietka pomiarów znikają na czas jej czytania i wracają po zamknięciu. Pływający
+przycisk nad panelem, który zajmuje cały ekran, nie ma czego otwierać obok.
+
 **Wybór filtrów przeżywa odświeżenie.** Zapisany w `localStorage`, a przy wczytaniu
 przycinany do tego, co w TYM grafie istnieje: po przebudowie vaulta tag po przedmiocie,
 którego już nie ma, gasiłby widok bez śladu, dlaczego.

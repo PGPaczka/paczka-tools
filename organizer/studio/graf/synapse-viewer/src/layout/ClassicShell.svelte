@@ -8,6 +8,15 @@
    */
   let filtersOpen = false
   import { createEventDispatcher } from 'svelte'
+  import { selectedId } from '../stores/selectionStore'
+
+  /**
+   * Na telefonie mieści się JEDEN panel naraz, więc pływające przyciski nie mają czego
+   * dotyczyć: przycisk filtrów siadał na nagłówku otwartej notatki i zasłaniał jej
+   * kategorię (zgłoszone 2026-09-24). Otwarta notatka jest wtedy na wierzchu, a filtry
+   * wracają, gdy ją zamkniesz.
+   */
+  $: detailOpen = $selectedId !== null
 
   export let view: 'graph' | 'cards' | 'dash' | 'venn' = 'graph'
   export let vaultName: string = 'Synapse'
@@ -102,11 +111,12 @@
   <button
     class="filters-toggle"
     class:open={filtersOpen}
+    class:hidden={detailOpen && !filtersOpen}
     aria-label={filtersOpen ? 'Hide filters' : 'Show filters'}
     on:click={() => (filtersOpen = !filtersOpen)}
   >{filtersOpen ? '×' : '☰'}</button>
 
-  <div class="content-row" class:filters-open={filtersOpen}>
+  <div class="content-row" class:filters-open={filtersOpen} class:detail-open={detailOpen}>
     <!-- Left sidebar: filter panel slot -->
     <slot name="filters" />
 
@@ -321,10 +331,16 @@
     }
 
     /* Otwarta szuflada: przycisk przenosi się na JEJ prawą krawędź. W rogu zasłaniał
-       tytuł panelu filtrów, a po zamknięciu wchodził na panel notatki. */
+       tytuł panelu filtrów. */
     .filters-toggle.open {
       left: auto;
       right: 8px;
+    }
+
+    /* Otwarta notatka zajmuje cały ekran — przycisk filtrów nie ma wtedy czego
+       otwierać obok, a siedział na jej nagłówku. */
+    .filters-toggle.hidden {
+      display: none;
     }
 
     /* Panel notatki jest wtedy arkuszem na całą szerokość, nie trzecią kolumną. */
