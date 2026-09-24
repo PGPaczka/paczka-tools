@@ -2,6 +2,31 @@
 
 ## Kontekst ręczny
 
+- **Cała lista QoL (Q1–Q9) zamknięta 2026-09-24.** Najważniejsze rzeczy, które wyszły po drodze
+  i których nie widać w samym kodzie:
+  - **`--ocr-images` sam z siebie nie zrobiłby nic.** Obrazy czekające na extract leżą
+    w poddrzewach duplikatów (`db.files_pending` je wycina), a kanoniczne kopie miały już
+    status `extracted`. Trzeba było cofnąć 6928 plików-obrazów do `hashed`. Efekt: 5058
+    obrazów z tekstem w 50 minut.
+  - **Weto tekstem dla obrazów ma próg DŁUGOŚCI.** Bez niego znikały pary w rodzaju „ten sam
+    wykres, inaczej rozpoznane osie": mediana krótszego tekstu w odrzuconej parze to 205
+    znaków, ale 3% ma poniżej czterdziestu i tam simhash opisuje szum OCR. Bilans po
+    przeliczeniu: 8181 near-dupe (było 11 556), 4102 `related`, 3479 par obrazów odrzuconych.
+  - **Ręczne powiązanie katalogów NIE jest `duplicate_of`.** Tamto liczy się z `tree_hash`
+    i służy do wycinania poddrzew z potoku; ręczna para mówi „to sobie odpowiada", więc
+    wpisanie jej tam wyrzuciłoby z extract i classify pliki obecne tylko po jednej stronie.
+    Reguła 15 w `AGENTS.md`.
+  - **Dymne sprawdzanie endpointów ZAPISU na żywej bazie zapisuje.** Próba „czy wykryje
+    kolizję" trafiła w wolną nazwę i zostawiła prawdziwą decyzję dla pliku AKO; odtworzenie
+    wyszło z `plan_items` i z sąsiednich wierszy tego samego przebiegu planu. Na żywej bazie
+    wolno wołać tylko warianty jawnie bezskutkowe albo takie, które muszą skończyć się błędem.
+  - **Delegowany Codex (GPT-6, `xhigh`) trzy razy przypisał sobie cudzą pracę** z `git diff`
+    i raz zaproponował `git restore studio/web/`, co skasowałoby front. Raz nagiął też
+    PRODUKCYJNY renderer notatek do literówki w teście (zapis tagów listą wierszową tylko dla
+    grup). Wniosek: raport delegata weryfikować diffem, a nie czytać jak sprawozdanie.
+  - **Baza ma `schema_version 3`** (nowa tabela `manual_folder_links`). Kopia sprzed migracji:
+    `20_WORK/organizer.sqlite.pre-v3-20260924-175300` — do skasowania, gdy wszystko się ułoży.
+
 - **„0 kB" w notatkach grafu miało DWIE przyczyny (2026-09-24).** Pierwsza znana: materiały bez wiersza w `files` (te same 890) nie miały skąd wziąć rozmiaru — teraz idzie on ze `stat` pliku w paczce. Druga, większa: `{size / 1024:.0f}` robiło z każdego pliku poniżej pół kilobajta „0 kB", co dotyczyło **761** notatek. `orglib.synapse_vault.human_size` podaje bajty poniżej kilobajta i megabajty powyżej; pusty rozmiar znaczy „nie wiem", nie „mało". Warto pamiętać, że pierwsza znaleziona przyczyna nie musi być główną.
 - Ścieżka `.md` w nagłówku notatki to ścieżka SAMEJ NOTATKI w vaulcie (tak viewer pokazuje każdy vault), a nie materiału — ten jest przy decyzji i w „Prowenancji". Nie błąd, ale pytanie wróci.
 
@@ -144,9 +169,9 @@
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-09-24T18:09:19+02:00
+- Odświeżono: 2026-09-24T23:05:54+02:00
 - Branch: `master`
-- Commit: `cac750d`
+- Commit: `ed691c2`
 - Git status:
   ```text
   (clean)
