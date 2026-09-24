@@ -240,6 +240,19 @@ export const postDecisionBatch = (decisions: DecisionRequest[], decidedBy = 'stu
 
 export const postUndo = () => postJson<UndoResult>('/api/decisions/undo', {});
 
+/** Wynik zmiany nazwy: `changed=false` znaczy „ta sama nazwa", więc nic nie zapisano. */
+export interface RenameResult {
+  sha256: string;
+  old_path: string;
+  target_relative_path: string;
+  changed: boolean;
+  decided_at: string | null;
+}
+
+/** Zmienia SAMĄ nazwę pliku docelowego; katalog zostaje. Kolizję zgłasza backend (409). */
+export const renameTarget = (sha256: string, filename: string) =>
+  postJson<RenameResult>('/api/decisions/rename', { sha256, filename });
+
 // --- S1: preview + bulk ---
 
 export interface Preview {

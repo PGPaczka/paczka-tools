@@ -9,6 +9,7 @@
     getPreview,
     getItemsByFolder,
     postDecisionByFolder,
+    renameTarget,
     previewImageUrl,
     type Item,
     type ItemsPage,
@@ -52,6 +53,11 @@
    *  „przenieś tu” w zakładce plan, czyli wyjście z kolejki. */
   let editingTarget = $state(false);
   let targetDraft = $state('');
+
+  /** Zmiana samej nazwy (klawisz `r`). Osobno od `t`, bo to inna decyzja: przy pełnej
+   *  ścieżce łatwo przy okazji przenieść plik gdzie indziej, a tu katalog jest stały. */
+  let editingName = $state(false);
+  let nameDraft = $state('');
 
   let preview = $state<Preview | null>(null);
   let previewError = $state<string | null>(null);
@@ -172,6 +178,42 @@
     }
   }
 
+  function startRename(): void {
+    if (!current) return;
+    if (!current.target_relative_path) {
+      error = 'ta pozycja nie ma jeszcze ścieżki docelowej — najpierw kategoria albo `t`';
+      return;
+    }
+    nameDraft = basename(current.target_relative_path);
+    editingName = true;
+  }
+
+  /** Kursor w nazwie, zaznaczony sam rdzeń — rozszerzenia prawie nigdy się nie zmienia. */
+  function focusName(node: HTMLInputElement): void {
+    node.focus();
+    const dot = node.value.lastIndexOf('.');
+    node.setSelectionRange(0, dot > 0 ? dot : node.value.length);
+  }
+
+  async function saveName(): Promise<void> {
+    if (!current || !nameDraft.trim()) return;
+    error = null;
+    try {
+      const result = await renameTarget(current.sha256, nameDraft.trim());
+      editingName = false;
+      // Bez zmiany nazwy nie ma decyzji do zapisania, więc nie udawajmy, że była.
+      success = result.changed
+        ? `nazwa: ${basename(result.target_relative_path)}`
+        : 'nazwa bez zmian';
+      if (result.changed) {
+        onDecided?.();
+        await loadNext();
+      }
+    } catch (exc) {
+      error = exc instanceof Error ? exc.message : String(exc);
+    }
+  }
+
   async function undo(): Promise<void> {
     if (!history.length) return;
     error = null;
@@ -234,6 +276,10 @@
         event.preventDefault();
         targetDraft = current.target_relative_path ?? '';
         editingTarget = true;
+        break;
+      case 'r':
+        event.preventDefault();
+        startRename();
         break;
       case 'f':
         event.preventDefault();
@@ -393,7 +439,10 @@
           <div class="reason dim">{current.reason}</div>
         {/if}
         {#if current.target_relative_path}
-          <div class="target mono dim">{current.target_relative_path}</div>
+          <div class="target mono dim">
+            {current.target_relative_path}
+            <button class="rename-link" onclick={startRename} title="r">zmień nazwę</button>
+          </div>
         {/if}
       </div>
 
@@ -451,6 +500,31 @@
         </div>
       {/if}
 
+      {#if editingName}
+        <div class="name-edit">
+          <label for="target-name">nazwa w paczce:</label>
+          <div class="name-row">
+            <!-- Katalog pokazany, ale nie do edycji: to ma być JEDNA zmiana, nie przenosiny. -->
+            <span class="mono dim dir">{dirname(current.target_relative_path ?? '')}/</span>
+            <input
+              id="target-name"
+              class="mono"
+              bind:value={nameDraft}
+              spellcheck="false"
+              use:focusName
+              onkeydown={(e) => {
+                if (e.key === 'Enter') { e.preventDefault(); saveName(); }
+                if (e.key === 'Escape') { e.preventDefault(); editingName = false; }
+              }}
+            />
+          </div>
+          <div class="name-actions">
+            <button onclick={saveName}>zapisz</button>
+            <button class="ghost" onclick={() => (editingName = false)}>anuluj</button>
+          </div>
+        </div>
+      {/if}
+
       {#if bulk}
         <div class="bulk">
           <div class="bulk-head">
@@ -491,6 +565,7 @@
         <kbd>m</kbd> media &nbsp;
         <kbd>o</kbd> outdated &nbsp;
         <kbd>t</kbd> ścieżka &nbsp;
+        <kbd>r</kbd> nazwa &nbsp;
         <kbd>f</kbd> katalog &nbsp;
         <kbd>u</kbd> cofnij &nbsp;
         <kbd>?</kbd> pomoc
@@ -511,6 +586,7 @@
           <tr><td><kbd>m</kbd></td><td>Media</td></tr>
           <tr><td><kbd>o</kbd></td><td>Oznacz jako outdated</td></tr>
           <tr><td><kbd>t</kbd></td><td>Zmień ścieżkę docelową tej pozycji</td></tr>
+          <tr><td><kbd>r</kbd></td><td>Zmień samą nazwę pliku (katalog bez zmian)</td></tr>
           <tr><td><kbd>f</kbd></td><td>Decyzja dla całego katalogu źródłowego</td></tr>
           <tr><td><kbd>u</kbd></td><td>Cofnij ostatnią decyzję</td></tr>
           <tr><td><kbd>?</kbd></td><td>Pokaż/ukryj tę pomoc</td></tr>
@@ -748,7 +824,56 @@
     font-family: var(--font-mono);
     font-size: 11px;
   }
+  .name-edit {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px;
+    border: 1px solid var(--accent-dim);
+    border-radius: 7px;
+    background: var(--panel);
+  }
+  .name-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    /* Katalog bywa długi; na wąskim ekranie ma się zawinąć, a nie wypchnąć pole nazwy. */
+    flex-wrap: wrap;
+  }
+  .name-row .dir {
+    font-size: 11px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+  .name-row input {
+    flex: 1;
+    min-width: 12rem;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg-deep);
+    font-size: 12px;
+  }
+  .name-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .rename-link {
+    margin-left: 8px;
+    padding: 0 6px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--muted);
+    font-size: 10px;
+  }
+  .rename-link:hover {
+    color: var(--text);
+    border-color: var(--accent-dim);
+  }
   .target-edit button,
+  .name-actions button,
   .bulk-actions button {
     padding: 3px 12px;
     border: 1px solid var(--border);
@@ -756,6 +881,7 @@
     color: var(--muted);
   }
   .target-edit button:hover,
+  .name-actions button:hover,
   .bulk-actions button:hover:not(:disabled) {
     color: var(--text);
     border-color: var(--accent-dim);

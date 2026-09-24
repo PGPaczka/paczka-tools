@@ -30,7 +30,15 @@ from fastapi.staticfiles import StaticFiles
 
 from orglib import config, graph_link
 from orglib.classify import load_rules
-from orglib.decisions import GroundTruthConflict, record_batch, record_decision, undo_last
+from orglib.decisions import (
+    GroundTruthConflict,
+    NoTargetPath,
+    TargetCollision,
+    record_batch,
+    record_decision,
+    rename_target,
+    undo_last,
+)
 
 from . import ORGANIZER_ROOT, database, planning, queries, runner
 
@@ -269,6 +277,35 @@ def create_app(
             )
             conn.commit()
             return result
+        except GroundTruthConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post("/api/decisions/rename", tags=["decisions"])
+    def post_rename(
+        body: dict[str, Any] = Body(...),
+        conn: sqlite3.Connection = Depends(get_rw_conn),
+    ) -> dict[str, Any]:
+        """Zmienia nazwę pliku w ścieżce docelowej, nie przenosząc go (S1.2)."""
+        try:
+            sha256 = body["sha256"]
+            filename = body["filename"]
+        except KeyError as exc:
+            raise HTTPException(status_code=422, detail=f"brak wymaganego pola: {exc}") from exc
+        try:
+            result = rename_target(
+                conn,
+                sha256=sha256,
+                filename=filename,
+                decided_by=body.get("decided_by", "studio"),
+            )
+            conn.commit()
+            return result
+        except NoTargetPath as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except TargetCollision as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         except GroundTruthConflict as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except ValueError as exc:

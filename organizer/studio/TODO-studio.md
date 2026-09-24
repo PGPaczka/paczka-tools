@@ -526,6 +526,32 @@ Po przebudowie: zero notatek z „0 kB".
 tak działa viewer dla każdego vaulta. Ścieżka materiału jest niżej, przy decyzji
 (`paczka/SEM…`) i w sekcji „Prowenancja".
 
+## Zmiana nazwy w paczce z kolejki decyzji (QoL Q2, 2026-09-24)
+
+`POST /api/decisions/rename` i klawisz `r`. Osobna operacja od edycji całej ścieżki (`t`),
+bo to dwie różne decyzje: „ma się nazywać inaczej" i „ma leżeć gdzie indziej". Katalog jest
+w polu widoczny, ale nieedytowalny, a kursor wchodzi z zaznaczonym rdzeniem nazwy.
+
+Co z tego wyszło:
+
+- **reguły nazw są jedne** — `rename_target` przepuszcza nową ścieżkę przez
+  `plan_lint.check_path_safety` i `check_windows_name`, więc nazwa nie do utrzymania na
+  Windowsie odbija się w kolejce, a nie dopiero przy `validate`;
+- **kolizję porównujemy bez względu na wielkość liter**: paczka jedzie do repo klonowanego
+  też na Windowsie i macOS-ie, gdzie `Wyklad1.pdf` i `wyklad1.pdf` to jeden plik, czyli
+  cicha strata materiału. Kolizja dotyczy całej ścieżki — ta sama nazwa w innym katalogu
+  jest w porządku;
+- **ta sama nazwa nie jest decyzją**: bez tego samo otwarcie pola i Enter zamieniałyby
+  heurystykę w „decyzję człowieka" z pewnością 1.0;
+- zapis idzie przez `record_decision`, więc ochrona `ground_truth` i wpis w
+  `manual_decisions` są te same co dla każdej innej decyzji — bez drugiej implementacji.
+
+Pułapka na przyszłość: **dymne sprawdzenie endpointu zapisu na żywej bazie zapisuje**.
+Próba „czy kolizja zadziała" trafiła w nazwę, która akurat była wolna, i zostawiła prawdziwą
+ręczną decyzję. Odtworzenie wyszło z `plan_items` i z sąsiednich wierszy tego samego przebiegu
+planu (`plan:080b597c7a37`), ale na żywej bazie wolno wywoływać tylko warianty jawnie
+bezskutkowe (ta sama nazwa) albo takie, które kończą się błędem.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

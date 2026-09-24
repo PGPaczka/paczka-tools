@@ -13,10 +13,10 @@ jest sygnalizowana czytelnym błędem, nie cichym pominięciem.
 from __future__ import annotations
 
 import sqlite3
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Optional
 
-from orglib import config, db
+from orglib import config, db, plan_lint
 
 MANUAL_RUN_ID = "manual_decision"
 GROUND_TRUTH_RUN_ID = "ground_truth"
@@ -28,6 +28,14 @@ EXPORT_PATH = config.ORGANIZER_ROOT / "reports" / "manual_decisions.jsonl"
 
 class GroundTruthConflict(ValueError):
     """Próba nadpisania decyzji ground truth."""
+
+
+class NoTargetPath(LookupError):
+    """Treść nie ma ścieżki docelowej, więc nie ma czego przemianować."""
+
+
+class TargetCollision(ValueError):
+    """Inna treść celuje już w tę samą ścieżkę."""
 
 
 def record_decision(
@@ -231,3 +239,96 @@ def _guard_ground_truth(conn: sqlite3.Connection, sha256: str) -> None:
             f"sha256={sha256[:16]}… ma run_id=ground_truth — decyzja ręczna "
             "nie może nadpisać materiału, który już leży w paczce"
         )
+
+
+def rename_target(
+    conn: sqlite3.Connection,
+    *,
+    sha256: str,
+    filename: str,
+    decided_by: str = "studio",
+) -> dict[str, Any]:
+    """Zmienia SAMĄ nazwę pliku w ścieżce docelowej; katalog zostaje.
+
+    Osobna operacja, bo edycja całej ścieżki miesza dwie różne decyzje — „to ma się
+    nazywać inaczej" i „to ma leżeć gdzie indziej" — i przy okazji pozwala wpisać
+    nazwę, którą bramka planu odrzuci dopiero przy `validate`. Reguły nazw biorą się
+    stąd, co bramka (``plan_lint``), więc tu i tam obowiązuje jedno prawo.
+    """
+    row = conn.execute(
+        "SELECT semester, subject_key, category, action, target_relative_path "
+        "FROM classifications WHERE sha256 = ?",
+        (sha256,),
+    ).fetchone()
+    if row is None:
+        raise NoTargetPath(
+            f"sha256={sha256[:12]}… nie ma klasyfikacji, więc nie ma ścieżki docelowej do zmiany"
+        )
+    old_target = row["target_relative_path"]
+    if not old_target:
+        raise NoTargetPath(
+            f"sha256={sha256[:12]}… nie ma ścieżki docelowej — najpierw decyzja o kategorii"
+        )
+
+    filename = filename.strip()
+    if not filename:
+        raise ValueError("nazwa pliku nie może być pusta")
+    if "/" in filename or "\\" in filename:
+        raise ValueError(
+            "ta operacja zmienia wyłącznie nazwę — przeniesienie to edycja całej ścieżki docelowej"
+        )
+    if filename in (".", ".."):
+        raise ValueError("nazwa nie może być `.` ani `..`")
+    # `check_windows_name` patrzy na koniec CAŁEGO segmentu, więc spacji przed
+    # rozszerzeniem („kol1 .pdf") samo by nie złapało — a to prawie zawsze literówka.
+    stem = PurePosixPath(filename).stem
+    if stem and stem != stem.rstrip(". "):
+        raise ValueError("nazwa przed rozszerzeniem nie może kończyć się spacją ani kropką")
+
+    new_target = str(PurePosixPath(old_target).with_name(filename))
+    problems = plan_lint.check_path_safety(new_target) + plan_lint.check_windows_name(new_target)
+    if problems:
+        raise ValueError(f"nazwa {filename!r}: " + ", ".join(problems))
+
+    # Ta sama nazwa to brak decyzji: zapis zamieniłby cudzą heurystykę w „decyzję człowieka".
+    if new_target == old_target:
+        return {
+            "sha256": sha256,
+            "old_path": old_target,
+            "target_relative_path": new_target,
+            "changed": False,
+            "decided_at": None,
+        }
+
+    # Wielkość liter pomijamy, bo paczka jedzie do repo klonowanego także na Windowsie
+    # i macOS-ie: tam `Wyklad1.pdf` i `wyklad1.pdf` to jeden plik, czyli cicha strata.
+    collision = conn.execute(
+        "SELECT sha256 FROM classifications "
+        "WHERE lower(target_relative_path) = lower(?) AND sha256 <> ?",
+        (new_target, sha256),
+    ).fetchone()
+    if collision is not None:
+        raise TargetCollision(
+            f"ścieżka {new_target} jest już zajęta przez treść {str(collision['sha256'])[:12]}…"
+        )
+
+    # Zapis idzie przez `record_decision`, więc ochrona ground truth i wpis
+    # w `manual_decisions` są te same co dla każdej innej ręcznej decyzji.
+    result = record_decision(
+        conn,
+        sha256=sha256,
+        decision_type="classify",
+        decided_by=decided_by,
+        semester=row["semester"],
+        subject_key=row["subject_key"],
+        category=row["category"],
+        target_relative_path=new_target,
+        action=row["action"] or "copy",
+    )
+    return {
+        "sha256": sha256,
+        "old_path": old_target,
+        "target_relative_path": new_target,
+        "changed": True,
+        "decided_at": result["decided_at"],
+    }

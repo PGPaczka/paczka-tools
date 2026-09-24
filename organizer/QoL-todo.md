@@ -37,8 +37,11 @@ etapów i `apply` za bramką. Zapis idzie przez `manual_decisions` — ten sam k
 
 **Czego brakuje do „wszystkiego”.**
 
-- [ ] zmiana nazwy pliku docelowego jako osobna operacja (dziś tylko przez edycję całej
-      ścieżki, bez podpowiedzi i bez sprawdzenia kolizji nazw w katalogu)
+- [x] zmiana nazwy pliku docelowego jako osobna operacja — `POST /api/decisions/rename`
+      (`orglib.decisions.rename_target`) plus klawisz `r` w kolejce decyzji. Katalog jest
+      pokazany, ale nieedytowalny; nazwy sprawdza `plan_lint` (te same reguły co bramka),
+      a kolizję z inną treścią zgłasza 409 — porównanie bez względu na wielkość liter,
+      bo paczkę klonuje się też na Windowsie. Ta sama nazwa = brak zapisu.
 - [ ] scalanie dwóch treści (merge) — dziś jest tylko „ta jest kanoniczna, tamta starsza”
 - [ ] rozstrzyganie konfliktów ścieżek docelowych z poziomu widoku planu
       (bramka je wykrywa, ale naprawia się je poza studiem)
