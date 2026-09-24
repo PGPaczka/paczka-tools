@@ -194,10 +194,13 @@ def test_migration_is_idempotent(legacy: Path) -> None:
 
 def test_failed_migration_leaves_the_database_on_the_old_version(legacy: Path, monkeypatch) -> None:
     """Przerwana migracja ma się wycofać w całości — nie zostawić połowy."""
+    # Wersja bieżąca nie musi mieć wpisu w `_MIGRATIONS` (v3 dokłada samą tabelę, więc
+    # wystarcza jej DDL) — psujemy więc krok, który sami dopisujemy, a nie ten zastany.
+    istniejaca = db._MIGRATIONS.get(db.SCHEMA_VERSION, {"before": (), "after": ()})
     broken = dict(db._MIGRATIONS)
     broken[db.SCHEMA_VERSION] = {
-        **broken[db.SCHEMA_VERSION],
-        "after": (*broken[db.SCHEMA_VERSION]["after"], "INSERT INTO nie_ma_takiej_tabeli VALUES (1)"),
+        **istniejaca,
+        "after": (*istniejaca["after"], "INSERT INTO nie_ma_takiej_tabeli VALUES (1)"),
     }
     monkeypatch.setattr(db, "_MIGRATIONS", broken)
 

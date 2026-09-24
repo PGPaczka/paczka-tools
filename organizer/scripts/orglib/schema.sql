@@ -123,6 +123,26 @@ CREATE TABLE IF NOT EXISTS manual_decisions (
     note                 TEXT
 );
 
+-- Ręczne powiązanie DWÓCH KATALOGÓW między paczkami (schema_version 3); klucz naturalny:
+-- uporządkowana para (folder_a, folder_b). `CHECK (folder_a < folder_b)` trzyma parę w jednej
+-- kolejności, więc „A≡B" i „B≡A" nie mogą istnieć obok siebie.
+--
+-- Świadomie OSOBNA tabela, a nie `folders.duplicate_of`: tamto liczy się z `tree_hash`, czyli
+-- z dokładnej równości poddrzewa, i `db.files_pending` wycina poddrzewa duplikatów z extract
+-- i classify. Ręczna para mówi „to sobie odpowiada", a nie „to jest identyczne", więc wpisanie
+-- jej do `duplicate_of` po cichu wyrzuciłoby z potoku pliki obecne tylko po jednej stronie.
+CREATE TABLE IF NOT EXISTS manual_folder_links (
+    folder_a   TEXT NOT NULL REFERENCES folders(folder_path),
+    folder_b   TEXT NOT NULL REFERENCES folders(folder_path),
+    kind       TEXT NOT NULL CHECK (kind IN ('duplicate', 'related')),
+    decided_by TEXT NOT NULL,
+    decided_at TEXT NOT NULL,
+    note       TEXT,
+    PRIMARY KEY (folder_a, folder_b),
+    CHECK (folder_a < folder_b)
+);
+CREATE INDEX IF NOT EXISTS idx_manual_folder_links_b ON manual_folder_links(folder_b);
+
 -- Pozycje planu (jedna treść może trafić w wiele miejsc docelowych);
 -- klucz naturalny: (sha256, target_relative_path).
 -- `media` doszło w schema_version 2: plan tę akcję wystawiał od początku (duże nagrania idą

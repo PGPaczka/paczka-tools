@@ -96,7 +96,9 @@ def test_newer_schema_version_is_rejected(tmp_path: Path) -> None:
 def test_table_counts_lists_all_data_tables(conn: sqlite3.Connection) -> None:
     counts = db.table_counts(conn)
 
-    assert len(counts) == 9
+    # Liczba wynika z `TABLES`, a nie z przepisanej ręcznie stałej: nowa tabela ma
+    # dopisać się tutaj sama, a pilnuje tego test porównujący TABLES ze schematem.
+    assert len(counts) == len(db.TABLES)
     assert set(counts) == set(db.TABLES)
     assert set(counts.values()) == {0}
 

@@ -15,7 +15,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping, Sequence
 
 #: Wersja DDL w schema.sql. Baza z wyższą wersją jest odrzucana.
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 #: Statusy pliku w kolejności maszyny stanów (przejścia tylko do przodu).
 FILE_STATUSES: tuple[str, ...] = (
@@ -40,6 +40,7 @@ TABLES: tuple[str, ...] = (
     "classifications",
     "relations",
     "manual_decisions",
+    "manual_folder_links",
     "plan_items",
     "applied",
 )
