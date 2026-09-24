@@ -293,6 +293,12 @@ który wcześniej nie kończył się przez 45 s, staje w ~10 s. Minimapa rysuje 
 elementów DOM przemalowywanych przy każdej klatce przesuwania i to ona, a nie graf,
 odpowiadała za większość zacięć na telefonie.
 
+Sam viewer też jest ułożony pod telefon: wysokość liczona w `dvh` (a nie `vh`, bo ta
+druga ignoruje pasek adresu i spychała legendę oraz minimapę pod krawędź), zakładki
+`Graph/Venn/Cards/Dash` zwijają się w listę rozwijaną poniżej 720 px, panel notatki nie
+przekracza szerokości ekranu (blok kodu przewija się sam, zamiast rozpychać stronę),
+a podgląd `?diag=1` startuje na telefonie zwinięty do plakietki i rozwija się dotknięciem.
+
 Na telefonie dochodzi gęstość pikseli: przy `devicePixelRatio` 3 każda klatka to
 dziewięciokrotność pracy laptopa, więc rysowanie jest ograniczone do dpr 2, a przy wolnych
 klatkach schodzi do 1 i wraca, gdy graf się uspokoi. Gdy coś mimo to zwalnia, otwórz

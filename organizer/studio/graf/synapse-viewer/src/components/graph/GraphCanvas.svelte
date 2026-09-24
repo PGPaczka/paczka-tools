@@ -52,10 +52,17 @@
   /** Podgląd kosztu rysowania: `/graf/?diag=1`. Domyślnie wyłączony. */
   const diag =
     typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('diag') === '1'
-  let stats = {
+  /**
+   * Podgląd pomiarów zwinięty do plakietki — żeby nie zasłaniał tego, co się mierzy.
+   *
+   * Na telefonie startuje zwinięty: tam trzy linijki nad panelem notatki zabierają
+   * właśnie tę część ekranu, na którą się patrzy.
+   */
+  let diagMini = $state(typeof window !== 'undefined' && window.innerWidth <= 720)
+  let stats = $state({
     fps: 0, drawMs: 0, nodesDrawn: 0, edgesDrawn: 0, labelsDrawn: 0,
     scale: 1, renderDpr: 1, deviceDpr: 1,
-  }
+  })
   let sim: ReturnType<typeof createSimulation> | null = null
 
   // Track user drag/zoom so we don't auto-fit after they've panned
@@ -434,11 +441,22 @@
   <!-- `?diag=1` — mierzalny odczyt z URZĄDZENIA, na którym coś „laguje". Bez tego
        zostaje opis wrażenia, a wrażenie nie mówi, czy koszt jest w rysowaniu, w liczbie
        elementów, czy w gęstości pikseli telefonu. -->
-  <div class="diag">
-    <b>{stats.fps} kl./s</b> · rysowanie {stats.drawMs} ms<br />
-    węzłów {stats.nodesDrawn} · krawędzi {stats.edgesDrawn} · podpisów {stats.labelsDrawn}<br />
-    zoom {stats.scale} · piksele {stats.renderDpr}/{stats.deviceDpr}
-  </div>
+  <!-- Dotknięcie chowa podgląd do plakietki: na telefonie zasłaniał panel notatki,
+       a jest narzędziem pomiarowym, nie treścią (zgłoszone 2026-09-24). -->
+  <button
+    class="diag"
+    class:mini={diagMini}
+    title={diagMini ? 'Pokaż pomiary' : 'Schowaj pomiary'}
+    onclick={() => (diagMini = !diagMini)}
+  >
+    {#if diagMini}
+      {stats.fps} kl./s
+    {:else}
+      <b>{stats.fps} kl./s</b> · rysowanie {stats.drawMs} ms<br />
+      węzłów {stats.nodesDrawn} · krawędzi {stats.edgesDrawn} · podpisów {stats.labelsDrawn}<br />
+      zoom {stats.scale} · piksele {stats.renderDpr}/{stats.deviceDpr}
+    {/if}
+  </button>
 {/if}
 
 <style>
@@ -455,6 +473,11 @@
     font-family: var(--font-mono, monospace);
     font-size: 11px;
     line-height: 1.45;
-    pointer-events: none;
+    text-align: left;
+    cursor: pointer;
+  }
+  .diag.mini {
+    padding: 3px 7px;
+    opacity: 0.75;
   }
 </style>

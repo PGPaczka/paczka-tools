@@ -472,6 +472,22 @@ progi znowu byłyby zgadywaniem.
   „fragment — całość w studiu" (839 notatek), a API podglądu zwraca `text_truncated`,
   po którym panel decyzji dopisuje „… to tylko początek pliku".
 
+## Viewer pod telefon (2026-09-24)
+
+Cztery zgłoszenia z jednego ekranu, wszystkie o układzie, nie o danych:
+
+- **legenda i minimapa pod krawędzią** — wysokość szła z `100vh`, która liczy się do
+  całego ekranu, a nie do obszaru widocznego nad paskiem adresu. `100dvh` (z `vh` jako
+  wartością zapasową dla starszych przeglądarek) trzyma je w kadrze;
+- **panel notatki wychodził poza szerokość ekranu** i przewijała się cała strona. Blok
+  kodu z podglądem pliku bywa szerszy od telefonu — teraz przewija się sam
+  (`overflow-x` na `pre`), a panel ma `max-width: min(640px, 100vw)`;
+- **cztery zakładki nie mieszczą się obok wyszukiwarki** — poniżej 720 px zwijają się
+  w listę rozwijaną;
+- **podgląd `?diag=1` zasłaniał notatkę** — na telefonie startuje zwinięty do plakietki
+  z liczbą klatek, dotknięcie rozwija go i zwija z powrotem. To narzędzie pomiarowe,
+  więc ustępuje treści, którą mierzy.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

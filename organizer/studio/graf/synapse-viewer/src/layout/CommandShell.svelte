@@ -103,6 +103,9 @@
   .command-shell {
     width: 100vw;
     height: 100vh;
+    /* `dvh` liczy się do PASKA ADRESU telefonu, a `vh` do całego ekranu — stąd legenda
+       i minimapa lądowały pod krawędzią i trzeba było przewijać, żeby je zobaczyć. */
+    height: 100dvh;
     background: var(--bg);
     overflow: hidden;
     position: relative;

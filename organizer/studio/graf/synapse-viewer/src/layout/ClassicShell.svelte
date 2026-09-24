@@ -78,6 +78,19 @@
         {/each}
       </nav>
 
+      <!-- Na telefonie cztery zakładki nie mieszczą się obok wyszukiwarki i uciekały
+           poza ekran. Lista rozwijana zajmuje tyle co jeden przycisk. -->
+      <select
+        class="view-select"
+        aria-label="View"
+        value={view}
+        on:change={(event) => dispatch('switchView', event.currentTarget.value)}
+      >
+        {#each views as v}
+          <option value={v.id}>{v.label}</option>
+        {/each}
+      </select>
+
       <button class="icon-btn settings-btn" title="Settings" on:click={() => dispatch('openSettings')}>
         {@html SETTINGS_ICON}
       </button>
@@ -109,6 +122,9 @@
   .classic-shell {
     width: 100vw;
     height: 100vh;
+    /* `dvh` liczy się do PASKA ADRESU telefonu, a `vh` do całego ekranu — stąd legenda
+       i minimapa lądowały pod krawędzią i trzeba było przewijać, żeby je zobaczyć. */
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     background: var(--bg);
@@ -195,6 +211,17 @@
     gap: 6px;
     flex-shrink: 0;
     margin-left: auto;
+  }
+
+  .view-select {
+    display: none;
+    max-width: 104px;
+    padding: 4px 6px;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
   }
 
   .view-tabs {
@@ -301,6 +328,17 @@
       z-index: 26;
       width: auto !important;
       max-width: none;
+    }
+  }
+
+  /* Wąski ekran: zakładki chowają się w listę. Cztery przyciski obok wyszukiwarki
+     nie mieszczą się na telefonie i uciekały poza krawędź. */
+  @media (max-width: 720px) {
+    .view-tabs {
+      display: none;
+    }
+    .view-select {
+      display: block;
     }
   }
 </style>

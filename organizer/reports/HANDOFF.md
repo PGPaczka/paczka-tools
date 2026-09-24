@@ -2,6 +2,8 @@
 
 ## Kontekst ręczny
 
+- **Układ viewera domknięty do telefonu (2026-09-24).** Cztery wady z jednego ekranu: `100vh` zamiast `100dvh` (spychało legendę i minimapę pod pasek adresu), panel notatki szerszy od ekranu przez blok kodu (teraz `overflow-x` na `pre` i `max-width: min(640px, 100vw)`), cztery zakładki `Graph/Venn/Cards/Dash` uciekające poza krawędź (poniżej 720 px lista rozwijana) oraz podgląd `?diag=1` zasłaniający notatkę (na telefonie startuje zwinięty do plakietki, dotknięcie przełącza). **`vh` na telefonie to nie to samo co widoczna wysokość** — warto sprawdzić przy każdym nowym widoku.
+
 - **Zepsute podglądy w grafie to były treści bez kopii w źródłach (2026-09-24).** Te same 890 pozycji, które wcześniej nazywały się skrótem sha: leżą wyłącznie w paczce, więc `files` nie ma dla nich wiersza, a podgląd szukał pliku tylko w drzewie źródeł. `preview.package_copy` sięga teraz po ścieżkę docelową z decyzji, przez `config.resolve_within` (wpis prowadzący poza repo paczki = odmowa, z testem). Przy okazji `source_path` w odpowiedzi API nie wywraca się już na pustej liście kopii.
 - **Urwany tekst jest oznaczony:** `…` plus „fragment — całość w studiu" w notatce grafu (839 notatek) i `text_truncated` w API, po którym panel decyzji dopisuje „… to tylko początek pliku". Osiem linijek bez adnotacji czyta się jak cały plik.
 - **Pułapka przy pisaniu testów podglądu:** fixture `test_studio_preview` ma treści o sha `a`–`f` × 64; użycie takiego samego sha w nowym teście sprawia, że `source_copies` zwraca CUDZY plik i test bada co innego, niż obiecuje jego nazwa. Nowe pozycje bierz spoza tego zakresu (np. `9` × 64).

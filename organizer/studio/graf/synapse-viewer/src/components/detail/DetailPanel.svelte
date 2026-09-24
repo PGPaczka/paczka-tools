@@ -413,7 +413,9 @@
   .detail-panel {
     /* width controlled by inline style (resize handle) */
     min-width: 240px;
-    max-width: 640px;
+    /* Na telefonie szerokość z uchwytu potrafi przekroczyć ekran — wtedy strona zaczyna
+       się przewijać w bok, a podgląd wystaje poza kadr (zgłoszone 2026-09-24). */
+    max-width: min(640px, 100vw);
     background: var(--panel);
     border-left: 1px solid var(--border);
     display: flex;
@@ -625,6 +627,22 @@
   .body-section {
     padding: 0 14px 8px;
     border-bottom: 1px solid var(--border-2);
+    /* Treść notatki nie może rozpychać panelu: blok kodu z podglądem pliku bywa
+       szerszy od telefonu, a wtedy przewija się CAŁA strona zamiast samego bloku. */
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+  .body-section :global(pre) {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .body-section :global(code) {
+    overflow-wrap: anywhere;
+  }
+  .body-section :global(img) {
+    max-width: 100%;
+    height: auto;
   }
 
   .ghost-body {
