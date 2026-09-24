@@ -23,11 +23,24 @@ GROUND_TRUTH_RUN_ID = "ground_truth"
 
 DECISION_TYPES = ("classify", "relation", "outdated", "skip", "quarantine")
 
+#: Czym mogą być dla siebie scalane treści. `related` tu nie ma: scalenie znaczy
+#: „to jest ten sam materiał", a nie „to się ze sobą wiąże".
+MERGE_RELATIONS = ("near_duplicate", "older_version")
+
+#: Podpis ręcznego scalenia w `relations`. MUSI być różny od prefiksu `near_dupe:`,
+#: bo `near_dupe.replace_own_relations` kasuje przy przeliczaniu wyłącznie swoje wiersze —
+#: dzięki temu `just relate` nie zamiata ręcznej decyzji człowieka.
+MERGE_METHOD = "manual_merge"
+
 EXPORT_PATH = config.ORGANIZER_ROOT / "reports" / "manual_decisions.jsonl"
 
 
 class GroundTruthConflict(ValueError):
     """Próba nadpisania decyzji ground truth."""
+
+
+class UnknownContent(LookupError):
+    """Nie ma takiej treści w indeksie."""
 
 
 class NoTargetPath(LookupError):
@@ -331,4 +344,63 @@ def rename_target(
         "target_relative_path": new_target,
         "changed": True,
         "decided_at": result["decided_at"],
+    }
+
+
+def merge_contents(
+    conn: sqlite3.Connection,
+    *,
+    canonical_sha256: str,
+    absorbed: list[str],
+    relation: str = "near_duplicate",
+    decided_by: str = "studio",
+) -> dict[str, Any]:
+    """Scala treści w jedną kanoniczną: wchłonięte dostają `skip` i relację do niej.
+
+    Samo `skip` z notatką (tak działa rozstrzyganie klastra) zostawia ślad wyłącznie dla
+    człowieka — nic maszynowego nie mówi, w co treść została wchłonięta, więc graf i raporty
+    tego nie widzą. Dlatego scalenie zapisuje też wiersz w ``relations``, skierowany
+    od treści wchłoniętej do kanonicznej.
+    """
+    if not absorbed:
+        raise ValueError("nie podano treści do scalenia")
+    if relation not in MERGE_RELATIONS:
+        raise ValueError(f"nieznany rodzaj scalenia {relation!r} — dozwolone: {MERGE_RELATIONS}")
+    # Kolejność zachowana, bo wynik („scalono 3") ma odpowiadać temu, co człowiek zaznaczył.
+    wchlaniane = list(dict.fromkeys(absorbed))
+    if canonical_sha256 in wchlaniane:
+        raise ValueError("treść nie może wchłonąć samej siebie")
+
+    for sha in [canonical_sha256, *wchlaniane]:
+        if conn.execute("SELECT 1 FROM content WHERE sha256 = ?", (sha,)).fetchone() is None:
+            raise UnknownContent(f"sha256={sha[:16]}… nie ma w indeksie")
+
+    # Cały sprawdzian ground truth PRZED pierwszym zapisem: inaczej scalenie pięciu treści
+    # z jedną chronioną zostawiłoby cztery zapisane i wyjątek, czyli stan nie do odtworzenia.
+    for sha in wchlaniane:
+        _guard_ground_truth(conn, sha)
+
+    decisions = []
+    for sha in wchlaniane:
+        decisions.append(record_decision(
+            conn,
+            sha256=sha,
+            decision_type="skip",
+            decided_by=decided_by,
+            note=f"scalone w {canonical_sha256[:16]}…",
+        ))
+        db.upsert_relation(conn, {
+            "source_sha256": sha,
+            "target_sha256": canonical_sha256,
+            "relation_type": relation,
+            "confidence": 1.0,
+            "detection_method": MERGE_METHOD,
+            "reason": "scalone ręcznie w studiu",
+        })
+
+    return {
+        "canonical": canonical_sha256,
+        "merged": len(wchlaniane),
+        "relation": relation,
+        "decisions": decisions,
     }

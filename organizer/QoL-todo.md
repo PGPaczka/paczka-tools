@@ -42,7 +42,12 @@ etapów i `apply` za bramką. Zapis idzie przez `manual_decisions` — ten sam k
       pokazany, ale nieedytowalny; nazwy sprawdza `plan_lint` (te same reguły co bramka),
       a kolizję z inną treścią zgłasza 409 — porównanie bez względu na wielkość liter,
       bo paczkę klonuje się też na Windowsie. Ta sama nazwa = brak zapisu.
-- [ ] scalanie dwóch treści (merge) — dziś jest tylko „ta jest kanoniczna, tamta starsza”
+- [x] scalanie treści (merge) — `POST /api/decisions/merge`; wchłonięte dostają `skip`,
+      a powiązanie ląduje w `relations` (`detection_method=manual_merge`), więc widzi je graf
+      i raporty, nie tylko notatka. Ręczne scalenie przeżywa `just relate`, bo przeliczanie
+      kasuje wyłącznie własne wiersze `near_dupe:%` — pilnuje tego test wołający prawdziwe
+      `replace_own_relations`. W klastrach przycisk scala zamiast tylko pomijać, z wyborem
+      „ten sam materiał / starsze wersje”.
 - [ ] rozstrzyganie konfliktów ścieżek docelowych z poziomu widoku planu
       (bramka je wykrywa, ale naprawia się je poza studiem)
 - [ ] porównanie diffów dwóch dowolnych treści, nie tylko w obrębie klastra

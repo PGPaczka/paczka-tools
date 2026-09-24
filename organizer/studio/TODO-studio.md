@@ -552,6 +552,23 @@ ręczną decyzję. Odtworzenie wyszło z `plan_items` i z sąsiednich wierszy te
 planu (`plan:080b597c7a37`), ale na żywej bazie wolno wywoływać tylko warianty jawnie
 bezskutkowe (ta sama nazwa) albo takie, które kończą się błędem.
 
+## Scalanie treści (QoL Q2, 2026-09-24)
+
+`POST /api/decisions/merge`. Rozstrzyganie klastra zostawiało ślad wyłącznie dla człowieka
+(`skip` + notatka), więc nic maszynowego nie mówiło, w co treść została wchłonięta. Teraz
+obok decyzji powstaje wiersz w `relations` — od treści wchłoniętej do kanonicznej.
+
+- `detection_method = "manual_merge"` jest wyborem, nie ozdobą: `near_dupe.replace_own_relations`
+  kasuje przy przeliczaniu tylko wiersze `near_dupe:%`, więc ręczne scalenie przeżywa
+  `just relate`. Test woła prawdziwe `replace_own_relations`, a nie sprawdza nazwy metody —
+  gdyby ktoś zmienił prefiks, test pęknie po stronie zachowania, nie napisu;
+- typu relacji `merged_into` celowo NIE dokładamy: `schema.sql` ogranicza `relation_type`
+  do trzech wartości, a migracja v2→v3 czeka na Q3. `near_duplicate` z pewnością 1.0
+  i ręczną metodą mówi to samo, a graf rysuje to bez zmian;
+- cały sprawdzian ground truth idzie PRZED pierwszym zapisem: scalenie pięciu treści z jedną
+  chronioną nie może zostawić czterech zapisanych i wyjątku;
+- w widoku klastrów przycisk scala (zamiast tylko pomijać), z wyborem rodzaju powiązania.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

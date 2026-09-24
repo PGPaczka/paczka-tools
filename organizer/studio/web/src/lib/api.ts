@@ -368,6 +368,32 @@ export const resolveCluster = (canonicalSha256: string, members: string[], decid
     decided_by: decidedBy,
   });
 
+/** Rodzaj scalenia: „ten sam materiał" albo „to jest starsza wersja tamtego". */
+export type MergeRelation = 'near_duplicate' | 'older_version';
+
+export interface MergeResult {
+  canonical: string;
+  merged: number;
+  relation: MergeRelation;
+}
+
+/**
+ * Scala treści w jedną kanoniczną: wchłonięte dostają `skip`, a powiązanie ląduje
+ * w `relations` — czyli tam, gdzie widzi je graf i raporty, nie tylko w notatce.
+ */
+export const mergeContents = (
+  canonicalSha256: string,
+  absorbed: string[],
+  relation: MergeRelation = 'near_duplicate',
+  decidedBy = 'studio',
+) =>
+  postJson<MergeResult>('/api/decisions/merge', {
+    canonical_sha256: canonicalSha256,
+    absorbed,
+    relation,
+    decided_by: decidedBy,
+  });
+
 export const getQueue = (filters: { semester?: number; skrot?: string; limit?: number } = {}, signal?: AbortSignal) => {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) {

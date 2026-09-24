@@ -34,6 +34,8 @@ from orglib.decisions import (
     GroundTruthConflict,
     NoTargetPath,
     TargetCollision,
+    UnknownContent,
+    merge_contents,
     record_batch,
     record_decision,
     rename_target,
@@ -310,6 +312,35 @@ def create_app(
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post("/api/decisions/merge", tags=["decisions"])
+    def post_merge(
+        body: dict[str, Any] = Body(...),
+        conn: sqlite3.Connection = Depends(get_rw_conn),
+    ) -> dict[str, Any]:
+        """Scala wiele treści w jedną kanoniczną (Q2)."""
+        try:
+            canonical_sha256 = body["canonical_sha256"]
+            absorbed = body["absorbed"]
+        except KeyError as exc:
+            raise HTTPException(status_code=422, detail=f"brak wymaganego pola: {exc}") from exc
+        try:
+            result = merge_contents(
+                conn,
+                canonical_sha256=canonical_sha256,
+                absorbed=absorbed,
+                relation=body.get("relation", "near_duplicate"),
+                decided_by=body.get("decided_by", "studio"),
+            )
+            conn.commit()
+            return result
+        except UnknownContent as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except GroundTruthConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
 
     @app.post("/api/decisions/batch", tags=["decisions"])
     def post_decisions_batch(

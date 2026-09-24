@@ -2,8 +2,9 @@
   import {
     getClusters,
     getClusterDiff,
-    resolveCluster,
+    mergeContents,
     type Cluster,
+    type MergeRelation,
     type ClusterDiff,
     type ClustersPage,
     type Item,
@@ -45,6 +46,10 @@
         ).length,
   );
   let selectedCanonical = $state<string | null>(null);
+
+  /** Czym są dla siebie pliki klastra: tym samym materiałem czy kolejnymi wersjami.
+   *  Wchodzi do `relations`, więc graf pokaże to samo, co widział tu człowiek. */
+  let mergeRelation = $state<MergeRelation>('near_duplicate');
 
   let diff = $state<ClusterDiff | null>(null);
   let diffLoading = $state(false);
@@ -104,14 +109,19 @@
     }
   }
 
-  async function resolve(cluster: Cluster): Promise<void> {
+  async function merge(cluster: Cluster): Promise<void> {
     if (!selectedCanonical) return;
     error = null;
     success = null;
-    const members = cluster.members.map((m) => m.sha256);
+    const absorbed = cluster.members
+      .map((m) => m.sha256)
+      .filter((sha) => sha !== selectedCanonical);
+    if (!absorbed.length) return;
     try {
-      const result = await resolveCluster(selectedCanonical, members);
-      success = `Klaster rozstrzygnięty: ${result.skipped} oznaczonych jako skip`;
+      const result = await mergeContents(selectedCanonical, absorbed, mergeRelation);
+      success = `Scalone: ${result.merged} ${result.merged === 1 ? 'treść' : 'treści'} → ${basename(
+        cluster.members.find((m) => m.sha256 === selectedCanonical)?.filename ?? '',
+      )}`;
       expandedIndex = null;
       selectedCanonical = null;
       diff = null;
@@ -354,10 +364,19 @@
                 <button
                   class="resolve-btn"
                   disabled={!selectedCanonical}
-                  onclick={() => resolve(cluster)}
+                  onclick={() => merge(cluster)}
                 >
-                  Rozstrzygnij → reszta skip
+                  Scal w kanoniczną → reszta skip
                 </button>
+                <!-- Rodzaj powiązania zapisujemy razem ze scaleniem: „starsza wersja"
+                     to co innego niż „ta sama rzecz pod dwiema nazwami". -->
+                <label class="relation-pick dim">
+                  jako
+                  <select bind:value={mergeRelation}>
+                    <option value="near_duplicate">ten sam materiał</option>
+                    <option value="older_version">starsze wersje</option>
+                  </select>
+                </label>
                 {#if !selectedCanonical}
                   <span class="dim hint">Kliknij kartę, żeby wybrać wersję kanoniczną</span>
                 {/if}
@@ -683,6 +702,20 @@
   .no-text {
     padding: 12px;
     text-align: center;
+    font-size: 11px;
+  }
+  .relation-pick {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+  }
+  .relation-pick select {
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg-deep);
+    color: var(--text);
     font-size: 11px;
   }
   .resolve-actions {
