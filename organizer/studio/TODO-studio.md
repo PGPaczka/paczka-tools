@@ -585,6 +585,18 @@ gasi konflikt od razu, bez czekania na ponowne zbudowanie planu.
 - zwijanie wielkości liter musi być pythonowe: `lower()` SQLite-a zna tylko ASCII, a nazwy
   są polskie.
 
+## Porównanie dowolnych dwóch treści (QoL Q2, 2026-09-24)
+
+Okazało się, że backendu nie trzeba było ruszać: `cluster_diff` bierze dwa sha i nigdy nie
+sprawdzał przynależności do klastra. Ograniczeniem był widok.
+
+- porównanie wyjęte do `ContentDiff.svelte`; obie strony rysuje jedna pętla, wcześniej ten
+  sam znacznik był wklejony dwa razy i poprawki trafiały raz w lewą stronę, raz w obie;
+- w liście pozycji przedmiotu przycisk „porównaj” odkłada treść na tackę; druga pozycja
+  uruchamia zestawienie, trzecia wypycha najstarszą (porównanie jest dwustronne);
+- przy okazji: na ekranie węższym niż 700 px strony diffa układają się jedna pod drugą —
+  dwie kolumny na telefonie to dwa nieczytelne paski.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

@@ -58,7 +58,11 @@ etapów i `apply` za bramką. Zapis idzie przez `manual_decisions` — ten sam k
       kolizje automatycznie przy budowie planu, więc to siatka bezpieczeństwa dla ręcznych
       zmian, nie naprawa istniejącego bałaganu. Sprawdzone na podstawionych kolizjach
       w kopii bazy, w tym różniących się samą wielkością liter.
-- [ ] porównanie diffów dwóch dowolnych treści, nie tylko w obrębie klastra
+- [x] porównanie dwóch dowolnych treści — backend (`/api/clusters/diff`) NIGDY nie wymagał
+      wspólnego klastra, ograniczał to wyłącznie widok. Porównanie wydzielone do
+      `ContentDiff.svelte` (obie strony rysuje jedna pętla, wcześniej był to ten sam kod
+      wklejony dwa razy) i wpięte w listę pozycji przedmiotu: „porównaj” przy dwóch
+      pozycjach zestawia je obok siebie. Na telefonie strony układają się jedna pod drugą.
 
 ---
 

@@ -11,6 +11,7 @@
   } from '../lib/api';
   import { basename, bytes, percent } from '../lib/format';
   import { previewImageUrl } from '../lib/api';
+  import ContentDiff from './ContentDiff.svelte';
   import Lightbox from './Lightbox.svelte';
 
   interface Props {
@@ -268,97 +269,12 @@
                 {/each}
               </div>
 
-              {#if diffLoading}
-                <div class="diff-panel">
-                  <div class="empty">Wczytuję porównanie…</div>
-                </div>
-              {:else if diff}
-                <div class="diff-panel">
-                  <div class="diff-header">
-                    <span class="tag">{diff.diff_type === 'text' ? 'diff tekstu' : 'porównanie metadanych'}</span>
-                    {#if diff.relation}
-                      <span class="dim">{diff.relation.reason}</span>
-                    {/if}
-                    <button class="close-diff" onclick={() => { diff = null; diffPair = null; }}>zamknij</button>
-                  </div>
-
-                  <div class="diff-sides">
-                    <div class="diff-side">
-                      <div class="diff-side-header">
-                        <span class="mono">{diff.left.sha256.slice(0, 12)}…</span>
-                        {#if diff.left.filename}
-                          <span class="diff-filename">{diff.left.filename}</span>
-                        {/if}
-                      </div>
-                      {#if showsPicture(diff.left.content_kind)}
-                        <button
-                          class="picture-btn"
-                          title="Pokaż na cały ekran"
-                          onclick={() => (zoomed = { sha256: diff!.left.sha256,
-                            name: diff!.left.filename ?? diff!.left.sha256 })}
-                        >
-                          <img
-                            class="diff-picture"
-                            src={previewImageUrl(diff.left.sha256, 1, 700)}
-                            alt="Podgląd: {diff.left.filename ?? ''}"
-                          />
-                        </button>
-                      {/if}
-                      <div class="diff-meta">
-                        {#if diff.left.content_kind}<span class="tag">{diff.left.content_kind}</span>{/if}
-                        {#if diff.left.size_bytes}<span class="dim">{bytes(diff.left.size_bytes)}</span>{/if}
-                        {#if diff.left.category}<span>kat: {diff.left.category}</span>{/if}
-                        {#if diff.left.action}<span>→ {diff.left.action}</span>{/if}
-                        {#if diff.left.confidence !== null && diff.left.confidence !== undefined}
-                          <span class="num">{percent(diff.left.confidence)}</span>
-                        {/if}
-                      </div>
-                      {#if diff.left_text}
-                        <pre class="diff-text">{diff.left_text}</pre>
-                      {:else}
-                        <div class="no-text dim">brak wyekstrahowanego tekstu</div>
-                      {/if}
-                    </div>
-
-                    <div class="diff-side">
-                      <div class="diff-side-header">
-                        <span class="mono">{diff.right.sha256.slice(0, 12)}…</span>
-                        {#if diff.right.filename}
-                          <span class="diff-filename">{diff.right.filename}</span>
-                        {/if}
-                      </div>
-                      {#if showsPicture(diff.right.content_kind)}
-                        <button
-                          class="picture-btn"
-                          title="Pokaż na cały ekran"
-                          onclick={() => (zoomed = { sha256: diff!.right.sha256,
-                            name: diff!.right.filename ?? diff!.right.sha256 })}
-                        >
-                          <img
-                            class="diff-picture"
-                            src={previewImageUrl(diff.right.sha256, 1, 700)}
-                            alt="Podgląd: {diff.right.filename ?? ''}"
-                          />
-                        </button>
-                      {/if}
-                      <div class="diff-meta">
-                        {#if diff.right.content_kind}<span class="tag">{diff.right.content_kind}</span>{/if}
-                        {#if diff.right.size_bytes}<span class="dim">{bytes(diff.right.size_bytes)}</span>{/if}
-                        {#if diff.right.category}<span>kat: {diff.right.category}</span>{/if}
-                        {#if diff.right.action}<span>→ {diff.right.action}</span>{/if}
-                        {#if diff.right.confidence !== null && diff.right.confidence !== undefined}
-                          <span class="num">{percent(diff.right.confidence)}</span>
-                        {/if}
-                      </div>
-                      {#if diff.right_text}
-                        <pre class="diff-text">{diff.right_text}</pre>
-                      {:else}
-                        <div class="no-text dim">brak wyekstrahowanego tekstu</div>
-                      {/if}
-                    </div>
-                  </div>
-                </div>
-              {/if}
+              <ContentDiff
+                {diff}
+                loading={diffLoading}
+                onClose={() => { diff = null; diffPair = null; }}
+                onZoom={(sha256, name) => (zoomed = { sha256, name })}
+              />
 
               <div class="resolve-actions">
                 <button
@@ -562,42 +478,6 @@
   .reason {
     font-size: 10px;
   }
-  .diff-panel {
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 10px;
-    background: var(--bg);
-  }
-  .diff-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
-  }
-  .close-diff {
-    margin-left: auto;
-    padding: 2px 8px;
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    font-size: 10px;
-    background: transparent;
-    color: var(--muted);
-    cursor: pointer;
-  }
-  .close-diff:hover {
-    color: var(--text);
-  }
-  .diff-sides {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
-  }
-  .diff-side {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 0;
-  }
   /* Miniatura w karcie: „czy to zdjęcie jest duplikatem" rozstrzyga oko, nie hash. */
   .thumbs-progress {
     display: flex;
@@ -638,12 +518,6 @@
     line-height: 18px;
     cursor: zoom-in;
   }
-  .picture-btn {
-    display: block;
-    width: 100%;
-    padding: 0;
-    cursor: zoom-in;
-  }
   .member-thumb {
     width: 100%;
     height: 96px;
@@ -652,58 +526,7 @@
     background: var(--bg-deep);
     margin-bottom: 4px;
   }
-  /* Porównanie dwóch obrazów: `contain`, bo tu liczy się CAŁY kadr, nie ładne kafelki. */
-  .diff-picture {
-    width: 100%;
-    max-height: 40vh;
-    object-fit: contain;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    background: var(--bg-deep);
-  }
 
-  .diff-side-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-    font-size: 11px;
-  }
-  /* Nazwy w tej paczce bywają bardzo długie („…_2015_cz2_ODP.docx(1).docx”) i bez
-     przycięcia wychodziły poza swoją kolumnę, nachodząc na drugą stronę diffa. */
-  .diff-filename {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-weight: 600;
-    font-size: 12px;
-  }
-  .diff-meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    font-size: 11px;
-  }
-  .diff-text {
-    margin: 0;
-    padding: 8px;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    background: var(--bg-deep);
-    font-size: 11px;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    word-break: break-word;
-    max-height: 300px;
-    overflow-y: auto;
-  }
-  .no-text {
-    padding: 12px;
-    text-align: center;
-    font-size: 11px;
-  }
   .relation-pick {
     display: inline-flex;
     align-items: center;

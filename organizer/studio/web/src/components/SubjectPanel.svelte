@@ -1,8 +1,11 @@
 <script lang="ts">
-  import type { ItemsPage, SubjectDetail, SubjectRow } from '../lib/api';
-  import { count, percent, stamp } from '../lib/format';
+  import { getClusterDiff, type ClusterDiff, type ItemsPage, type SubjectDetail, type SubjectRow } from '../lib/api';
+  import { basename, count, percent, stamp } from '../lib/format';
   import Bar from './Bar.svelte';
+  import ContentDiff from './ContentDiff.svelte';
   import ItemList from './ItemList.svelte';
+  import Lightbox from './Lightbox.svelte';
+  import { previewImageUrl } from '../lib/api';
 
   let {
     row,
@@ -23,6 +26,46 @@
     onlyReview: boolean;
     onMore: () => void;
   } = $props();
+
+  /** Dwie treści odłożone do zestawienia. Backend porównania nigdy nie wymagał,
+   *  żeby należały do jednego klastra — tu wybiera się je z dowolnej listy. */
+  let compared = $state<string[]>([]);
+  let diff = $state<ClusterDiff | null>(null);
+  let diffLoading = $state(false);
+  let diffError = $state<string | null>(null);
+  let zoomed = $state<{ sha256: string; name: string } | null>(null);
+
+  const comparedNames = $derived(
+    compared.map((sha) => {
+      const item = (page?.items ?? []).find((i) => i.sha256 === sha);
+      return item?.filename ?? basename(item?.source_relative_path) ?? sha.slice(0, 12);
+    }),
+  );
+
+  function toggleCompare(sha256: string): void {
+    diff = null;
+    diffError = null;
+    if (compared.includes(sha256)) {
+      compared = compared.filter((s) => s !== sha256);
+      return;
+    }
+    // Trzecia pozycja wypycha najstarszą: porównanie jest z definicji dwustronne,
+    // a kasowanie zaznaczeń ręcznie byłoby pracą bez powodu.
+    compared = [...compared, sha256].slice(-2);
+  }
+
+  async function showDiff(): Promise<void> {
+    if (compared.length !== 2) return;
+    diffLoading = true;
+    diffError = null;
+    try {
+      diff = await getClusterDiff(compared[0], compared[1]);
+    } catch (exc) {
+      diffError = exc instanceof Error ? exc.message : String(exc);
+    } finally {
+      diffLoading = false;
+    }
+  }
 
   /** Kolory kubełków pewności — te same znaczenia, co w etykietach pozycji. */
   const bucketColors: Record<string, string> = {
@@ -161,11 +204,79 @@
       </label>
     </div>
 
-    <ItemList {page} {loading} {onMore} />
+    {#if compared.length}
+      <div class="compare-tray">
+        <span class="dim">do porównania:</span>
+        {#each comparedNames as name, i (compared[i])}
+          <span class="mono chip">{name}</span>
+        {/each}
+        <button disabled={compared.length !== 2 || diffLoading} onclick={showDiff}>
+          {diffLoading ? 'wczytuję…' : 'porównaj'}
+        </button>
+        <button class="ghost" onclick={() => { compared = []; diff = null; diffError = null; }}>
+          wyczyść
+        </button>
+        {#if compared.length === 1}
+          <span class="dim">zaznacz jeszcze jedną pozycję</span>
+        {/if}
+      </div>
+      {#if diffError}<p class="error">{diffError}</p>{/if}
+      <ContentDiff
+        {diff}
+        loading={diffLoading}
+        onClose={() => (diff = null)}
+        onZoom={(sha256, name) => (zoomed = { sha256, name })}
+      />
+    {/if}
+
+    <ItemList {page} {loading} {onMore} {compared} onCompare={toggleCompare} />
   {/if}
 </section>
 
+{#if zoomed}
+  <Lightbox
+    src={previewImageUrl(zoomed.sha256, 1, 1800)}
+    alt={zoomed.name}
+    caption={zoomed.name}
+    onClose={() => (zoomed = null)}
+  />
+{/if}
+
 <style>
+  .compare-tray {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 6px 10px;
+    border: 1px solid var(--accent-dim);
+    border-radius: 7px;
+    font-size: 11px;
+  }
+  .compare-tray .chip {
+    max-width: 14rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .compare-tray button {
+    padding: 2px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 10px;
+    cursor: pointer;
+  }
+  .compare-tray button:hover:not(:disabled) {
+    color: var(--text);
+    border-color: var(--accent-dim);
+  }
+  .compare-tray button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
   section {
     display: flex;
     flex-direction: column;

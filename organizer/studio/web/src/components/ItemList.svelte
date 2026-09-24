@@ -6,7 +6,16 @@
     page,
     loading,
     onMore,
-  }: { page: ItemsPage | null; loading: boolean; onMore: () => void } = $props();
+    compared = [],
+    onCompare,
+  }: {
+    page: ItemsPage | null;
+    loading: boolean;
+    onMore: () => void;
+    /** sha treści odłożonych do porównania — podświetlamy je na liście. */
+    compared?: string[];
+    onCompare?: (sha256: string) => void;
+  } = $props();
 
   const shown = $derived(page ? page.items.length : 0);
   const remaining = $derived(page ? Math.max(page.total - shown, 0) : 0);
@@ -23,9 +32,19 @@
   {/if}
 
   {#each page?.items ?? [] as item (item.sha256)}
-    <article>
+    <article class:compared={compared.includes(item.sha256)}>
       <div class="top">
         <span class="name" title={item.source_relative_path ?? item.sha256}>{title(item)}</span>
+        {#if onCompare}
+          <button
+            class="compare-btn"
+            class:on={compared.includes(item.sha256)}
+            title="Zestaw tę treść z inną"
+            onclick={() => onCompare(item.sha256)}
+          >
+            {compared.includes(item.sha256) ? 'odłożone' : 'porównaj'}
+          </button>
+        {/if}
         {#if item.action}<span class="tag {item.action}">{item.action}</span>{/if}
         {#if item.needs_review}<span class="tag review">do obejrzenia</span>{/if}
         <span class="tag {item.confidence_bucket} num">{percent(item.confidence)}</span>
@@ -64,6 +83,27 @@
 </div>
 
 <style>
+  article.compared {
+    border-color: var(--accent-dim);
+  }
+  .compare-btn {
+    padding: 1px 8px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 10px;
+    cursor: pointer;
+  }
+  .compare-btn:hover {
+    color: var(--text);
+    border-color: var(--accent-dim);
+  }
+  .compare-btn.on {
+    border-color: var(--accent-dim);
+    color: var(--text);
+  }
+
   .items {
     display: flex;
     flex-direction: column;
