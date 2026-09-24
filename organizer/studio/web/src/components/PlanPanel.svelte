@@ -4,6 +4,7 @@
     getPlanConflicts,
     getPlanTree,
     postDecision,
+    renameInPackage,
     renameTarget,
     runStage,
     type PlanConflicts,
@@ -43,6 +44,12 @@
   /** sha treści, której nazwę właśnie poprawiamy, i brudnopis nazwy. */
   let renaming = $state<string | null>(null);
   let renameDraft = $state('');
+
+  /** Plik w drzewie docelowym, któremu zmieniamy nazwę, i brudnopis. Osobno od
+   *  konfliktów, bo tam identyfikuje treść (sha), a tu ŚCIEŻKA w paczce. */
+  let renamingPath = $state<string | null>(null);
+  let pathDraft = $state('');
+  let planStale = $state(false);
 
   /** Katalogi rozwinięte ręcznie. Domyślnie zwinięte: przedmiot ma ich sto
    *  kilkadziesiąt i po rozwinięciu wszystkich drzewo przestaje być drzewem. */
@@ -96,6 +103,36 @@
     try {
       await renameTarget(sha, renameDraft.trim());
       renaming = null;
+      onChanged?.();
+      await load();
+    } catch (exc) {
+      error = exc instanceof Error ? exc.message : String(exc);
+    }
+  }
+
+  /** Plik leży już na dysku paczki tylko w tych stanach — wtedy zmiana nazwy
+   *  musi ruszyć dysk, a nie samą decyzję. */
+  function inPackage(state: string): boolean {
+    return state === 'ground_truth' || state === 'present';
+  }
+
+  function startPathRename(file: { path: string; name: string }): void {
+    renamingPath = file.path;
+    pathDraft = file.name;
+  }
+
+  async function savePathRename(file: { path: string; sha256: string; state: string }): Promise<void> {
+    if (!pathDraft.trim()) return;
+    error = null;
+    try {
+      if (inPackage(file.state)) {
+        const result = await renameInPackage(file.path, pathDraft.trim());
+        planStale = result.plan_stale;
+      } else {
+        // Pozycja dopiero zaplanowana: na dysku jej nie ma, więc zmienia się decyzję.
+        await renameTarget(file.sha256, pathDraft.trim());
+      }
+      renamingPath = null;
       onChanged?.();
       await load();
     } catch (exc) {
@@ -310,7 +347,30 @@
               {#each folder.files.slice(0, 40) as file (file.path)}
                 <li class={file.state} title={file.detail || file.state}>
                   <span class="mark">{file.state === 'new' ? '+' : file.state === 'ground_truth' ? '·' : file.state === 'present' ? '=' : '!'}</span>
-                  {file.name}
+                  {#if renamingPath === file.path}
+                    <input
+                      class="mono rename-input"
+                      bind:value={pathDraft}
+                      spellcheck="false"
+                      use:focusName
+                      onkeydown={(e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); savePathRename(file); }
+                        if (e.key === 'Escape') { e.preventDefault(); renamingPath = null; }
+                      }}
+                    />
+                    <button onclick={() => savePathRename(file)}>zapisz</button>
+                  {:else}
+                    {file.name}
+                    <button
+                      class="rename-file"
+                      title={inPackage(file.state)
+                        ? 'zmień nazwę pliku w paczce (dysk i baza razem)'
+                        : 'zmień nazwę docelową tej pozycji planu'}
+                      onclick={() => startPathRename(file)}
+                    >
+                      zmień nazwę
+                    </button>
+                  {/if}
                 </li>
               {/each}
               {#if folder.files.length > 40}
@@ -322,6 +382,11 @@
       </div>
 
       <div class="console">
+        {#if planStale}
+          <!-- Plik `plan.jsonl` ma swój `plan_hash`, więc nie wolno go edytować w miejscu;
+               po zmianie nazwy w paczce trzeba zbudować plan od nowa. -->
+          <p class="stale">Plan ma jeszcze starą ścieżkę — zbuduj go od nowa etapem „zbuduj plan".</p>
+        {/if}
         <h4>Etap</h4>
         <pre bind:this={console_}>{log.join('\n') || 'Uruchom etap — zobaczysz jego wyjście na żywo.'}</pre>
       </div>
@@ -501,6 +566,33 @@
   .rival button:hover {
     color: var(--text);
     border-color: var(--accent-dim);
+  }
+  .rename-file {
+    margin-left: 6px;
+    padding: 0 6px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 9px;
+    cursor: pointer;
+    opacity: 0;
+  }
+  li:hover .rename-file,
+  .rename-file:focus {
+    opacity: 1;
+    border-color: var(--border);
+  }
+  .rename-file:hover {
+    color: var(--text);
+    border-color: var(--accent-dim);
+  }
+  .stale {
+    margin: 0 0 6px;
+    padding: 4px 8px;
+    border: 1px solid var(--amber);
+    border-radius: 5px;
+    font-size: 11px;
   }
   .rename-input {
     flex: 1 1 10rem;

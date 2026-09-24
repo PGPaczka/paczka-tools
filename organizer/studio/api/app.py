@@ -28,7 +28,7 @@ from fastapi.responses import (
 )
 from fastapi.staticfiles import StaticFiles
 
-from orglib import config, folder_links, graph_link
+from orglib import config, folder_links, graph_link, package_edit
 from orglib.classify import load_rules
 from orglib.decisions import (
     GroundTruthConflict,
@@ -309,6 +309,31 @@ def create_app(
         except TargetCollision as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except GroundTruthConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    @app.post("/api/package/rename", tags=["plan"])
+    def post_package_rename(
+        target_relative_path: str = Body(...),
+        filename: str = Body(...),
+        decided_by: str = Body("studio"),
+        conn: sqlite3.Connection = Depends(get_rw_conn),
+    ) -> dict[str, Any]:
+        """Zmienia nazwę pliku leżącego w paczce, razem z wpisami w bazie."""
+        try:
+            result = package_edit.rename_in_package(
+                conn,
+                paths=resolved_paths,
+                target_relative_path=target_relative_path,
+                filename=filename,
+                decided_by=decided_by,
+            )
+            conn.commit()
+            return result
+        except package_edit.NotInPackage as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except (package_edit.TargetTaken, OSError) as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc

@@ -249,6 +249,27 @@ export interface RenameResult {
   decided_at: string | null;
 }
 
+/** Wynik zmiany nazwy pliku leżącego już w paczce (Q4): dysk i baza idą razem. */
+export interface PackageRenameResult {
+  old_path: string;
+  target_relative_path: string;
+  sha256: string;
+  changed: boolean;
+  /** Plan na dysku ma jeszcze starą ścieżkę — trzeba go zbudować od nowa. */
+  plan_stale: boolean;
+}
+
+/**
+ * Zmienia nazwę pliku, który JUŻ LEŻY w paczce: przenosi go na dysku i poprawia bazę
+ * w jednej operacji. Dla pozycji dopiero zaplanowanych używa się `renameTarget` —
+ * tam pliku na dysku jeszcze nie ma.
+ */
+export const renameInPackage = (targetRelativePath: string, filename: string) =>
+  postJson<PackageRenameResult>('/api/package/rename', {
+    target_relative_path: targetRelativePath,
+    filename,
+  });
+
 /** Zmienia SAMĄ nazwę pliku docelowego; katalog zostaje. Kolizję zgłasza backend (409). */
 export const renameTarget = (sha256: string, filename: string) =>
   postJson<RenameResult>('/api/decisions/rename', { sha256, filename });

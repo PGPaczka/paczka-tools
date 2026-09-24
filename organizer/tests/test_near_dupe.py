@@ -26,7 +26,8 @@ from orglib.near_dupe import (
 SHA_A = "a" * 64
 SHA_B = "b" * 64
 SHA_C = "c" * 64
-THRESHOLDS = {"simhash_hamming_max": 3, "phash_hamming_max": 8}
+THRESHOLDS = {"simhash_hamming_max": 3, "phash_hamming_max": 8,
+              "phash_text_hamming_max": 12}
 
 
 def hexed(value: int) -> str:
@@ -132,6 +133,77 @@ def test_phash_respects_its_own_threshold(distance: int, found: bool) -> None:
     assert bool(relations) is found
 
 
+# -- obrazy: piksele to za mało, gdy mamy tekst (Q5) -------------------------
+
+
+def test_two_images_with_different_text_are_not_near_duplicates() -> None:
+    """Dwie zapisane kartki wyglądają podobnie — o tym, czy to ten sam materiał,
+    decyduje treść. Bez tego „prawie białe" skany zlewają się w jeden klaster.
+    """
+    daleki_tekst = sum(1 << bit for bit in range(20))
+
+    relations, _ = relate(
+        Signature(SHA_A, perceptual_hash=hexed(0), simhash=hexed(0)),
+        Signature(SHA_B, perceptual_hash=hexed(1), simhash=hexed(daleki_tekst)),
+    )
+
+    assert relations == []
+
+
+def test_two_images_with_matching_text_stay_near_duplicates() -> None:
+    """Ten sam skan w innej rozdzielczości: piksele bliskie, OCR prawie ten sam."""
+    szum_ocr = sum(1 << bit for bit in range(5))
+
+    relations, _ = relate(
+        Signature(SHA_A, perceptual_hash=hexed(0), simhash=hexed(0)),
+        Signature(SHA_B, perceptual_hash=hexed(1), simhash=hexed(szum_ocr)),
+    )
+
+    assert [r.relation_type for r in relations] == ["near_duplicate"]
+
+
+def test_images_without_text_are_judged_by_pixels_alone() -> None:
+    """Rysunek, wykres, zdjęcie bez liter — tekstu nie ma i nie będzie.
+
+    Gdyby brak tekstu unieważniał parę, OCR pogorszyłby wynik dla wszystkiego,
+    czego nie da się przeczytać.
+    """
+    relations, _ = relate(
+        Signature(SHA_A, perceptual_hash=hexed(0)),
+        Signature(SHA_B, perceptual_hash=hexed(1)),
+    )
+
+    assert [r.relation_type for r in relations] == ["near_duplicate"]
+
+
+def test_text_confirmation_only_applies_to_the_pixel_layer() -> None:
+    """Równość tekstu po normalizacji zostaje najmocniejszą przesłanką.
+
+    Para znaleziona przez tekst nie może zniknąć dlatego, że piksele są różne.
+    """
+    relations, _ = relate(
+        Signature(SHA_A, normalized_text_hash="x", perceptual_hash=hexed(0),
+                  simhash=hexed(0)),
+        Signature(SHA_B, normalized_text_hash="x", perceptual_hash=hexed(255),
+                  simhash=hexed(sum(1 << bit for bit in range(30)))),
+    )
+
+    assert [r.confidence for r in relations] == [1.0]
+
+
+def test_the_text_confirmation_threshold_is_configurable() -> None:
+    odlegly = sum(1 << bit for bit in range(6))
+    pary = [
+        Signature(SHA_A, perceptual_hash=hexed(0), simhash=hexed(0)),
+        Signature(SHA_B, perceptual_hash=hexed(1), simhash=hexed(odlegly)),
+    ]
+
+    luzny, _ = build_relations(pary, thresholds={**THRESHOLDS, "phash_text_hamming_max": 8})
+    scisly, _ = build_relations(pary, thresholds={**THRESHOLDS, "phash_text_hamming_max": 4})
+
+    assert luzny and not scisly
+
+
 @pytest.mark.parametrize("empty", [None, ""])
 def test_missing_signatures_never_pair_up(empty) -> None:
     """Brak tekstu to nie jest „ten sam tekst” — inaczej całe archiwum byłoby near-dupe.
@@ -147,7 +219,8 @@ def test_missing_signatures_never_pair_up(empty) -> None:
     )
 
     assert relations == []
-    assert stats == {"normalized_text": 0, "simhash": 0, "phash": 0, "skipped_buckets": 0}
+    assert stats == {"normalized_text": 0, "simhash": 0, "phash": 0, "skipped_buckets": 0,
+                     "phash_odrzucone_tekstem": 0}
 
 
 # -- kierunek i rodzaj ------------------------------------------------------
@@ -245,6 +318,9 @@ def test_real_thresholds_have_the_keys_this_stage_reads() -> None:
     assert isinstance(data["phash_hamming_max"], int) and data["phash_hamming_max"] >= 0
     # Obrazy znoszą większą odległość niż tekst — inaczej próg phasha nic nie wnosi.
     assert data["phash_hamming_max"] > data["simhash_hamming_max"]
+    # Potwierdzenie tekstem (Q5) jest LUŹNIEJSZE niż próg near-dupe dla samego tekstu:
+    # OCR dwóch zdjęć tej samej kartki nigdy nie wychodzi identycznie.
+    assert data["phash_text_hamming_max"] > data["simhash_hamming_max"]
 
 
 def test_row_shape_matches_the_relations_table() -> None:

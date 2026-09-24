@@ -104,8 +104,16 @@ rozjeżdża podgląd, rozmiar i `verify` — sprawdzone.
 dysku plus aktualizacja `target_relative_path` w jednej transakcji, z wpisem w
 `manual_decisions`. Nigdy odwrotnie (najpierw dysk, potem baza).
 
-- [ ] endpoint i widok zmiany nazwy w drzewie docelowym
-- [ ] test: po zmianie `verify` jest zielony, a podgląd nadal działa
+- [x] endpoint i widok zmiany nazwy w drzewie docelowym — `POST /api/package/rename`
+      (`orglib/package_edit.py`). W drzewie docelowym widok sam wybiera drogę po stanie pliku:
+      `ground_truth`/`present` → operacja na dysku i w bazie, `new` → sama decyzja
+      (`/api/decisions/rename`), bo takiego pliku na dysku jeszcze nie ma.
+- [x] test: po zmianie `verify` jest zielony (ground truth liczy się z `applied`),
+      a podgląd nadal trafia w plik. Do tego test atomowości: podmienione `os.replace`
+      pada, a wtedy ani dysk, ani baza się nie ruszają. Sprawdzone też na żywej paczce
+      (zmiana i powrót — `git status` czysty, baza wróciła do stanu wyjściowego).
+      `plan.jsonl` ma własny `plan_hash`, więc go NIE edytujemy: odpowiedź niesie
+      `plan_stale`, a widok mówi „zbuduj plan od nowa".
 
 ---
 
@@ -122,9 +130,16 @@ dla **197** treści. Obrazów jest **5 937** i mają **0** wyekstrahowanego teks
 potem ponowne liczenie relacji. Warto rozważyć próg: OCR tylko dla obrazów powyżej
 pewnego rozmiaru i z dużą ilością krawędzi (skan kartki), a nie dla memów.
 
-- [ ] pomiar czasu OCR na próbce 50 obrazów
-- [ ] przebieg na całości + relacje policzone ponownie
-- [ ] near-dupe dla obrazów: wymagaj zgodności tekstu, nie tylko pikseli
+- [x] pomiar czasu OCR na próbce 50 obrazów — mediana 0,22 s, średnia 0,47 s, tekst w 46/50
+- [~] przebieg na całości — **W TOKU** (tempo 120 obrazów/min, 5785 treści).
+      Pułapka: sam `--ocr-images` nie zrobiłby nic, bo wszystkie obrazy czekające na extract
+      leżą w poddrzewach duplikatów, a kanoniczne kopie miały już status `extracted`.
+      Trzeba było cofnąć 6928 plików-obrazów do `hashed`. Po przebiegu: `just relate`.
+- [x] near-dupe dla obrazów wymaga zgodności tekstu — para z phasha odpada, gdy simhash
+      tekstu obu stron rozjeżdża się powyżej `phash_text_hamming_max` (12; luźniej niż próg
+      dla samego tekstu, bo OCR dwóch zdjęć tej samej kartki nigdy nie wychodzi identycznie).
+      Obrazy BEZ tekstu (rysunki, wykresy) dalej ocenia sam phash — inaczej OCR pogorszyłby
+      wynik tam, gdzie nie ma czego czytać. Licznik odrzuconych par w podsumowaniu `relate`.
 
 ---
 

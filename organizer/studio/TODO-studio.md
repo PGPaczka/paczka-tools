@@ -618,6 +618,21 @@ Do sprawdzenia na żywych danych: round-trip endpointów przeszedł na prawdziwe
 (zapis, widoczność przy katalogu, usunięcie w odwrotnej kolejności argumentów), baza
 została czysta.
 
+## Zmiana nazw w paczce kanonicznej (QoL Q4, 2026-09-24)
+
+`POST /api/package/rename` + `orglib/package_edit.py`. Dysk i baza (`applied`,
+`classifications`) zmieniają się w jednej transakcji.
+
+- **dwie różne operacje pod jednym przyciskiem**: plik leżący w paczce rusza dysk, pozycja
+  dopiero zaplanowana — samą decyzję. Widok drzewa docelowego wybiera po `state` pliku;
+- **`BEGIN IMMEDIATE` obejmuje też sprawdzenie zajętości nowej ścieżki**, bo między
+  sprawdzeniem a zapisem mogłaby wejść druga sesja studia. Przeniesienie pliku jest ostatnie,
+  a gdyby padł sam `COMMIT`, plik wraca pod starą nazwę;
+- **planu nie dotykamy**: `plan.jsonl` ma `plan_hash`, więc edycja w miejscu unieważniłaby go
+  po cichu. Zamiast tego odpowiedź niesie `plan_stale`, a widok mówi wprost, że trzeba
+  zbudować plan od nowa;
+- sprawdzone na żywej paczce (zmiana i powrót): `git status` czysty, baza bez śladu.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

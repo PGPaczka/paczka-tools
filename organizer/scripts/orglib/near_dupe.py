@@ -200,6 +200,18 @@ def _relation_for(
     )
 
 
+def _text_distance(left: Signature, right: Signature) -> int | None:
+    """Odległość simhasha TEKSTU obu treści albo ``None``, gdy któraś go nie ma.
+
+    ``None`` znaczy „nie ma czym potwierdzić", a nie „nie pasuje": rysunek, wykres
+    i zdjęcie bez liter nigdy nie dostaną tekstu, więc brak nie może unieważniać pary
+    znalezionej po pikselach.
+    """
+    if not left.simhash or not right.simhash:
+        return None
+    return hamming_distance(str(left.simhash), str(right.simhash))
+
+
 def build_relations(
     signatures: Iterable[Signature],
     *,
@@ -214,10 +226,12 @@ def build_relations(
     thresholds = dict(thresholds or {})
     simhash_max = int(thresholds.get("simhash_hamming_max", 3))
     phash_max = int(thresholds.get("phash_hamming_max", 8))
+    phash_text_max = int(thresholds.get("phash_text_hamming_max", 12))
     items = list(signatures)
 
     best: dict[tuple[str, str, str], Relation] = {}
-    stats = {"normalized_text": 0, "simhash": 0, "phash": 0, "skipped_buckets": 0}
+    stats = {"normalized_text": 0, "simhash": 0, "phash": 0, "skipped_buckets": 0,
+             "phash_odrzucone_tekstem": 0}
 
     def remember(relation: Relation, layer: str) -> None:
         current = best.get(relation.key)
@@ -240,10 +254,16 @@ def build_relations(
     pairs, skipped = _pairs_by_distance(items, "perceptual_hash", phash_max, max_bucket=max_bucket)
     stats["skipped_buckets"] += skipped
     for left, right, distance in pairs:
-        remember(
-            _relation_for(left, right, distance, phash_max, "phash", f"phash, odległość {distance}"),
-            "phash",
-        )
+        tekst = _text_distance(left, right)
+        if tekst is not None and tekst > phash_text_max:
+            # Piksele się zgadzają, treść nie. Dwie zapisane kartki wyglądają podobnie,
+            # więc bez tego dwa różne kolokwia lądowały w jednym klastrze.
+            stats["phash_odrzucone_tekstem"] += 1
+            continue
+        detail = f"phash, odległość {distance}"
+        if tekst is not None:
+            detail += f"; tekst zgodny (odległość {tekst})"
+        remember(_relation_for(left, right, distance, phash_max, "phash", detail), "phash")
 
     relations = sorted(best.values(), key=lambda r: r.key)
     return relations, stats

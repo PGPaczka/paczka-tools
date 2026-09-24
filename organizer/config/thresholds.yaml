@@ -25,6 +25,11 @@ near_duplicate:
   simhash_hamming_max: 3     # maks. odległość Hamminga simhash uznawana za near-dupe
   minhash_jaccard_min: 0.85  # min. Jaccard (MinHash/LSH) uznawany za near-dupe
   phash_hamming_max: 8       # obrazy: maks. odległość perceptual hash
+  phash_text_hamming_max: 12 # obrazy z OCR: maks. odległość simhasha TEKSTU, przy której
+                             # para z phasha zostaje. Luźniej niż `simhash_hamming_max`,
+                             # bo OCR dwóch zdjęć tej samej kartki nigdy nie wychodzi
+                             # identycznie; para o zgodnych pikselach i rozjechanym
+                             # tekście to dwie różne kartki, nie ten sam materiał.
   noise_patterns:            # fnmatch — klastry z pasującą ścieżką pliku pomijane w UI
     - "*.vcxproj*"
     - "*.sln"

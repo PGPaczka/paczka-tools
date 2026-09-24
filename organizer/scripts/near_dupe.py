@@ -208,6 +208,12 @@ def relate(
         f"trafienia warstw: tekst={stats['normalized_text']}, simhash={stats['simhash']}, "
         f"phash={stats['phash']}"
     )
+    if stats.get("phash_odrzucone_tekstem"):
+        # Widoczne w podsumowaniu, bo to jedyny moment, w którym widać, ile par
+        # „zgodne piksele, inna treść" odsiał OCR (Q5).
+        typer.echo(
+            f"obrazy odrzucone przez niezgodny tekst: {stats['phash_odrzucone_tekstem']}"
+        )
     if with_signature == 0 and signatures:
         typer.echo(
             "UWAGA: żadna treść nie ma podpisów — uruchom najpierw `just extract`", err=True

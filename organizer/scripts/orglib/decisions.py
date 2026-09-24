@@ -254,6 +254,32 @@ def _guard_ground_truth(conn: sqlite3.Connection, sha256: str) -> None:
         )
 
 
+def renamed_target(old_target: str, filename: str) -> str:
+    """Sprawdza nazwę i zwraca ścieżkę w dotychczasowym katalogu, z separatorem `/`."""
+    if not isinstance(old_target, str) or not isinstance(filename, str):
+        raise ValueError("ścieżka docelowa i nazwa pliku muszą być tekstem")
+    filename = filename.strip()
+    if not filename:
+        raise ValueError("nazwa pliku nie może być pusta")
+    if "/" in filename or "\\" in filename:
+        raise ValueError(
+            "ta operacja zmienia wyłącznie nazwę — przeniesienie to edycja całej ścieżki docelowej"
+        )
+    if filename in (".", ".."):
+        raise ValueError("nazwa nie może być `.` ani `..`")
+    # `check_windows_name` patrzy na koniec CAŁEGO segmentu, więc spacji przed
+    # rozszerzeniem („kol1 .pdf") samo by nie złapało — a to prawie zawsze literówka.
+    stem = PurePosixPath(filename).stem
+    if stem and stem != stem.rstrip(". "):
+        raise ValueError("nazwa przed rozszerzeniem nie może kończyć się spacją ani kropką")
+
+    new_target = str(PurePosixPath(old_target).with_name(filename))
+    problems = plan_lint.check_path_safety(new_target) + plan_lint.check_windows_name(new_target)
+    if problems:
+        raise ValueError(f"nazwa {filename!r}: " + ", ".join(problems))
+    return new_target
+
+
 def rename_target(
     conn: sqlite3.Connection,
     *,
@@ -282,26 +308,7 @@ def rename_target(
         raise NoTargetPath(
             f"sha256={sha256[:12]}… nie ma ścieżki docelowej — najpierw decyzja o kategorii"
         )
-
-    filename = filename.strip()
-    if not filename:
-        raise ValueError("nazwa pliku nie może być pusta")
-    if "/" in filename or "\\" in filename:
-        raise ValueError(
-            "ta operacja zmienia wyłącznie nazwę — przeniesienie to edycja całej ścieżki docelowej"
-        )
-    if filename in (".", ".."):
-        raise ValueError("nazwa nie może być `.` ani `..`")
-    # `check_windows_name` patrzy na koniec CAŁEGO segmentu, więc spacji przed
-    # rozszerzeniem („kol1 .pdf") samo by nie złapało — a to prawie zawsze literówka.
-    stem = PurePosixPath(filename).stem
-    if stem and stem != stem.rstrip(". "):
-        raise ValueError("nazwa przed rozszerzeniem nie może kończyć się spacją ani kropką")
-
-    new_target = str(PurePosixPath(old_target).with_name(filename))
-    problems = plan_lint.check_path_safety(new_target) + plan_lint.check_windows_name(new_target)
-    if problems:
-        raise ValueError(f"nazwa {filename!r}: " + ", ".join(problems))
+    new_target = renamed_target(old_target, filename)
 
     # Ta sama nazwa to brak decyzji: zapis zamieniłby cudzą heurystykę w „decyzję człowieka".
     if new_target == old_target:
