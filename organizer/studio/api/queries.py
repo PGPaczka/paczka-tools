@@ -832,6 +832,89 @@ def plan_conflicts(
     return {"total": total, "conflicts": conflicts}
 
 
+def same_day_groups(
+    conn: sqlite3.Connection,
+    *,
+    semester: int | None = None,
+    skrot: str | None = None,
+    max_size: int = 20,
+    limit: int = 100,
+    thresholds: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Treści z jednego katalogu i jednego dnia — „chyba jedna sesja" (Q8).
+
+    EXIF w tej paczce nie istnieje (na próbce 400 obrazów ani jeden nie miał daty), więc
+    zostaje `modified_date`. Ale w większości katalogów wszystkie pliki mają ten sam dzień,
+    bo to data skopiowania paczki — i wtedy taka „grupa" jest tylko parafrazą zdania
+    „te pliki leżą razem", które widać i bez niej.
+
+    Dlatego bierzemy WYŁĄCZNIE katalogi, w których data naprawdę rozdziela pliki na kilka
+    dni (w tej bazie: 899 grup zamiast 6139), i ucinamy grupy większe niż ``max_size`` —
+    kilkadziesiąt plików z jednego dnia to zgrana paczka, nie sesja zdjęciowa.
+    """
+    auto_apply, review_min = confidence_limits(thresholds)
+    clauses = ["f.modified_date IS NOT NULL", "f.sha256 IS NOT NULL"]
+    params: list[Any] = []
+    if semester is not None:
+        clauses.append("cl.semester = ?")
+        params.append(semester)
+    if skrot is not None:
+        clauses.append("cl.subject_key = ?")
+        params.append(skrot)
+    where = " AND ".join(clauses)
+
+    rows = conn.execute(
+        f"""
+        SELECT f.folder_path AS folder,
+               substr(f.modified_date, 1, 10) AS day,
+               f.sha256 AS sha256,
+               f.filename AS filename,
+               f.size_bytes AS size_bytes,
+               f.source_relative_path AS source_relative_path,
+               cl.category AS category,
+               cl.semester AS semester,
+               cl.subject_key AS subject_key,
+               cl.confidence AS confidence,
+               cl.action AS action,
+               cl.needs_review AS needs_review
+        FROM files f
+        LEFT JOIN classifications cl ON cl.sha256 = f.sha256
+        WHERE {where}
+        ORDER BY f.folder_path, day, f.file_id
+        """,
+        params,
+    ).fetchall()
+
+    dni_w_katalogu: dict[str, set[str]] = {}
+    grupy: dict[tuple[str, str], dict[str, Any]] = {}
+    for row in rows:
+        folder, day = str(row["folder"]), str(row["day"])
+        dni_w_katalogu.setdefault(folder, set()).add(day)
+        wpis = grupy.setdefault((folder, day), {})
+        # Jedna treść może mieć kilka kopii w tym samym katalogu — liczy się raz.
+        wpis.setdefault(str(row["sha256"]), {
+            "sha256": str(row["sha256"]),
+            "filename": row["filename"],
+            "source_relative_path": row["source_relative_path"],
+            "size_bytes": row["size_bytes"],
+            "category": row["category"],
+            # Semestr i przedmiot jadą razem z treścią, żeby widok mógł zdecydować
+            # o całej sesji bez zgadywania, do którego przedmiotu należy.
+            "semester": row["semester"],
+            "subject_key": row["subject_key"],
+            "confidence": row["confidence"],
+            "action": row["action"],
+            "needs_review": row["needs_review"],
+        })
+
+    sesje = [
+        {"folder": folder, "day": day, "contents": list(tresci.values())}
+        for (folder, day), tresci in sorted(grupy.items())
+        if len(dni_w_katalogu[folder]) > 1 and 1 < len(tresci) <= max_size
+    ]
+    return {"total": len(sesje), "limit": limit, "groups": sesje[:limit]}
+
+
 def preview(
     conn: sqlite3.Connection,
     sha256: str,

@@ -195,7 +195,17 @@ plików.
 **Wniosek.** Grupowanie „ten sam aparat, ten sam dzień” odpada. Zostaje data modyfikacji
 i katalog — i to katalog jest mocniejszy (patrz Q6).
 
-- [ ] grupowanie „zrobione tego samego dnia w tym samym katalogu” jako podpowiedź w klastrach
+- [x] grupowanie „ten sam katalog, ten sam dzień” jako podpowiedź w klastrach —
+      `GET /api/clusters/same-day` plus sekcja „Z tej samej sesji”.
+      **Z ważnym ograniczeniem, które wyszło z danych:** w 6642 z 7415 katalogów wszystkie
+      pliki mają jeden dzień, bo to data skopiowania paczki. Taka „grupa” byłaby wtedy tylko
+      parafrazą zdania „te pliki leżą razem”. Dlatego podpowiedź pokazuje się WYŁĄCZNIE tam,
+      gdzie data naprawdę rozdziela katalog (857 sesji w tej bazie, mediana 4 treści),
+      a grupy większe niż `max_size` odpadają — kilkadziesiąt plików z jednego dnia to
+      zgrana paczka, nie sesja.
+      Akcja jest inna niż przy klastrach: to zwykle strony JEDNEGO materiału, nie duplikaty,
+      więc „zdecyduj razem” nadaje całej sesji wspólną kategorię (przez istniejący zapis
+      hurtowy), zamiast pytać o wersję kanoniczną.
 
 ---
 

@@ -2,9 +2,12 @@
   import {
     getClusters,
     getClusterDiff,
+    getSameDayGroups,
     mergeContents,
+    postDecisionBatch,
     type Cluster,
     type MergeRelation,
+    type SessionGroup,
     type ClusterDiff,
     type ClustersPage,
     type Item,
@@ -27,6 +30,19 @@
   let error = $state<string | null>(null);
   let success = $state<string | null>(null);
   let noiseFilter = $state('');
+
+  /** Podpowiedź „chyba jedna sesja" (Q8): treści z jednego katalogu i jednego dnia.
+   *  To NIE są duplikaty — to zwykle strony jednego materiału, więc obok klastrów,
+   *  z inną akcją: wspólna kategoria zamiast wyboru wersji kanonicznej. */
+  let sessions = $state<SessionGroup[]>([]);
+  let sessionsOpen = $state(false);
+  let sessionCategory = $state('kolokwia');
+  let sessionBusy = $state<string | null>(null);
+
+  const CATEGORIES = [
+    'egzamin', 'kolokwia', 'laboratoria', 'cwiczenia', 'projekt',
+    'seminarium', 'wyklad', 'opracowania', 'inne',
+  ] as const;
 
   /** Treść oglądana na cały ekran: {sha, nazwa} albo nic. */
   let zoomed = $state<{ sha256: string; name: string } | null>(null);
@@ -65,6 +81,11 @@
       if (skrot) filters.skrot = skrot;
       if (noiseFilter.trim()) filters.noise = noiseFilter.trim();
       page = await getClusters(filters as any);
+      const sesje = await getSameDayGroups({
+        semester: semester ?? undefined,
+        skrot: skrot ?? undefined,
+      });
+      sessions = sesje.groups;
     } catch (exc) {
       error = exc instanceof Error ? exc.message : String(exc);
     } finally {
@@ -134,6 +155,38 @@
     }
   }
 
+  /** Cała sesja dostaje jedną kategorię — to jeden materiał w kilku plikach. */
+  async function decideSession(group: SessionGroup): Promise<void> {
+    const klucz = `${group.folder}|${group.day}`;
+    if (sessionBusy) return;
+    sessionBusy = klucz;
+    error = null;
+    try {
+      const decyzje = group.contents
+        .filter((item) => item.semester && item.subject_key)
+        .map((item) => ({
+          sha256: item.sha256,
+          decision_type: 'classify' as const,
+          semester: item.semester!,
+          subject_key: item.subject_key!,
+          category: sessionCategory,
+          action: 'copy',
+        }));
+      if (!decyzje.length) {
+        error = 'ta sesja nie ma jeszcze przypisanego przedmiotu — zdecyduj w kolejce';
+        return;
+      }
+      const wynik = await postDecisionBatch(decyzje);
+      success = `sesja ${group.day}: ${wynik.count} decyzji (${sessionCategory})`;
+      onResolved?.();
+      await load();
+    } catch (exc) {
+      error = exc instanceof Error ? exc.message : String(exc);
+    } finally {
+      sessionBusy = null;
+    }
+  }
+
   function relationLabel(type: string): string {
     switch (type) {
       case 'near_duplicate': return 'near-dupe';
@@ -170,6 +223,50 @@
   {/if}
   {#if success}
     <div class="msg success">{success}</div>
+  {/if}
+
+  {#if sessions.length}
+    <!-- Q8: podpowiedź, nie klaster. Te pliki zwykle NIE są duplikatami — to strony
+         jednego materiału zgrane w jednej sesji, więc akcja jest inna: wspólna kategoria,
+         a nie wybór wersji kanonicznej. Pokazujemy tylko katalogi, w których data
+         naprawdę rozdziela pliki; w większości katalogów jest to data kopiowania paczki. -->
+    <div class="sessions">
+      <button class="sessions-head" onclick={() => (sessionsOpen = !sessionsOpen)}>
+        <span class="caret">{sessionsOpen ? '▾' : '▸'}</span>
+        <strong>Z tej samej sesji</strong>
+        <span class="num dim">{sessions.length}</span>
+        <span class="dim">jeden katalog, jeden dzień — zwykle strony jednego materiału</span>
+      </button>
+      {#if sessionsOpen}
+        <label class="session-cat dim">
+          zdecyduj jako
+          <select bind:value={sessionCategory}>
+            {#each CATEGORIES as cat}
+              <option value={cat}>{cat}</option>
+            {/each}
+          </select>
+        </label>
+        {#each sessions as group (group.folder + group.day)}
+          <div class="session">
+            <div class="session-head">
+              <span class="mono day">{group.day}</span>
+              <span class="num dim">{group.contents.length}</span>
+              <span class="mono dim folder" title={group.folder}>{group.folder}</span>
+              <button
+                disabled={sessionBusy !== null}
+                onclick={() => decideSession(group)}
+              >
+                {sessionBusy === `${group.folder}|${group.day}` ? 'zapisuję…' : 'zdecyduj razem'}
+              </button>
+            </div>
+            <div class="session-files mono dim">
+              {group.contents.slice(0, 6).map((c) => c.filename ?? c.sha256.slice(0, 8)).join(' · ')}
+              {group.contents.length > 6 ? ' · …' : ''}
+            </div>
+          </div>
+        {/each}
+      {/if}
+    </div>
   {/if}
 
   {#if loading}
@@ -333,6 +430,79 @@
   .total {
     color: var(--muted);
     font-size: 12px;
+  }
+  .sessions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+  }
+  .sessions-head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .session-cat {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+  }
+  .session-cat select {
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg-deep);
+    color: var(--text);
+    font-size: 11px;
+  }
+  .session {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-left: 12px;
+  }
+  .session-head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 11px;
+  }
+  .session-head .folder {
+    flex: 1 1 10rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .session-head button {
+    padding: 1px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 10px;
+    cursor: pointer;
+  }
+  .session-head button:hover:not(:disabled) {
+    color: var(--text);
+    border-color: var(--accent-dim);
+  }
+  .session-files {
+    font-size: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .noise-row {
     display: flex;

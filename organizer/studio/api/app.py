@@ -464,6 +464,20 @@ def create_app(
             raise HTTPException(status_code=404, detail="nie znaleziono jednej lub obu treści")
         return result
 
+    @app.get("/api/clusters/same-day", tags=["clusters"])
+    def get_same_day_groups(
+        semester: Optional[int] = Query(None, ge=1, le=7),
+        skrot: Optional[str] = Query(None, max_length=64),
+        max_size: int = Query(20, ge=2, le=200),
+        limit: int = Query(100, ge=1, le=500),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ) -> dict[str, Any]:
+        """Treści z jednego katalogu i jednego dnia — podpowiedź „chyba jedna sesja" (Q8)."""
+        return queries.same_day_groups(
+            conn, semester=semester, skrot=skrot, max_size=max_size, limit=limit,
+            thresholds=limits,
+        )
+
     @app.post("/api/clusters/resolve", tags=["clusters"])
     def resolve_cluster(
         body: dict[str, Any] = Body(...),

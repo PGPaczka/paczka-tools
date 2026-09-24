@@ -477,6 +477,45 @@ export interface ClusterDiff {
 export const getClusterDiff = (leftSha: string, rightSha: string, signal?: AbortSignal) =>
   fetchJson<ClusterDiff>(`/api/clusters/diff?left=${leftSha}&right=${rightSha}`, signal);
 
+/** Treść w podpowiedzi „chyba jedna sesja" (Q8). */
+export interface SessionContent {
+  sha256: string;
+  filename: string | null;
+  source_relative_path: string | null;
+  size_bytes: number | null;
+  category: string | null;
+  semester: number | null;
+  subject_key: string | null;
+  confidence: number | null;
+  action: string | null;
+  needs_review: number | null;
+}
+
+export interface SessionGroup {
+  folder: string;
+  day: string;
+  contents: SessionContent[];
+}
+
+/**
+ * Treści z jednego katalogu i jednego dnia. Podpowiedź pokazuje się TYLKO tam, gdzie data
+ * naprawdę rozdziela katalog — w większości katalogów jest to data skopiowania paczki.
+ */
+export const getSameDayGroups = (
+  filters: { semester?: number; skrot?: string; max_size?: number } = {},
+  signal?: AbortSignal,
+) => {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== null && value !== '') params.set(key, String(value));
+  }
+  const query = params.toString();
+  return fetchJson<{ total: number; limit: number; groups: SessionGroup[] }>(
+    `/api/clusters/same-day${query ? `?${query}` : ''}`,
+    signal,
+  );
+};
+
 export const resolveCluster = (canonicalSha256: string, members: string[], decidedBy = 'studio') =>
   postJson<ResolveResult>('/api/clusters/resolve', {
     canonical_sha256: canonicalSha256,
