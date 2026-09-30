@@ -247,6 +247,7 @@
       semester,
       grupa,
       skrot: selected?.skrot ?? null,
+      category,
       stage,
       queueOpen,
       listOpen,
@@ -265,6 +266,21 @@
         (saved.grupa == null || item.grupa === saved.grupa),
     );
     if (row) selected = row;
+  });
+
+  /** Odtworzenie zakresu pracy — dopiero gdy wiadomo, jakie kategorie ten przedmiot ma.
+   *
+   *  Zapamiętana kategoria jest przycinana do tego, co w TYM przedmiocie istnieje:
+   *  po powrocie na inny przedmiot (albo po przebudowie planu, która kategorię
+   *  wygasiła) wybór spoza listy dawałby pustą listę pozycji i pustą kolejkę bez
+   *  śladu, dlaczego. Ta sama zasada co przy filtrach viewera. */
+  let restoredCategory = false;
+  $effect(() => {
+    if (restoredCategory || !detail || !saved.category) return;
+    restoredCategory = true;
+    if (detail.categories.some((entry) => entry.category === saved.category)) {
+      category = saved.category;
+    }
   });
 
   $effect(() => {
@@ -444,6 +460,7 @@
         <DecisionPanel
           semester={selected?.semester}
           skrot={selected?.skrot}
+          scopeCategory={category}
           onDecided={loadDashboard}
         />
       {:else if mode === 'clusters'}

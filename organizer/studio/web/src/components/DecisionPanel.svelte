@@ -28,10 +28,17 @@
   interface Props {
     semester?: number | null;
     skrot?: string | null;
+    /** Zakres pracy: kolejka podaje wyłącznie tę kategorię.
+     *
+     *  Nazwa jest dłuższa niż `category` celowo — `decide()` ma parametr o tej nazwie
+     *  (kategoria NADAWANA pozycji), a to zupełnie co innego niż kategoria, nad którą
+     *  akurat pracujesz. Dwa różne pojęcia pod jedną nazwą w jednym pliku to pomyłka
+     *  czekająca na swoją kolej. */
+    scopeCategory?: string | null;
     onDecided?: () => void;
   }
 
-  let { semester = null, skrot = null, onDecided }: Props = $props();
+  let { semester = null, skrot = null, scopeCategory = null, onDecided }: Props = $props();
 
   let current = $state<Item | null>(null);
   let remaining = $state(0);
@@ -88,6 +95,12 @@
     current && preview?.has_image ? previewImageUrl(current.sha256, page, previewWidth()) : null,
   );
 
+  /** Nad czym pracujesz — `AKO · laboratoria`. Bez tego pusta kolejka nie mówi,
+   *  czy zakres jest wąski, czy po prostu nic nie zostało. */
+  const scopeLabel = $derived(
+    [skrot, scopeCategory].filter(Boolean).join(' · ') || 'cały indeks',
+  );
+
   async function loadNext(): Promise<void> {
     loading = true;
     error = null;
@@ -95,6 +108,7 @@
       const filters: Record<string, unknown> = { needs_review: true, limit: 1 };
       if (semester) filters.semester = semester;
       if (skrot) filters.skrot = skrot;
+      if (scopeCategory) filters.category = scopeCategory;
       const page: ItemsPage = await getItems(filters as any);
       current = page.items[0] ?? null;
       remaining = page.total;
@@ -324,7 +338,7 @@
   }
 
   $effect(() => {
-    const _deps = [semester, skrot];
+    const _deps = [semester, skrot, scopeCategory];
     loadNext();
   });
 
@@ -367,6 +381,7 @@
 <div class="decision-panel">
   <div class="header">
     <h3>Kolejka decyzji</h3>
+    <span class="scope">{scopeLabel}</span>
     <span class="remaining num">{remaining} do przeglądu</span>
   </div>
 
@@ -380,7 +395,20 @@
   {#if loading}
     <div class="empty">Wczytuję…</div>
   {:else if !current}
-    <div class="empty">Brak pozycji do przeglądu</div>
+    <!-- Puste znaczy „nic tu nie ma do rozstrzygnięcia”, a nie „coś się zepsuło” —
+         przy kategorii bez spornych pozycji (np. AKO ćwiczenia: 81 pozycji, zero
+         needs_review) trzeba powiedzieć wprost, gdzie ta praca jest. -->
+    <div class="empty">
+      <p>Nic do rozstrzygnięcia w zakresie: <strong>{scopeLabel}</strong>.</p>
+      {#if scopeCategory}
+        <p class="dim">
+          Ta kategoria nie ma pozycji oznaczonych do przeglądu. Obejrzyj ją w liście
+          pozycji i w drzewie docelowym (zakładka plan), albo wybierz inną kategorię.
+        </p>
+      {:else}
+        <p class="dim">Wybierz przedmiot i kategorię, żeby zawęzić kolejkę.</p>
+      {/if}
+    </div>
   {:else}
     <div class="item-card">
       <figure class="preview">
@@ -761,16 +789,32 @@
   .header {
     display: flex;
     align-items: baseline;
-    justify-content: space-between;
+    gap: 8px;
     margin-bottom: 12px;
   }
   .header h3 {
     margin: 0;
     font-size: 14px;
   }
+  /* Zakres stoi przy tytule, licznik ucieka na prawą krawędź: to dwie różne
+     informacje („nad czym pracuję” i „ile zostało”), a nie trzy równorzędne. */
+  .scope {
+    font-size: 12px;
+    color: var(--accent);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .remaining {
+    margin-left: auto;
+    flex: none;
     color: var(--muted);
     font-size: 12px;
+  }
+  /* Klasa była już w tym pliku używana, ale nigdzie nie miała reguły. */
+  .dim {
+    color: var(--muted);
   }
   .item-card {
     display: grid;

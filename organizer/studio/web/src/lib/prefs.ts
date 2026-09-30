@@ -16,6 +16,9 @@ export interface Prefs {
   semester?: number | null;
   grupa?: string | null;
   skrot?: string | null;
+  /** Zakres pracy w przedmiocie. Praca idzie kategoriami (AKO-laby osobno od
+   *  AKO-ćwiczeń), więc to jest TA jedna rzecz, którą chcesz odzyskać po powrocie. */
+  category?: string | null;
   /** Filtr etapu z kolejki po lewej. */
   stage?: string | null;
   /** Czy boczne panele są rozwinięte. */

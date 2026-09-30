@@ -52,6 +52,14 @@ def index(tmp_path):
         "run_id": "plan:x", "decided_at": "2026-09-01T00:00:00Z",
         "action": "copy", "needs_review": 1, "is_outdated": 0,
     })
+    # Druga kategoria do przeglądu — bez niej „zawężenie do kategorii” przechodzi
+    # także wtedy, gdy filtr jest ignorowany (jedna kategoria zawsze wygląda na filtr).
+    db.upsert_classification(conn, {
+        "sha256": SHA["c"], "semester": 3, "subject_key": "AKO", "category": "laboratoria",
+        "classification_method": "heuristic", "confidence": 0.62,
+        "run_id": "plan:x", "decided_at": "2026-09-01T00:00:00Z",
+        "action": "copy", "needs_review": 1, "is_outdated": 0,
+    })
     conn.commit()
     conn.close()
     return db_path
@@ -159,6 +167,32 @@ def test_queue_returns_needs_review_items(client) -> None:
     assert body["total"] >= 1
     if body["items"]:
         assert body["items"][0]["needs_review"] == 1
+
+
+def test_queue_narrows_to_one_category(client) -> None:
+    """Praca idzie kategoriami, więc kolejka musi umieć podać jedną kategorię.
+
+    Bez tego filtru kolejka wrzuca egzaminy między laboratoria i „jedna kategoria
+    na raz" nie istnieje w narzędziu.
+    """
+    wide = client.get("/api/queue?limit=100").json()
+    assert {item["category"] for item in wide["items"]} == {"inne", "laboratoria"}
+
+    narrow = client.get("/api/queue?category=laboratoria&limit=100").json()
+    assert narrow["total"] == 1
+    assert [item["category"] for item in narrow["items"]] == ["laboratoria"]
+    assert narrow["items"][0]["sha256"] == SHA["c"]
+
+
+def test_queue_category_without_review_items_is_empty_not_unfiltered(client) -> None:
+    """Kategoria bez spornych pozycji ma dać PUSTO, a nie całą kolejkę.
+
+    To jest realny stan (AKO ćwiczenia: 81 pozycji, zero `needs_review`), a cicha
+    zamiana „nic tu nie ma" na „masz tu wszystko" byłaby gorsza niż brak filtru.
+    """
+    body = client.get("/api/queue?category=egzamin&limit=100").json()
+    assert body["total"] == 0
+    assert body["items"] == []
 
 
 def test_decision_is_reflected_in_dashboard(client) -> None:

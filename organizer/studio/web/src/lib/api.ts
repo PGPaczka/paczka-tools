@@ -587,7 +587,10 @@ export const getPlanConflicts = (
   return fetchJson<PlanConflicts>(`/api/plan/conflicts${query ? `?${query}` : ''}`, signal);
 };
 
-export const getQueue = (filters: { semester?: number; skrot?: string; limit?: number } = {}, signal?: AbortSignal) => {
+export const getQueue = (
+  filters: { semester?: number; skrot?: string; category?: string; limit?: number } = {},
+  signal?: AbortSignal,
+) => {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) {
     if (value !== undefined && value !== null) params.set(key, String(value));

@@ -513,12 +513,18 @@ def create_app(
     def get_queue(
         semester: Optional[int] = Query(None, ge=1, le=7),
         skrot: Optional[str] = Query(None, max_length=64),
+        category: Optional[str] = Query(None, max_length=64),
         limit: int = Query(1, ge=1, le=100),
         conn: sqlite3.Connection = Depends(get_conn),
     ) -> dict[str, Any]:
-        """Następna pozycja do przeglądu (S1.4): treść z najniższą pewnością i needs_review=1."""
+        """Następna pozycja do przeglądu (S1.4): treść z najniższą pewnością i needs_review=1.
+
+        `category` zawęża kolejkę do jednej kategorii, bo praca idzie kategoriami
+        (AKO-laby osobno od AKO-ćwiczeń): bez tego kolejka wrzuca egzaminy między
+        laboratoria i „jedna kategoria na raz" nie istnieje w narzędziu.
+        """
         return queries.items(
-            conn, semester=semester, skrot=skrot,
+            conn, semester=semester, skrot=skrot, category=category,
             needs_review=True, thresholds=limits,
             limit=limit, offset=0,
         )
