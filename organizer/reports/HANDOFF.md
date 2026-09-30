@@ -2,6 +2,20 @@
 
 ## Kontekst ręczny
 
+- **Macierz pokrycia ustawia zakres pracy (2026-10-01).** Klik w komórkę
+  `przedmiot × kategoria` otwiera kolejkę decyzji zawężoną do tego przedmiotu i tej
+  kategorii. Szczegóły — `studio/TODO-studio.md`. Dwie rzeczy do zapamiętania:
+  - **Kanał graf → studio to fragment URL-a ramki i niesie teraz dwie rzeczy.**
+    Zaznaczony węzeł to samo id notatki, zakres zaczyna się od `scope=`. Rozróżnienie
+    jest po prefiksie, bo id notatki zawsze kończy się skrótem sha — gdyby studio nie
+    rozgałęziało, próbowałoby rozwiązać zakres jako treść i pokazywało 404.
+  - **Id węzła na przedmiot przekłada backend, generując id dla katalogu tą samą
+    funkcją, która je tworzy** — nie parsując wzorcem. Parsowanie po pierwszej zmianie
+    kontraktu id zaczęłoby cicho wskazywać nie ten przedmiot; tak zwraca 404.
+  - `studioUrl` notatki pliku **świadomie zostaje przy wyszukiwarce**: kolejka nie umie
+    przypiąć wskazanej treści, a kliknięty plik często nie jest sporny, więc trafiłoby
+    się przy innym.
+
 - **Cały potok da się uruchomić z przeglądarki (2026-10-01).** Było 6 etapów z 12.
   Szczegóły i decyzje projektowe — `studio/TODO-studio.md`, wpis z tej daty. Tu to,
   co warto pamiętać przy następnej sesji:
@@ -339,9 +353,9 @@
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-10-01T00:36:04+02:00
+- Odświeżono: 2026-10-01T00:47:09+02:00
 - Branch: `master`
-- Commit: `20d43a0`
+- Commit: `ab44a66`
 - Git status:
   ```text
   M reports/HANDOFF.md
