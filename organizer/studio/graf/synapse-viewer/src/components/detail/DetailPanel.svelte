@@ -13,6 +13,7 @@
   import MarkdownBody from './MarkdownBody.svelte'
   import FileFacts from './FileFacts.svelte'
   import CopyButton from './CopyButton.svelte'
+  import SectionHeading from './SectionHeading.svelte'
   import type { RealNode, GhostNode, GraphNode } from '../../domain/graph/GraphModel'
 
   export let canEdit: boolean = false
@@ -347,15 +348,28 @@
     <!-- Meta footer (real nodes) -->
     {#if realNode}
       <div class="meta-footer">
-        {#if realNode.wordCount}
-          <span class="meta-item">{realNode.wordCount} words</span>
-        {/if}
-        {#if realNode.modified}
-          <span class="meta-item">Modified {realNode.modified.slice(0, 10)}</span>
-        {/if}
-        <span class="meta-grow"></span>
-        <span class="meta-item note-path" title={realNode.path}>{realNode.path}</span>
-        <CopyButton value={realNode.path} label="Copy vault path" />
+        <SectionHeading title="Statystyki" />
+        <dl class="meta-list">
+          {#if realNode.wordCount}
+            <div class="meta-row">
+              <dt>Słowa</dt>
+              <dd>{realNode.wordCount}</dd>
+            </div>
+          {/if}
+          {#if realNode.modified}
+            <div class="meta-row">
+              <dt>Zmodyfikowano</dt>
+              <dd>{realNode.modified.slice(0, 10)}</dd>
+            </div>
+          {/if}
+          <div class="meta-row">
+            <dt>Notatka</dt>
+            <dd class="path-cell">
+              <span class="note-path" title={realNode.path}>{realNode.path}</span>
+              <CopyButton value={realNode.path} label="Copy vault path" />
+            </dd>
+          </div>
+        </dl>
       </div>
     {/if}
   </aside>
@@ -710,30 +724,47 @@
     padding: 1px 4px;
   }
 
-  .meta-grow { flex: 1; }
+  .meta-footer {
+    margin-top: auto;
+    padding: 10px 14px 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .meta-list { margin: 0; padding: 0; }
+
+  /* Jedna liczba na wiersz, etykieta przed wartością: w jednej linijce „128 words" i data
+     łamały się na trzy poszarpane kolumny i nie dało się ich przeczytać (2026-09-30). */
+  .meta-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    min-height: 20px;
+    font-size: 11px;
+  }
+  .meta-row dt {
+    flex-shrink: 0;
+    width: 94px;
+    color: var(--muted-2);
+  }
+  .meta-row dd {
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .path-cell { display: flex; align-items: center; gap: 4px; }
 
   /* Ścieżka SAMEJ notatki w vaulcie: bywa potrzebna przy debugowaniu eksportu, ale nie
      jest odpowiedzią na żadne pytanie o materiał — stąd stopka, nie nagłówek. */
   .note-path {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 10.5px;
     color: var(--muted-2);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 55%;
-  }
-
-  .meta-footer {
-    margin-top: auto;
-    padding: 8px 14px;
-    border-top: 1px solid var(--border-2);
-    display: flex;
-    gap: 12px;
-  }
-
-  .meta-item {
-    font-size: 11px;
-    color: var(--muted-2);
+    min-width: 0;
   }
 </style>

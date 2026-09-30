@@ -6,6 +6,7 @@
   import CopyButton from './CopyButton.svelte'
   import FilePreview from './FilePreview.svelte'
   import ProvenanceTreeView from './ProvenanceTreeView.svelte'
+  import SectionHeading from './SectionHeading.svelte'
 
   export let node: RealNode
   export let file: FileInfo
@@ -25,75 +26,89 @@
   }
 </script>
 
-{#if file.preview}
-  <FilePreview
-    preview={file.preview}
-    contentKind={node.contentKind}
-    sizeBytes={node.sizeBytes}
-  />
-{/if}
+<!-- Trzy pytania, trzy sekcje: czym ten plik jest, gdzie trafi, skąd się wziął.
+     Bez nagłówków i linii działowych wszystko zlewało się w jedną kolumnę drobnego
+     tekstu i nie dało się przeskoczyć wzrokiem do właściwego miejsca (2026-09-30). -->
+{#if file.preview || node.sha256 || node.contentKind || node.sizeBytes}
+  <section class="block">
+    <SectionHeading title="Zawartość" />
 
-{#if target}
-  <div class="where">
-    <span class="where-label">{decision?.inPackage ? 'leży w paczce' : 'trafi do paczki'}</span>
-    <div class="path-row">
-      <span class="path" title={target}><span class="dir">{folder}</span>{name}</span>
-      <CopyButton value={target} label="Copy target path" />
+    {#if file.preview}
+      <FilePreview
+        preview={file.preview}
+        contentKind={node.contentKind}
+        sizeBytes={node.sizeBytes}
+      />
+    {/if}
+
+    <div class="ids">
+      {#if node.sha256}
+        <span class="sha" title={node.sha256}>{node.sha256.slice(0, 12)}…</span>
+        <CopyButton value={node.sha256} label="Copy sha256" />
+      {/if}
+      {#if node.contentKind}<span class="chip">{node.contentKind}</span>{/if}
+      {#if humanSize(node.sizeBytes)}<span class="chip">{humanSize(node.sizeBytes)}</span>{/if}
+      <span class="grow"></span>
+      {#if file.studioUrl}
+        <!-- Absolute on purpose: studio serves the viewer under /graf/, and this leaves it. -->
+        <a class="studio" href={file.studioUrl}>Otwórz w studiu ↗</a>
+      {/if}
     </div>
-  </div>
+  </section>
 {/if}
 
-{#if decision}
-  <div class="facts">
-    {#if decision.action}
-      <span class="badge action">{decision.action}</span>
-    {/if}
-    {#if decision.category}
-      <span
-        class="badge cat"
-        style="color:{categoryColor(decision.category, $settings.catColorOverrides)}"
-      >{decision.category}</span>
-    {/if}
-    {#if decision.confidence !== undefined}
-      <span class="confidence" style="color:{confidenceVar(decision.confidence)}">
-        {decision.confidence.toFixed(2)}
-      </span>
-    {/if}
-    {#if decision.method}<span class="method">{decision.method}</span>{/if}
-    {#if decision.needsReview}<span class="badge review">do przeglądu</span>{/if}
-  </div>
-  {#if decision.reason}
-    <p class="reason">{decision.reason}</p>
-  {/if}
-{/if}
+{#if target || decision}
+  <section class="block">
+    <SectionHeading title={decision?.inPackage ? 'Leży w paczce' : 'Trafi do paczki'} />
 
-<div class="ids">
-  {#if node.sha256}
-    <span class="sha" title={node.sha256}>{node.sha256.slice(0, 12)}…</span>
-    <CopyButton value={node.sha256} label="Copy sha256" />
-  {/if}
-  {#if node.contentKind}<span class="chip">{node.contentKind}</span>{/if}
-  {#if humanSize(node.sizeBytes)}<span class="chip">{humanSize(node.sizeBytes)}</span>{/if}
-  <span class="grow"></span>
-  {#if file.studioUrl}
-    <!-- Absolute on purpose: studio serves the viewer under /graf/, and this leaves it. -->
-    <a class="studio" href={file.studioUrl}>Otwórz w studiu ↗</a>
-  {/if}
-</div>
+    {#if target}
+      <div class="path-row">
+        <span class="path" title={target}><span class="dir">{folder}</span>{name}</span>
+        <CopyButton value={target} label="Copy target path" />
+      </div>
+    {/if}
+
+    {#if decision}
+      <div class="facts">
+        {#if decision.action}
+          <span class="badge action">{decision.action}</span>
+        {/if}
+        {#if decision.category}
+          <span
+            class="badge cat"
+            style="color:{categoryColor(decision.category, $settings.catColorOverrides)}"
+          >{decision.category}</span>
+        {/if}
+        {#if decision.confidence !== undefined}
+          <span class="confidence" style="color:{confidenceVar(decision.confidence)}">
+            {decision.confidence.toFixed(2)}
+          </span>
+        {/if}
+        {#if decision.method}<span class="method">{decision.method}</span>{/if}
+        {#if decision.needsReview}<span class="badge review">do przeglądu</span>{/if}
+      </div>
+      {#if decision.reason}
+        <p class="reason">{decision.reason}</p>
+      {/if}
+    {/if}
+  </section>
+{/if}
 
 {#if file.provenance}
-  <ProvenanceTreeView copies={file.provenance.copies} total={file.provenance.total} />
+  <section class="block">
+    <ProvenanceTreeView copies={file.provenance.copies} total={file.provenance.total} />
+  </section>
 {/if}
 
 <style>
-  .where { margin: 0 0 10px; }
-  .where-label {
-    font-size: 10.5px;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--muted-2);
+  /* Linia działowa niesie oddzielenie sekcji; nagłówek mówi, o co w niej chodzi. */
+  .block + .block {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
   }
-  .path-row { display: flex; align-items: flex-start; gap: 6px; }
+
+  .path-row { display: flex; align-items: flex-start; gap: 6px; margin: 0 0 8px; }
   .path {
     font-family: var(--font-mono);
     font-size: 11.5px;
@@ -109,7 +124,7 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 6px;
-    margin: 0 0 6px;
+    margin: 0;
   }
 
   .badge {
@@ -127,7 +142,7 @@
   .method { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted-2); }
 
   .reason {
-    margin: 0 0 10px;
+    margin: 6px 0 0;
     font-size: 11.5px;
     color: var(--muted-2);
   }
@@ -137,7 +152,7 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 6px;
-    margin: 0 0 14px;
+    margin: 0;
     font-size: 11px;
     color: var(--muted-2);
   }

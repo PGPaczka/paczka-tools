@@ -7,6 +7,8 @@
   --panel-3: #21262d;
   --border: #30363d;
   --border-2: #21262d;
+  /* Linie prowadzące drzewa: --border-2 jest o włos od tła panelu i znika. */
+  --border-3: #3d444d;
   --text: #e6edf3;
   --muted: #8b949e;
   --muted-2: #6e7681;
