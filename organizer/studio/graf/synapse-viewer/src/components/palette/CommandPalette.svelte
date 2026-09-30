@@ -23,9 +23,7 @@
 
   const actions = buildActionsRegistry({
     switchViewGraph: () => { dispatch('switchView', 'graph'); close() },
-    switchViewCards: () => { dispatch('switchView', 'cards'); close() },
     switchViewDash: () => { dispatch('switchView', 'dash'); close() },
-    switchViewVenn: () => { dispatch('switchView', 'venn'); close() },
     switchViewExplorer: () => { dispatch('switchView', 'explorer'); close() },
     switchViewMatrix: () => { dispatch('switchView', 'matrix'); close() },
     switchLayoutClassic: () => { dispatch('switchLayout', 'classic'); close() },

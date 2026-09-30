@@ -7,7 +7,7 @@ const noop = () => {}
 
 const actions: PaletteAction[] = [
   { id: 'switch-view-graph', label: 'Graph view', hint: 'Show knowledge graph', icon: '', run: noop },
-  { id: 'switch-view-cards', label: 'Cards view', hint: 'Show notes as cards', icon: '', run: noop },
+  { id: 'switch-view-explorer', label: 'Explorer view', hint: 'Walk the vault as columns', icon: '', run: noop },
   { id: 'switch-view-dash', label: 'Dashboard', hint: 'Show dashboard stats', icon: '', run: noop },
   { id: 'switch-layout-classic', label: 'Classic layout', hint: 'Top bar navigation', icon: '', run: noop },
   { id: 'switch-layout-rail', label: 'Rail layout', hint: 'Side icon rail navigation', icon: '', run: noop },
@@ -95,10 +95,10 @@ describe('searchPalette', () => {
   it('query matching both: actions appear before notes', () => {
     // "linux" doesn't match any action but does match a note - that's fine
     // Let's construct a scenario where both match
-    // "cards" matches "Cards view" action only
-    const results = searchPalette('cards', actions, nodes, catColor, selectNote)
+    // "explorer" matches "Explorer view" action only
+    const results = searchPalette('explorer', actions, nodes, catColor, selectNote)
     const actionR = results.filter((r) => r.type === 'action')
-    expect(actionR[0].label).toBe('Cards view')
+    expect(actionR[0].label).toBe('Explorer view')
     // All action results precede all note results
     const firstNoteIdx = results.findIndex((r) => r.type === 'note')
     if (firstNoteIdx !== -1) {

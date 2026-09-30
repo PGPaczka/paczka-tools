@@ -223,13 +223,18 @@ pracy nad paczką, i sposób zadania ich w viewerze:
 | Co jest duplikatem czego? | Relacja `near duplicate` + **only connected** | 365 plików, 119 klastrów, największy 81 |
 | Który plik jest starszą wersją którego? | Relacja `older version` + **only connected** | 102 węzły, 104 krawędzie skierowane |
 | Skąd wziął się ten plik i ile ma kopii? | Klik w węzeł → panel „Prowenancja” | pełna lista ścieżek źródłowych |
-| Co dokładnie zrobi plan dla tego pliku? | Widok **Cards** | decyzja + ścieżka docelowa + pewność |
+| Co dokładnie zrobi plan dla tego pliku? | Widok **Explorer** → klik w plik | decyzja + ścieżka docelowa + pewność |
 | Co wskazuje poza paczkę? | Ghosty (128) — bez filtra typu węzła | duplikaty w materiale bez decyzji |
 | Jak duży jest przedmiot i z czego się składa? | Node type `subject` → klik → backlinki | kategorie i liczby w treści notatki |
 
-Do pytań typu „pokaż mi listę” lepszy jest widok **Cards** niż graf: karta pokazuje
-kategorię, status, decyzję i tagi bez klikania. Graf odpowiada na pytania o **kształt** —
-gdzie są skupiska duplikatów, który przedmiot wisi sam, co wychodzi poza paczkę.
+Do pytań typu „pokaż mi listę” lepszy jest **Explorer** niż graf: wiersz mówi rodzaj,
+rozmiar i stan, a droga do pliku jest widoczna w okruszkach. Do pytania „czego brakuje"
+— **Matrix**. Graf odpowiada na pytania o **kształt**: gdzie są skupiska duplikatów,
+który przedmiot wisi sam, co wychodzi poza paczkę.
+
+(Widoki **Venn** i **Cards** były w viewerze od upstreamu i zostały usunięte 2026-09-30
+— decyzja użytkownika: przy tych danych żaden nie odpowiadał na pytanie, którego nie
+obsłużyłby Explorer, Matrix albo sam graf.)
 
 ### Granice, o których trzeba wiedzieć
 

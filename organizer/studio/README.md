@@ -348,7 +348,7 @@ w listę rozwijaną — osiem zakładek nie mieści się w pasku telefonu.
 
 Sam viewer też jest ułożony pod telefon: wysokość liczona w `dvh` (a nie `vh`, bo ta
 druga ignoruje pasek adresu i spychała legendę oraz minimapę pod krawędź), zakładki
-`Graph/Venn/Cards/Dash` zwijają się w listę rozwijaną poniżej 720 px, panel notatki nie
+`Graph/Dash/Explorer/Matrix` zwijają się w listę rozwijaną poniżej 720 px, panel notatki nie
 przekracza szerokości ekranu (blok kodu przewija się sam, zamiast rozpychać stronę),
 a podgląd `?diag=1` startuje na telefonie zwinięty do plakietki, rozwija się dotknięciem
 i stoi po lewej, żeby nie zasłaniać `×` panelu notatki. Przycisk szuflady filtrów po

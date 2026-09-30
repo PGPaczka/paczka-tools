@@ -1,11 +1,11 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte'
 
-  export let view: 'graph' | 'cards' | 'dash' | 'venn' | 'explorer' | 'matrix' = 'graph'
+  export let view: 'graph' | 'dash' | 'explorer' | 'matrix' = 'graph'
   export let vaultName: string = 'Synapse'
 
   const dispatch = createEventDispatcher<{
-    switchView: 'graph' | 'cards' | 'dash' | 'venn' | 'explorer' | 'matrix'
+    switchView: 'graph' | 'dash' | 'explorer' | 'matrix'
     openSettings: void
     openPalette: void
   }>()
@@ -18,22 +18,12 @@
       <line x1="5" y1="7.2" x2="11" y2="4" stroke="currentColor" stroke-width="1.5"/>
       <line x1="5" y1="8.8" x2="11" y2="12" stroke="currentColor" stroke-width="1.5"/>
     </svg>`,
-    cards: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
-      <rect x="1" y="1" width="6" height="6" rx="1"/>
-      <rect x="9" y="1" width="6" height="6" rx="1"/>
-      <rect x="1" y="9" width="6" height="6" rx="1"/>
-      <rect x="9" y="9" width="6" height="6" rx="1"/>
-    </svg>`,
-    dash: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+      dash: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
       <rect x="1" y="1" width="14" height="4" rx="1"/>
       <rect x="1" y="7" width="6" height="8" rx="1"/>
       <rect x="9" y="7" width="6" height="8" rx="1"/>
     </svg>`,
-    venn: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
-      <circle cx="6.5" cy="9" r="5" fill-opacity=".55"/>
-      <circle cx="11.5" cy="9" r="5" fill-opacity=".55"/>
-    </svg>`,
-    explorer: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+      explorer: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
       <rect x="1" y="2" width="4" height="12" rx="1"/>
       <rect x="6" y="2" width="4" height="12" rx="1" fill-opacity=".7"/>
       <rect x="11" y="2" width="4" height="12" rx="1" fill-opacity=".45"/>
@@ -58,10 +48,8 @@
     </svg>`,
   }
 
-  const views: Array<{ id: 'graph' | 'cards' | 'dash' | 'venn' | 'explorer' | 'matrix'; icon: string; label: string }> = [
+  const views: Array<{ id: 'graph' | 'dash' | 'explorer' | 'matrix'; icon: string; label: string }> = [
     { id: 'graph', icon: ICONS.graph, label: 'Graph' },
-    { id: 'venn', icon: ICONS.venn, label: 'Venn' },
-    { id: 'cards', icon: ICONS.cards, label: 'Cards' },
     { id: 'dash', icon: ICONS.dash, label: 'Dashboard' },
     { id: 'explorer', icon: ICONS.explorer, label: 'Explorer' },
     { id: 'matrix', icon: ICONS.matrix, label: 'Matrix' },

@@ -673,10 +673,11 @@ czytające te same dane jako strukturę, oba w `studio/graf/synapse-viewer`.
 
 Trzy rzeczy, których nie widać w samym kodzie:
 
-- **`defaultFiltersFor` ukrywa pliki także w Cards.** Przy ponad 600 notatkach odznacza
-  najdrobniejszy typ węzła, a `CardsView` czyta ten sam `visibleNodeIds` co graf — czyli
-  jedyny istniejący widok listy startował bez plików. Nowe widoki idą przez
-  `realNodesIgnoringNodeType`, który pomija TEN wymiar filtra i zostawia resztę.
+- **`defaultFiltersFor` ukrywał pliki także poza grafem.** Przy ponad 600 notatkach
+  odznacza najdrobniejszy typ węzła, a ówczesny `CardsView` czytał ten sam
+  `visibleNodeIds` co graf — czyli jedyny wtedy istniejący widok listy startował bez
+  plików i nikt tego nie zauważył. Nowe widoki idą przez `realNodesIgnoringNodeType`,
+  który pomija TEN wymiar filtra i zostawia resztę.
 - **Przycinanie ścieżki nie może być zapisem do stanu.** Pierwsza wersja poprawiała
   `state.path` w bloku reaktywnym liczonym z `columns`, a `columns` liczyły się ze `state`:
   `Cyclical dependency detected`. Build to odrzucił, `svelte-check` przepuścił. Przycięcie
@@ -700,8 +701,20 @@ mógł pasować. `GitHistoryReader` ma teraz odwrót do zwykłego `git log`, a f
 repozytorium w katalogu tymczasowym ze stałą datą commita. Plik złoty zgodził się co do
 bajtu, bez przepisywania. `dotnet test` **65/65**.
 
-Przy okazji: `switch-view-venn` nie istniał w ⌘K — Venn był jedynym trybem dostępnym
-wyłącznie myszą. Dołożony razem z akcjami nowych widoków.
+## Venn i Cards usunięte z viewera (2026-09-30)
+
+Decyzja użytkownika: przy tych danych żaden z nich nie odpowiada na pytanie, którego nie
+obsłuży Explorer, Matrix albo sam graf. Oba przyszły z upstreamu — Venn rysował przecięcia
+2–4 zbiorów tagów, Cards był płaską siatką kart bez struktury i bez miniatur.
+
+Usunięte razem z nimi: `domain/sets/` (logika Venna), akcje ⌘K, pozycje w trzech
+powłokach i ikony. Aktywny tryb nie jest w viewerze zapisywany, więc nie było czego
+migrować — nikt nie utknie na nieistniejącej zakładce. Paczka JS: 1238 → 1224 kB (gzip 419 → 415),
+testy 237 → 216 (zniknęło 21 testów Venna).
+
+**Koszt do zapamiętania:** to pogłębia rozjazd z `Billypl/synapse`, więc `git subtree pull`
+będzie miał konflikt w tych plikach. Świadomy wybór — ten fork i tak jest przerobiony pod
+paczkę.
 
 ## Zależności od potoku
 

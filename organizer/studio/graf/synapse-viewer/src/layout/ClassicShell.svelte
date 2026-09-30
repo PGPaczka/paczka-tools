@@ -18,11 +18,11 @@
    */
   $: detailOpen = $selectedId !== null
 
-  export let view: 'graph' | 'cards' | 'dash' | 'venn' | 'explorer' | 'matrix' = 'graph'
+  export let view: 'graph' | 'dash' | 'explorer' | 'matrix' = 'graph'
   export let vaultName: string = 'Synapse'
 
   const dispatch = createEventDispatcher<{
-    switchView: 'graph' | 'cards' | 'dash' | 'venn' | 'explorer' | 'matrix'
+    switchView: 'graph' | 'dash' | 'explorer' | 'matrix'
     openSettings: void
     openPalette: void
   }>()
@@ -31,10 +31,8 @@
     <path d="M6.5 1h3l.45 1.8a5.2 5.2 0 011.3.75l1.75-.6 1.5 2.6-1.4 1.1a5.2 5.2 0 010 1.7l1.4 1.1-1.5 2.6-1.75-.6a5.2 5.2 0 01-1.3.75L9.5 14h-3l-.45-1.75A5.2 5.2 0 014.75 11.5l-1.75.6-1.5-2.6 1.4-1.1a5.2 5.2 0 010-1.7L1.5 5.55l1.5-2.6 1.75.6A5.2 5.2 0 016.05 2.8L6.5 1zm1.5 9a2 2 0 100-4 2 2 0 000 4z"/>
   </svg>`
 
-  const views: Array<{ id: 'graph' | 'cards' | 'dash' | 'venn' | 'explorer' | 'matrix'; label: string }> = [
+  const views: Array<{ id: 'graph' | 'dash' | 'explorer' | 'matrix'; label: string }> = [
     { id: 'graph', label: 'Graph' },
-    { id: 'venn', label: 'Venn' },
-    { id: 'cards', label: 'Cards' },
     { id: 'dash', label: 'Dash' },
     { id: 'explorer', label: 'Explorer' },
     { id: 'matrix', label: 'Matrix' },

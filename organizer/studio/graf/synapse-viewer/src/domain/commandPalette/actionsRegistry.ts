@@ -8,9 +8,7 @@ export interface PaletteAction {
 
 export interface ActionCallbacks {
   switchViewGraph: () => void
-  switchViewCards: () => void
   switchViewDash: () => void
-  switchViewVenn: () => void
   switchViewExplorer: () => void
   switchViewMatrix: () => void
   switchLayoutClassic: () => void
@@ -26,17 +24,10 @@ const ICONS: Record<string, string> = {
     <line x1="5" y1="7.2" x2="11" y2="4" stroke="currentColor" stroke-width="1.5"/>
     <line x1="5" y1="8.8" x2="11" y2="12" stroke="currentColor" stroke-width="1.5"/>
   </svg>`,
-  cards: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-    <rect x="1" y="1" width="6" height="6" rx="1"/><rect x="9" y="1" width="6" height="6" rx="1"/>
-    <rect x="1" y="9" width="6" height="6" rx="1"/><rect x="9" y="9" width="6" height="6" rx="1"/>
-  </svg>`,
   dash: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
     <rect x="1" y="1" width="14" height="4" rx="1"/>
     <rect x="1" y="7" width="6" height="8" rx="1"/>
     <rect x="9" y="7" width="6" height="8" rx="1"/>
-  </svg>`,
-  venn: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-    <circle cx="6" cy="8" r="4.5" fill-opacity=".55"/><circle cx="10" cy="8" r="4.5" fill-opacity=".55"/>
   </svg>`,
   explorer: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
     <rect x="1" y="2" width="4" height="12" rx="1"/>
@@ -77,26 +68,11 @@ export function buildActionsRegistry(callbacks: ActionCallbacks): PaletteAction[
       run: callbacks.switchViewGraph,
     },
     {
-      id: 'switch-view-cards',
-      label: 'Cards view',
-      hint: 'Show notes as cards',
-      icon: ICONS.cards,
-      run: callbacks.switchViewCards,
-    },
-    {
       id: 'switch-view-dash',
       label: 'Dashboard',
       hint: 'Show dashboard stats',
       icon: ICONS.dash,
       run: callbacks.switchViewDash,
-    },
-    {
-      // Venn was the one view with a tab but no action — reachable by mouse only.
-      id: 'switch-view-venn',
-      label: 'Venn view',
-      hint: 'Compare sets of notes',
-      icon: ICONS.venn,
-      run: callbacks.switchViewVenn,
     },
     {
       id: 'switch-view-explorer',

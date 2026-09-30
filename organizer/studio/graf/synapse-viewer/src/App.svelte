@@ -36,8 +36,6 @@
   import DetailPanel from './components/detail/DetailPanel.svelte'
   import CommandPalette from './components/palette/CommandPalette.svelte'
   import DashboardView from './components/dashboard/DashboardView.svelte'
-  import VennView from './components/venn/VennView.svelte'
-  import CardsView from './components/cards/CardsView.svelte'
   import ExplorerView from './components/explorer/ExplorerView.svelte'
   import CoverageMatrixView from './components/matrix/CoverageMatrixView.svelte'
   import SettingsModal from './components/settings/SettingsModal.svelte'
@@ -47,7 +45,7 @@
 
   // ── App state ──────────────────────────────────────────────
   let loading = true
-  let view: 'graph' | 'cards' | 'dash' | 'venn' | 'explorer' | 'matrix' = 'graph'
+  let view: 'graph' | 'dash' | 'explorer' | 'matrix' = 'graph'
   let paletteOpen = false
   let settingsOpen = false
 
@@ -147,7 +145,7 @@
 
   // ── Action handlers ────────────────────────────────────────
   function handleSwitchView(e: CustomEvent<string>) {
-    view = e.detail as 'graph' | 'cards' | 'dash' | 'venn' | 'explorer' | 'matrix'
+    view = e.detail as 'graph' | 'dash' | 'explorer' | 'matrix'
   }
 
   /**
@@ -182,7 +180,7 @@
   }
 
   function handlePaletteSwitchView(e: CustomEvent<string>) {
-    view = e.detail as 'graph' | 'cards' | 'dash' | 'venn' | 'explorer' | 'matrix'
+    view = e.detail as 'graph' | 'dash' | 'explorer' | 'matrix'
   }
 
   function handlePaletteSwitchLayout(e: CustomEvent<string>) {
@@ -239,11 +237,7 @@
           <GraphCanvas />
           <GraphOverlay />
         </div>
-        {#if view === 'venn'}
-          <VennView />
-        {:else if view === 'cards'}
-          <CardsView />
-        {:else if view === 'dash'}
+        {#if view === 'dash'}
           <DashboardView />
         {:else if view === 'explorer'}
           <ExplorerView />
@@ -270,11 +264,7 @@
           <GraphCanvas />
           <GraphOverlay />
         </div>
-        {#if view === 'venn'}
-          <VennView />
-        {:else if view === 'cards'}
-          <CardsView />
-        {:else if view === 'dash'}
+        {#if view === 'dash'}
           <DashboardView />
         {:else if view === 'explorer'}
           <ExplorerView />
@@ -309,11 +299,7 @@
           <GraphCanvas />
           <GraphOverlay />
         </div>
-        {#if view === 'venn'}
-          <VennView />
-        {:else if view === 'cards'}
-          <CardsView />
-        {:else if view === 'dash'}
+        {#if view === 'dash'}
           <DashboardView />
         {:else if view === 'explorer'}
           <ExplorerView />
