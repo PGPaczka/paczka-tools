@@ -783,7 +783,32 @@ export interface PlanTree {
 }
 
 /** Etapy, które studio umie uruchomić jako podproces CLI. */
-export type Stage = 'plan' | 'validate' | 'review' | 'apply-dry' | 'apply' | 'verify';
+export type Stage =
+  | 'prepare'
+  | 'classify'
+  | 'ai-resolve'
+  | 'relate'
+  | 'plan'
+  | 'validate'
+  | 'review'
+  | 'apply-dry'
+  | 'apply'
+  | 'verify';
+
+/** Etapy całego indeksu — nie znają przedmiotu, więc idą własną trasą. */
+export type IndexStage =
+  | 'scan'
+  | 'hash'
+  | 'fold-hash'
+  | 'extract'
+  | 'scan-target'
+  | 'status';
+
+export interface PipelineState {
+  stages: Array<{ stage: IndexStage; timeout_s: number }>;
+  /** Nazwa trwającego etapu albo `null`. Blokada jest jedna na całe studio. */
+  running: string | null;
+}
 
 export const getPlan = (semester: number, skrot: string, grupa?: string, signal?: AbortSignal) =>
   fetchJson<PlanOverview>(
@@ -858,6 +883,28 @@ async function readStageStream(
  */
 export async function rebuildGraph(onLine: (line: string) => void): Promise<number> {
   const response = await fetch('/api/graph/rebuild', { method: 'POST' });
+  if (!response.ok) throw await failure(response);
+  return readStageStream(response, onLine);
+}
+
+export const getPipeline = (signal?: AbortSignal) =>
+  fetchJson<PipelineState>('/api/pipeline', signal);
+
+/**
+ * Uruchamia etap INDEKSU (scan/hash/extract/status).
+ *
+ * Osobno od `runStage`, bo te skrypty nie znają `--semester/--skrot` — wspólna
+ * funkcja musiałaby udawać, że przedmiot jest opcjonalny.
+ */
+export async function runIndexStage(
+  body: { stage: IndexStage; ocr_images?: boolean },
+  onLine: (line: string) => void,
+): Promise<number> {
+  const response = await fetch('/api/pipeline/run', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
   if (!response.ok) throw await failure(response);
   return readStageStream(response, onLine);
 }

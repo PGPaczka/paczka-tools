@@ -137,6 +137,21 @@ def create_app(
         finally:
             conn.close()
 
+    def _claim(label: str) -> None:
+        """Zajmuje blokadę etapu albo odmawia z nazwą tego, co już trwa.
+
+        Woła się PRZED zbudowaniem `StreamingResponse`: gdy strumień już ruszy,
+        odmowa nie może być kodem HTTP, a „etap, który wystartował i zaraz umarł”
+        wygląda w logu jak awaria skryptu, a nie jak zajęta baza.
+        """
+        try:
+            runner.acquire(label)
+        except runner.StageBusy as exc:
+            raise HTTPException(
+                status_code=409,
+                detail=f"trwa już inny etap: {exc}. Poczekaj na jego koniec.",
+            ) from exc
+
     @app.get("/api/health", tags=["studio"])
     def health() -> dict[str, Any]:
         """Czy backend widzi bazę i czy to ta wersja schematu, którą rozumie."""
@@ -757,8 +772,56 @@ def create_app(
             stage, subject=subject, db_path=database_path,
             plan_path=plan_path, plan_hash=digest, grupa=grupa,
         )
+        _claim(f"{stage} ({subject.skrot})")
         return StreamingResponse(
-            runner.stream(argv),
+            runner.released_after(
+                runner.stream(argv, timeout_s=runner.timeout_for(stage))
+            ),
+            media_type="text/event-stream",
+            headers={"cache-control": "no-store", "x-accel-buffering": "no"},
+        )
+
+    # --- Etapy INDEKSU (nie przedmiotu) ----------------------------------
+    #
+    # `scan`, `hash`, `extract` i `status` nie znają `--semester/--skrot`, więc nie
+    # mieszczą się pod `/api/plan/{sem}/{skrot}/run` — to nie jest praca nad
+    # przedmiotem, tylko nad całym indeksem. Osobna trasa mówi to wprost zamiast
+    # udawać, że „przedmiot” jest opcjonalny.
+
+    @app.get("/api/pipeline", tags=["pipeline"])
+    def pipeline_state() -> dict[str, Any]:
+        """Co da się uruchomić na indeksie i czy coś akurat trwa."""
+        return {
+            "stages": [
+                {"stage": name, "timeout_s": runner.timeout_for(name)}
+                for name in runner.GLOBAL_STAGE_SCRIPTS
+            ],
+            "running": runner.running(),
+        }
+
+    @app.post("/api/pipeline/run", tags=["pipeline"])
+    def run_global_stage(body: dict[str, Any] = Body(...)) -> StreamingResponse:
+        """Uruchamia etap indeksu jako podproces CLI i streamuje log (SSE)."""
+        stage = str(body.get("stage") or "")
+        if stage not in runner.GLOBAL_STAGE_SCRIPTS:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"nieznany etap indeksu {stage!r}; "
+                    f"dozwolone: {sorted(runner.GLOBAL_STAGE_SCRIPTS)}"
+                ),
+            )
+        # OCR obrazów zmienia `extract` z kilku minut w kilka godzin (zmierzone:
+        # 2977 s na tym indeksie), więc jest jawnym wyborem, nie domyślną wartością.
+        ocr_images = bool(body.get("ocr_images")) and stage == "extract"
+        argv = runner.build_global_argv(
+            stage, db_path=database_path, ocr_images=ocr_images
+        )
+        _claim(f"{stage} (indeks)")
+        return StreamingResponse(
+            runner.released_after(
+                runner.stream(argv, timeout_s=runner.timeout_for(stage))
+            ),
             media_type="text/event-stream",
             headers={"cache-control": "no-store", "x-accel-buffering": "no"},
         )
@@ -803,8 +866,9 @@ def create_app(
         a wizualizacja je czyta przy starcie.
         """
         commands = runner.graph_commands(db_path=database_path)
+        _claim("przebudowa grafu")
         return StreamingResponse(
-            runner.stream_all(commands),
+            runner.released_after(runner.stream_all(commands)),
             media_type="text/event-stream",
             headers={"cache-control": "no-store", "x-accel-buffering": "no"},
         )

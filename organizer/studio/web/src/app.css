@@ -18,6 +18,11 @@
   --gray: #7d8590;
   --orange: #f0883e;
   --red: #f85149;
+  /* Alias na `--red`. Nazwy `--warn` używają DecisionPanel, HistoryPanel i StatsPanel
+     (komunikaty błędów, przycisk cofania), ale token nigdy nie był zdefiniowany —
+     `color: var(--warn)` jest wtedy deklaracją nieprawidłową i po cichu wypada,
+     więc błędy nie były czerwone w żadnym z tych widoków. */
+  --warn: #f85149;
   --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Consolas, monospace;
 }

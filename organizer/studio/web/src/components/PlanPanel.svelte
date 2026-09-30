@@ -55,6 +55,17 @@
    *  kilkadziesiąt i po rozwinięciu wszystkich drzewo przestaje być drzewem. */
   let expanded = $state<Record<string, boolean>>({});
 
+  /** Etapy w kolejności potoku. Pierwsza grupa przygotowuje materiał przedmiotu
+   *  i uruchamia się RAZ; druga to pętla przeglądu, do której się wraca.
+   *  Rozdzielone, bo „zbuduj plan" po decyzjach klika się dziesiątki razy,
+   *  a `prepare` raz — mieszanie ich w jednym rzędzie zapraszało do pomyłki. */
+  const setupStages: Array<{ id: Stage; label: string; title: string }> = [
+    { id: 'prepare', label: 'wycinek', title: 'prepare_subject.py — manifest przedmiotu z indeksu' },
+    { id: 'classify', label: 'klasyfikuj', title: 'classify.py — reguły i heurystyki; zero kosztu AI' },
+    { id: 'ai-resolve', label: 'AI na resztki', title: 'ai_resolve.py — nierozstrzygnięte idą do modelu z thresholds.yaml (konto OpenAI)' },
+    { id: 'relate', label: 'podobieństwo', title: 'near_dupe.py — relacje near-duplicate i starszych wersji' },
+  ];
+
   const stages: Array<{ id: Stage; label: string; title: string }> = [
     { id: 'plan', label: 'zbuduj plan', title: 'build_plan.py — scala decyzje w jeden plan' },
     { id: 'validate', label: 'waliduj', title: 'validate_plan.py — bramka; kod 2 = nie wykonuj' },
@@ -297,7 +308,17 @@
       </div>
     {/if}
 
+    <div class="stages setup">
+      <span class="group-label">przygotowanie</span>
+      {#each setupStages as stage (stage.id)}
+        <button disabled={running !== null} title={stage.title} onclick={() => run(stage.id)}>
+          {running === stage.id ? '…' : stage.label}
+        </button>
+      {/each}
+    </div>
+
     <div class="stages">
+      <span class="group-label">przegląd i wykonanie</span>
       {#each stages as stage (stage.id)}
         <button disabled={running !== null} title={stage.title} onclick={() => run(stage.id)}>
           {running === stage.id ? '…' : stage.label}
@@ -609,6 +630,20 @@
     align-items: center;
     gap: 6px;
     flex-wrap: wrap;
+  }
+  /* Rząd przygotowania stoi nad pętlą przeglądu i jest wyraźnie cichszy:
+     te etapy uruchamia się raz, a „zbuduj plan" dziesiątki razy. */
+  .stages.setup {
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-2);
+  }
+  .group-label {
+    font-size: 11px;
+    color: var(--muted-2);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-right: 2px;
   }
   .stages button {
     padding: 3px 12px;
