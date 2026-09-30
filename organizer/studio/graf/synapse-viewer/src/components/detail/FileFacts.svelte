@@ -135,12 +135,13 @@
   .ids {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 6px;
     margin: 0 0 14px;
     font-size: 11px;
     color: var(--muted-2);
   }
-  .sha { font-family: var(--font-mono); }
+  .sha { font-family: var(--font-mono); white-space: nowrap; }
   .chip { padding: 1px 6px; border-radius: 4px; background: var(--panel-3); white-space: nowrap; }
   .grow { flex: 1; }
   .studio { color: var(--accent); text-decoration: none; white-space: nowrap; }

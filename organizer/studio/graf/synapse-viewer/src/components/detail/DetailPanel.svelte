@@ -209,7 +209,9 @@
     <!-- Notatka pliku rysuje się z pól: z markdownu (HTML wyłączony) nie da się
          zbudować układu, a ścieżka `.md` w nagłówku opisywała notatkę, nie materiał. -->
     {#if realNode?.file}
-      <FileFacts node={realNode} file={realNode.file} />
+      <div class="file-section">
+        <FileFacts node={realNode} file={realNode.file} />
+      </div>
     {/if}
 
     <!-- Body -->
@@ -598,6 +600,16 @@
     color: var(--muted-2);
     margin-bottom: 6px;
     font-style: italic;
+  }
+
+  /* Każda sekcja panelu niesie własne wcięcie — nie ma wspólnego kontenera z paddingiem,
+     więc bez tego treść notatki pliku dotykała krawędzi (zgłoszone 2026-09-30). */
+  .file-section {
+    padding: 8px 14px 10px;
+    border-bottom: 1px solid var(--border-2);
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
   }
 
   .body-section {
