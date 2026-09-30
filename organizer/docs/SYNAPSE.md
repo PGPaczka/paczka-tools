@@ -28,6 +28,7 @@ Krawędź umiała powiedzieć tylko, ŻE dwie notatki są połączone. Dodaliśm
 | `relations:` we front matterze | nowy parser listy map (stary `GetList()` robił `ToString()` na elementach) |
 | `--no-git` / `skipGitHistory` | `Program.cs`, `GeneratorPipeline` |
 | `schemaVersion` 2 | `schema/graph.schema.v2.json` + `graph-schema.md` |
+| `schemaVersion` 3: `sha256`, `sizeBytes`, `contentKind` na węźle (2026-09-30) | `schema/graph.schema.v3.json`, mapper i serializer generatora, `RealNode` w viewerze |
 | rysowanie krawędzi wg rodzaju, legenda, filtry typu i rodzaju, grupowanie w panelu | `synapse-viewer/src/**` |
 
 Przy okazji naprawione **cudze, wcześniejsze usterki**: projekt testów generatora w ogóle
@@ -114,6 +115,23 @@ Rozmiar też: z wiersza w `files`, a gdy go nie ma — ze `stat` pliku w paczce.
 jest w bajtach poniżej kilobajta, bo zaokrąglanie robiło z 271 B „0 kB". Pusty rozmiar
 znaczy „nie wiem", nie „mało".
 
+### Tożsamość treści jako POLA, nie proza (schemat v3, 2026-09-30)
+
+Notatka pliku niesie `sha256`, `sizeBytes` i `contentKind` we **front matterze**, nie tylko
+w treści. Powód jest mierzalny: generator bierze do `excerpt` pierwsze ~200 znaków notatki,
+więc wyskrobywanie sha z tekstu działało dla **3233 z 4083** plików, a URL podglądu dla 1699.
+Po zmianie ma je **4083 z 4083** (rozmiar 4082 — jedna treść naprawdę go nie zna). Dzięki
+temu dowolny widok może odesłać do studia (`/?sha=…`), posortować po rozmiarze i powiedzieć,
+czym plik jest, bez czytania jego treści.
+
+Węzły zbiorcze (semestr, przedmiot, kategoria, grupa) tych pól **nie mają** — i to jest
+celowe. Puste `sha256` znaczyłoby „ta notatka nie ma treści", a to inne zdanie niż „ta
+notatka JEST treścią". Pilnuje tego test kontraktu uruchamiający prawdziwy generator
+(`tests/test_synapse_vendor_contract.py`).
+
+Bump wersji jest konieczny, choć pola są opcjonalne: viewer sprawdza `schemaVersion` na
+**ścisłą równość** i nie ma maszynerii migracji — przebudowa grafu trwa sekundy.
+
 Nazwa pliku bierze się z kopii źródłowej, a gdy jej nie ma — ze **ścieżki docelowej**
 z decyzji. Ground truth opisuje materiały leżące już w paczce, których nikt nie indeksował
 jako plików źródłowych: 890 takich treści nazywało się w grafie skrótem sha.
@@ -190,7 +208,7 @@ studio czyta swój graf wyłącznie z `20_WORK/synapse/`.
 
 4 189 węzłów (7 semestrów + 98 przedmiotów + 4 084 pliki), 5 469 krawędzi
 (4 182 `belongs_to`, 1 183 `near_duplicate`, 104 `older_version`), 128 ghostów,
-**0 ostrzeżeń, 0 sierot**, `graph.json` przechodzi walidację `graph.schema.v2.json`.
+**0 ostrzeżeń, 0 sierot**, `graph.json` przechodzi walidację `graph.schema.v3.json`.
 Generowanie vaulta i grafu: kilka sekund.
 
 ## Co się z tego realnie wyczytuje

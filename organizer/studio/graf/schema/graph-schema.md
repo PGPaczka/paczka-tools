@@ -1,4 +1,4 @@
-# graph.json Schema — Synapse v2
+# graph.json Schema — Synapse v3
 
 `graph.json` is the sole contract between **Synapse.Generator** (C# producer)
 and **synapse-viewer** (Svelte/Vite consumer). Both sides are versioned by
@@ -16,7 +16,7 @@ file is snapshot-testable and git-diffable.
 
 | Field          | Type     | Description |
 |----------------|----------|-------------|
-| `schemaVersion`| `integer`| Always `2`. Hard-equality-checked by the viewer. |
+| `schemaVersion`| `integer`| Always `3`. Hard-equality-checked by the viewer. |
 | `generatedAt`  | `string` | ISO-8601 UTC timestamp of the run. |
 | `vault`        | object   | Aggregate stats (see below). |
 | `nodes[]`      | array    | Polymorphic; each item is a `RealNode` or `GhostNode`. |
@@ -57,7 +57,10 @@ file is snapshot-testable and git-diffable.
   "modified": "2026-06-10",
   "excerpt": "Docker packages your application and its dependencies into a portable container…",
   "wordCount": 138,
-  "history": ["2026-04-02", "2026-05-18", "2026-06-10"]
+  "history": ["2026-04-02", "2026-05-18", "2026-06-10"],
+  "sha256": "19de49b537bcf60a125e463f6d1263fc53c36ee91c69331127a08eef1d470893",
+  "sizeBytes": 172032,
+  "contentKind": "pdf"
 }
 ```
 
@@ -71,6 +74,7 @@ file is snapshot-testable and git-diffable.
 | `status`   | `null`                    |
 | `tags`     | `[]`                      |
 | `aliases`  | `[]`                      |
+| `sha256` / `sizeBytes` / `contentKind` | *(keys omitted)* |
 
 **`id`** = filename stem. Matched case-insensitively during link resolution,
 stored with original casing.
@@ -79,6 +83,16 @@ stored with original casing.
 `file` for a vault generated from a course package. Free-form on purpose: the generator
 carries whatever the vault declares and never validates it against a fixed list. It is
 separate from `kind`, which only discriminates real from ghost.
+
+**`sha256`**, **`sizeBytes`**, **`contentKind`** = the identity of the CONTENT a note
+stands for, when it stands for one. A vault of hand-written notes leaves all three absent —
+such a note IS its own content. A vault generated from an index uses them so a viewer can
+address the content itself: link to it, sort by size, say what kind of thing it is. They are
+fields rather than prose in the body because `excerpt` is truncated to ~200 characters, and a
+reader that scrapes them out of it loses them for every longer note.
+
+A container note (a semester, a subject) must leave them absent rather than send empty
+values: "this note has no content" is a different claim from "this note is the content".
 
 **`history`** = commit dates from `git log --follow --format=%ad --date=short`,
 oldest→newest. Absent (key omitted) when the file has no git history (e.g.
@@ -184,9 +198,13 @@ the full raw text is preserved in `edges[].linkText`.
 ## Versioning policy
 
 `schemaVersion` is a bare integer. Increment it when the shape changes
-incompatibly. The viewer does a hard `=== 2` check and blocks with a message
+incompatibly. The viewer does a hard `=== 3` check and blocks with a message
 on mismatch — re-run the generator to produce a new `graph.json`. No reader
 migration machinery.
 
 **v1 → v2**: real nodes gained `type`, edges gained `kind` (required) and optional
 `confidence`. `schema/graph.schema.v1.json` is kept for reference only.
+
+**v2 → v3**: real nodes gained optional `sha256`, `sizeBytes` and `contentKind`. The
+fields are optional, but the version still moves: the check is an equality, so a viewer
+that does not know them would otherwise load a file it cannot fully read.

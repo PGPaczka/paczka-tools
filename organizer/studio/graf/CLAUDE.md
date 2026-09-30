@@ -15,7 +15,7 @@ An implemented application with three parts:
 - **`deploy/`** — Raspberry Pi deployment: bare `vault.git`, a `post-receive` hook that
   regenerates the graph on every push, Caddy in front of the built viewer.
 
-`schema/graph.schema.v2.json` and `schema/graph-schema.md` are the contract between the two
+`schema/graph.schema.v3.json` and `schema/graph-schema.md` are the contract between the two
 halves; `schemaVersion` is hard-equality-checked by the viewer, with no migration machinery.
 
 **Historical note, because it costs people a day:** `SynapseVariants.dc.html`, `support.js`,
@@ -50,6 +50,8 @@ An unresolved relation target becomes a ghost node, exactly like a dangling wiki
   `duplicate-id` warning and one of them stops being linkable.
 - The generator is deterministic and its end-to-end test compares output byte-for-byte with
   `Fixtures/golden-graph.json`, so any field change needs the schema AND a regenerated golden.
+  Determinism includes dates: the fixture vault is committed to a temp repo of its own at a
+  fixed date (`Helpers/FixtureVaultRepo`), never read out of the surrounding repository.
 - `--no-git` (or `skipGitHistory` in the config) skips history for generated vaults that are
   not repositories; without it the generator spawns one failing `git log` per note.
 - Frontmatter key names are configurable (`Configuration/generator.config.json`), so a vault
@@ -57,11 +59,26 @@ An unresolved relation target becomes a ghost node, exactly like a dangling wiki
 
 ## Known-failing tests
 
-None — the suite is green as of 2026-09-23. The four that used to fail
-(`categoryAnchors` ×3, `Viewport` ×1) were **stale expectations, not broken code**: they
-called `categoryAnchors` without a centre while expecting the viewport centre, and the
-`fitView` floor had been lowered for large vaults. Both were rewritten against what the
-code actually does.
+None — 65/65 as of 2026-09-30.
+
+Four of them were red between 2026-09-22 and 2026-09-30, and the cause is worth keeping:
+`GitHistoryReaderTests` (×2), `AllRealNodes_HaveNonEmptyHistory` and `Json_MatchesGoldenFile`
+read git history out of **whatever repository the tests happened to live in**. Once this
+code was vendored elsewhere with `git subtree --squash`, the fixture notes' only commit was
+the merge — and `git log --follow` returns nothing across that boundary, so the notes read
+as having no history at all and `modified` fell back to TODAY, which no golden file can
+match. Two fixes, both worth having:
+
+- `GitHistoryReader` falls back to a plain `git log` when `--follow` comes back empty. The
+  silent-empty-with-exit-0 behaviour is a git trap, not our bug, but the data loss was ours.
+- `Helpers/FixtureVaultRepo` gives the fixture vault its own temp repository with one commit
+  at a fixed date, so history-dependent assertions mean the same thing in every checkout.
+  The golden file needed no regeneration: it matched byte-for-byte again.
+
+Before that, the four that used to fail (`categoryAnchors` ×3, `Viewport` ×1) were **stale
+expectations, not broken code**: they called `categoryAnchors` without a centre while
+expecting the viewport centre, and the `fitView` floor had been lowered for large vaults.
+Both were rewritten against what the code actually does.
 
 ## Who else generates vaults for this
 

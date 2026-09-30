@@ -293,6 +293,56 @@ który wcześniej nie kończył się przez 45 s, staje w ~10 s. Minimapa rysuje 
 elementów DOM przemalowywanych przy każdej klatce przesuwania i to ona, a nie graf,
 odpowiadała za większość zacięć na telefonie.
 
+#### Explorer — przeglądanie po drzewie, nie po kłębku
+
+Graf pokazuje KSZTAŁT paczki i jest w tym dobry. Do dojścia do konkretnego pliku się nie
+nadaje: przy pełnym zakresie to 4738 węzłów, z czego 4083 to pliki, a jeden przedmiot
+(AKO, 2563 pliki) przesłania wszystkie pozostałe razem wzięte. Zakładka **Explorer**
+w viewerze czyta te same dane jako drzewo — `semestr → przedmiot → kategoria → katalog →
+plik` — bo `belongs_to` już takie drzewo tworzy.
+
+![Explorer](docs/screens/14-graf-explorer.png)
+
+- każdy wiersz mówi, ile materiału pod nim leży (liczone po WSZYSTKICH potomkach, nie po
+  dzieciach — inaczej przy AKO stałoby „7", bo tyle ma kategorii);
+- wiersz pliku podaje rodzaj i rozmiar, a stopka — odnośnik **Otwórz w studiu**;
+- klawiatura: strzałki w obu osiach, `Enter` wchodzi, `Esc`/`Backspace` cofa (i wraca
+  kursorem na katalog, z którego się wyszło, a nie na początek listy);
+- klik w plik ustawia zaznaczenie, więc panel szczegółów po prawej pokazuje podgląd.
+
+**Widok celowo pomija filtr typu węzła.** Przy ponad 600 notatkach viewer domyślnie
+odznacza najdrobniejszy typ, żeby graf nie był chmurą kropek — słuszne dla grafu,
+zabójcze dla przeglądania, bo plików nie ma, zanim ktokolwiek o nie poprosi. Pozostałe
+wymiary filtra (kategoria, status, poziom, tagi) nadal obowiązują.
+
+Kolumny są wirtualizowane: najdłuższa na tych danych ma 399 wierszy, a w DOM siedzi
+trzydzieści. Na telefonie widać jedną kolumnę naraz, z okruszkami jako drogą powrotną.
+
+![Explorer na telefonie](docs/screens/14b-graf-explorer-telefon.png)
+
+#### Matrix — co jest, czego brakuje i gdzie siedzi masa
+
+![Macierz pokrycia](docs/screens/15-graf-macierz.png)
+
+Wiersz to przedmiot, kolumna to kategoria, komórka to liczba plików plus **trzy paski
+stanu**: w paczce (`level` 1), zaplanowane (2), do przeglądu (3). Rozkład zamiast jednego
+koloru, bo „część w paczce, część do przeglądu" to typowy stan przedmiotu w trakcie pracy
+i dominanta zjadałaby dokładnie tę informację. Pusta komórka jest zakreskowana — luka jest
+treścią tego widoku, nie brakiem danych. Przedmioty bez ani jednego pliku (65 z 98) są
+domyślnie zwinięte.
+
+Klik w komórkę zawęża filtry do tego przedmiotu i tej kategorii i przerzuca do
+**Explorera** — nie do grafu, bo tam filtr typu węzła i tak gasi pliki. Explorer
+**rozwija się wtedy sam** aż do miejsca, w którym pojawia się wybór: po kliknięciu
+„AKO × kolokwia" widać `Semestr 3 › AKO › Kolokwia` i listę pozycji, a nie jeden wiersz
+do rozklikania. Drzewo liczy się przy tym z WSZYSTKICH notatek, z filtrem jako
+predykatem — inaczej zawężenie po kategorii zgubiłoby przedmiot i semestr, bo ICH
+kategoria to `SEM3`, i nie dałoby się odczytać, gdzie te pliki leżą.
+
+Widok **nie scala** rozjechanego słownika kategorii: `wykład` i `wyklad`, `cwiczenia`
+i `ćwiczenia` stoją obok siebie jako osobne kolumny. To znany problem danych
+(`docs/SYNAPSE.md`) i ten widok jest miejscem, w którym widać go bez szukania.
+
 Menu trybów studia (`decyzje`, `klastry`, `plan`, `graf`…) poniżej 1100 px zwija się
 w listę rozwijaną — osiem zakładek nie mieści się w pasku telefonu.
 

@@ -648,6 +648,61 @@ została czysta.
 Bilans po przeliczeniu: 8181 near-dupe (było 11 556), 4102 `related` z sygnału katalogu,
 286 wersji starszych. 3479 par obrazów odpadło, bo piksele się zgadzały, a treść nie.
 
+## Dwa widoki do przeglądania plików w viewerze (2026-09-30)
+
+Zgłoszenie: „które widoki uprościłyby przeglądanie plików". Graf odpowiada na pytanie
+„co z czym się łączy", a nie „gdzie jest ten plik" — przy pełnym zakresie to 4738 węzłów,
+z czego 4083 to pliki, i jeden przedmiot (AKO, 2563) przesłania resztę. Doszły dwa tryby
+czytające te same dane jako strukturę, oba w `studio/graf/synapse-viewer`.
+
+- [x] **Explorer** — kolumny `semestr → przedmiot → kategoria → katalog → plik`
+      (`domain/graph/millerTree.ts`, `millerKeyboard.ts`, `components/explorer/`).
+      Wiersz niesie liczbę WSZYSTKICH potomków, a wiersz pliku rodzaj, rozmiar i odnośnik
+      do studia. Klawiatura w osobnym module, bo to ta część, której nie da się sprawdzić
+      okiem. Kolumny wirtualizowane: najdłuższa na tych danych ma 399 wierszy (poziom
+      katalogu rozbija 2563 pliki AKO), w DOM siedzi 30.
+- [x] **Matrix** — przedmiot × kategoria, komórka = liczba + trzy paski stanu
+      (`domain/graph/coverageMatrix.ts`, `components/matrix/`). Klik zawęża filtry
+      i przerzuca do Explorera. Rozjechany słownik kategorii (`wykład`/`wyklad`,
+      `cwiczenia`/`ćwiczenia`) zostaje osobnymi kolumnami — ten widok ma go pokazać.
+- [x] **Kontrakt grafu v2 → v3**: węzeł pliku niesie `sha256`, `sizeBytes` i `contentKind`
+      we front matterze. Przedtem pełne sha było wyłącznie w treści notatki, a generator
+      bierze do `excerpt` jej pierwsze ~200 znaków — miało je **3233 z 4083** plików.
+      Po zmianie **4083 z 4083**. Zmiana przechodzi przez pięć warstw: `synapse_vault.py`,
+      `synapse_export.py`, mapper i serializer generatora, schemat i `RealNode` viewera.
+
+Trzy rzeczy, których nie widać w samym kodzie:
+
+- **`defaultFiltersFor` ukrywa pliki także w Cards.** Przy ponad 600 notatkach odznacza
+  najdrobniejszy typ węzła, a `CardsView` czyta ten sam `visibleNodeIds` co graf — czyli
+  jedyny istniejący widok listy startował bez plików. Nowe widoki idą przez
+  `realNodesIgnoringNodeType`, który pomija TEN wymiar filtra i zostawia resztę.
+- **Przycinanie ścieżki nie może być zapisem do stanu.** Pierwsza wersja poprawiała
+  `state.path` w bloku reaktywnym liczonym z `columns`, a `columns` liczyły się ze `state`:
+  `Cyclical dependency detected`. Build to odrzucił, `svelte-check` przepuścił. Przycięcie
+  jest teraz czystą funkcją (`visiblePath`), a stan nietykany.
+- **Przetestowany predykat, którego widok nie wołał.** `buildMillerTree` przyjmuje filtr
+  utrzymujący przodków dopasowań i ma na to testy, a komponent budował drzewo z już
+  odfiltrowanej listy — więc klik w komórkę macierzy dawał samotny wiersz „Kolokwia · AKO"
+  bez drogi do niego. Ta sama klasa wpadki co S1.3: zielony test funkcji nie znaczy, że
+  widok jej używa. Przy okazji doszło rozwijanie jednoznacznego łańcucha (`autoPath`).
+- **Zrzut ekranu znowu złapał to, czego nie łapie test.** `.bar` znaczyło w macierzy
+  jednocześnie „pasek narzędzi" i „pasek stanu w komórce", więc reguła `height: 3px`
+  zgniotła cały pasek narzędzi do trzech pikseli — legenda i przełącznik pustych wierszy
+  były niewidoczne. Przy okazji: pływający przycisk szuflady filtrów (poniżej 820 px)
+  siadał na pierwszym wierszu listy, czyli na celu kliknięcia.
+
+Przy okazji naprawione **cztery czerwone testy generatora**, które stały czerwone od
+wciągnięcia kodu grafu przez `git subtree --squash` (2026-09-22): fixture czytał historię
+gita z repozytorium, w którym akurat leżą testy, a `git log --follow` nie widzi pliku przez
+granicę squashowego subtree — więc `modified` spadało do dzisiejszej daty i plik złoty nie
+mógł pasować. `GitHistoryReader` ma teraz odwrót do zwykłego `git log`, a fixture własne
+repozytorium w katalogu tymczasowym ze stałą datą commita. Plik złoty zgodził się co do
+bajtu, bez przepisywania. `dotnet test` **65/65**.
+
+Przy okazji: `switch-view-venn` nie istniał w ⌘K — Venn był jedynym trybem dostępnym
+wyłącznie myszą. Dołożony razem z akcjami nowych widoków.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

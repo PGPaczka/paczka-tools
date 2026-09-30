@@ -2,6 +2,65 @@
 
 ## Kontekst ręczny
 
+- **Viewer dostał dwa widoki do PRZEGLĄDANIA plików, a graf.json kontrakt v3 (2026-09-30).**
+  Graf odpowiada „co z czym się łączy"; „gdzie jest ten plik" nie odpowiadał nikt. Doszły
+  `Explorer` (kolumny semestr → przedmiot → kategoria → katalog → plik) i `Matrix`
+  (przedmiot × kategoria, komórka z trzema paskami stanu). Rzeczy warte zapamiętania:
+  - **`defaultFiltersFor` ukrywał pliki także w Cards.** Powyżej 600 notatek odznacza
+    najdrobniejszy typ węzła, a `CardsView` czyta ten sam `visibleNodeIds` co graf — czyli
+    jedyny dotychczasowy widok listy startował BEZ plików i nikt tego nie zauważył. Nowe
+    widoki idą przez `realNodesIgnoringNodeType` (pomija ten jeden wymiar, resztę zostawia).
+  - **Pełne `sha256` było wyłącznie w treści notatki**, a generator bierze do `excerpt`
+    jej pierwsze ~200 znaków: miało je **3233 z 4083** plików, a URL podglądu 1699. Stąd
+    schemat v3 z `sha256`/`sizeBytes`/`contentKind` we front matterze — po przebudowie
+    **4083 z 4083** (rozmiar 4082, jedna treść naprawdę go nie zna), kontenery zero.
+    Bump wersji jest konieczny mimo opcjonalnych pól: viewer sprawdza `schemaVersion`
+    na ścisłą równość.
+  - **Cykl reaktywny, którego `svelte-check` nie łapie.** Przycinanie ścieżki eksploratora
+    było zapisem do `state` w bloku liczonym z `columns`, a `columns` liczyły się ze
+    `state` → `Cyclical dependency detected` przy `vite build`. Typecheck przechodził.
+    Wniosek: **`svelte-check` nie zastępuje builda** — reaktywność sprawdza dopiero kompilator.
+  - **Zrzut ekranu na realnych danych znowu złapał to, czego nie łapie test.** W macierzy
+    `.bar` znaczyło jednocześnie „pasek narzędzi" i „pasek stanu w komórce", więc
+    `height: 3px` zgniotło cały pasek narzędzi — legenda i przełącznik pustych wierszy
+    zniknęły. Do tego pływający przycisk szuflady filtrów (poniżej 820 px) siadał na
+    pierwszym wierszu listy. Oba widać wyłącznie okiem.
+  - **Kolumna z 2563 plikami nie powstaje**, bo poziom katalogu (`group`) rozbija AKO:
+    najdłuższa kolumna na tych danych ma 399 wierszy. Wirtualizacja i tak jest — 30 wierszy
+    w DOM — ale obawa z planu okazała się nieaktualna.
+  - **Predykat filtra istniał i był przetestowany, a komponent go nie wołał.** Explorer
+    budował drzewo z JUŻ odfiltrowanej listy, więc klik w komórkę macierzy zawężał
+    poprawnie, ale lądowało się na samotnym „Kolokwia · AKO" bez semestru i przedmiotu
+    (ich kategoria to `SEM3`, więc filtr po kategorii je wycina). Drzewo liczy się teraz
+    ze wszystkich notatek, a filtr jest predykatem utrzymującym przodków dopasowań.
+    Wniosek ten sam co przy S1.3: **zielony test funkcji nie znaczy, że widok ją wywołuje.**
+  - **Macierz od razu pokazała stan paczki:** jedynym wierszem z pomarańczowym i czerwonym
+    jest AKO (jedyny przedmiot z planem), reszta to sam ground truth. Widać też rozdwojony
+    słownik kategorii jako osobne kolumny `wykład`/`wyklad` i `cwiczenia`/`ćwiczenia`
+    oraz kolumnę `stara_paczka` czekającą na D4.
+
+- **Cztery czerwone w `dotnet test` NAPRAWIONE (2026-09-30), a przyczyna jest warta zapamiętania.**
+  `GitHistoryReaderTests` (×2), `AllRealNodes_HaveNonEmptyHistory` i `Json_MatchesGoldenFile`
+  czytały historię gita z **repozytorium, w którym akurat leżą testy**. Po wciągnięciu kodu
+  grafu przez `git subtree --squash` jedynym commitem fixture'owych notatek stał się commit
+  scalający, a `git log --follow` **nie widzi pliku przez taką granicę** — squashowy commit
+  trzyma treść w korzeniu poddrzewa, mainline pod prefiksem, więc wykrywanie zmian nazw
+  poddaje się po cichu, z kodem wyjścia 0. Notatki wyglądały więc na pozbawione historii,
+  `modified` spadało do DZISIEJSZEJ daty i żaden plik złoty nie mógł pasować.
+  - Sprawdzone różnicowo: `git log --follow -- note.md` pusto, `git log -- note.md` zwraca datę.
+    Zwykłe scalenie nieprzyległej historii **przechodzi** — to specyfika wariantu `--squash`.
+  - Dwie poprawki. (1) `GitHistoryReader` po pustym `--follow` woła zwykły `git log` —
+    utrata historii była nasza, choć pułapka gitowa. (2) `Helpers/FixtureVaultRepo` daje
+    fixture'owi własne repozytorium w katalogu tymczasowym, z jednym commitem o **stałej
+    dacie** (2026-08-04, ta sama, z którą zapisano plik złoty).
+  - **Plik złoty nie wymagał przepisania**: po naprawie zgadza się co do bajtu, jedyna
+    różnica wobec HEAD to podbita `schemaVersion` 2 → 3. To najmocniejszy dowód, że to
+    przywrócenie zapisanego zamiaru, a nie zaklejenie testu nową wartością.
+  - Reguła na przyszłość: **test, który czyta stan otaczającego repozytorium (git, ścieżki,
+    konfiguracja), mierzy czyjś checkout, a nie kod.** Taki test ma sobie to repozytorium
+    zbudować.
+  - `dotnet test` to teraz **65/65** (+1: regresja na subtree ze squashem).
+
 - **Cała lista QoL (Q1–Q9) zamknięta 2026-09-24.** Najważniejsze rzeczy, które wyszły po drodze
   i których nie widać w samym kodzie:
   - **`--ocr-images` sam z siebie nie zrobiłby nic.** Obrazy czekające na extract leżą
@@ -152,7 +211,8 @@
 - Znany, świadomie zostawiony fałszywy alarm guarda: `tee` jest na liście słów twardo mutujących, więc potok ze źródeł do `tee` poza nimi zostanie zablokowany — używaj przekierowania `>`. Ogólniej hook blokuje każdą komendę Bash, której **tekst** zawiera ścieżkę źródeł razem ze słowem mutującym (także w komunikacie commita); w takich wypadkach używaj narzędzi Edit/Write zamiast powłoki.
 - Uruchamianie agentów interaktywnie: rozpisane w `README.md`, sekcja „Agenci interaktywni” (pierwsza konfiguracja, `just claude`, trzy tryby sandboxu Codeksa, przekazywanie argumentów **bez** `--`, potwierdzanie konta). `AGENTS.md` i `CLAUDE.md` tylko tam odsyłają — nie duplikuj tej treści.
 - Zakazy dla następnego agenta: nie wykonuj apply bez jawnej zgody na konkretny plan; nie dodawaj sources jako writable root; nie przywracaj `--ignore-user-config` w delegacji Codeksa; nie przestawiaj `classify`/`relate` z powrotem na `claude_cli` bez decyzji użytkownika; nie commituj materiałów razem z narzędziami.
-- Wykonane testy: `just test` **1083/1083** (w tym 7 w markerze `vendor`, uruchamiających prawdziwy generator .NET), `just mutate-check` **28/28**, `dotnet test` w generatorze 61/61, `npx vitest` w viewerze 111 zielonych + 4 czerwone sprzed tej pracy. Wcześniej w tej sesji: `just test` 1034/1034, `just mutate-check` 26/26, `just index-check` czysto (37 plików w statusie `error` zgłoszonych jako `info`), `just sources-check` czysto. Wcześniej w tej sesji: `just test` 851/851 (+81 dla B3: 64 kontraktu silnika reguł, 16 CLI, 1 nowy styk e2e), `just mutate-check` **15/15**, `just index-check` czysto, `just skills-check` 5/5. Poprzedni stan: `just test` 770/770 (w tym 38 kontroli środowiska i 114 dla B2/B2b w `tests/test_textextract.py` + `tests/test_extract_text.py`, 6 dla `text_head` i 5 dla `refresh-kinds`); `just skills-check` 5/5. Smoke test etapu extract na syntetycznej paczce: 7 plików / 7 treści, 6 z tekstem, OCR 2, 0 błędów; drugi przebieg 6 treści z dysku.
+- Wykonane testy (2026-09-30): `just test` **1441/1441** (2 pominięte), `npx vitest` w viewerze **237/237** (było 188; +49 dla `millerTree`, `millerKeyboard`, `coverageMatrix`, `humanSize`, nowego selektora i schematu v3), `just mutate-check` **35/35**, `just index-check` czysto (47 plików w statusie `error` jako `info`), `just sources-check` czysto, `dotnet test` **65/65** (cztery czerwone sprzed tej pracy naprawione — opis wyżej). Pełny łańcuch `just studio-graf` przechodzi, widoki obejrzane na realnych danych (1440×900 i 412×915), zrzuty w `studio/docs/screens/14*`, `15*`.
+- Wcześniej: `just test` **1083/1083** (w tym 7 w markerze `vendor`, uruchamiających prawdziwy generator .NET), `just mutate-check` **28/28**, `dotnet test` w generatorze 61/61, `npx vitest` w viewerze 111 zielonych + 4 czerwone sprzed tej pracy. Wcześniej w tej sesji: `just test` 1034/1034, `just mutate-check` 26/26, `just index-check` czysto (37 plików w statusie `error` zgłoszonych jako `info`), `just sources-check` czysto. Wcześniej w tej sesji: `just test` 851/851 (+81 dla B3: 64 kontraktu silnika reguł, 16 CLI, 1 nowy styk e2e), `just mutate-check` **15/15**, `just index-check` czysto, `just skills-check` 5/5. Poprzedni stan: `just test` 770/770 (w tym 38 kontroli środowiska i 114 dla B2/B2b w `tests/test_textextract.py` + `tests/test_extract_text.py`, 6 dla `text_head` i 5 dla `refresh-kinds`); `just skills-check` 5/5. Smoke test etapu extract na syntetycznej paczce: 7 plików / 7 treści, 6 z tekstem, OCR 2, 0 błędów; drugi przebieg 6 treści z dysku.
 - **Baza jest już w schema_version 2** (migracja wykonana przy B7 na realnym indeksie). Kod starszy niż ta sesja jej nie otworzy — to celowe. Kopii bazy nie robiono: migracja idzie `ALTER TABLE` w jednej transakcji i ma test wycofania.
 - **Kolizje celów rozstrzygnięte** (decyzja użytkownika 2026-09-19: katalog źródłowy jako dodatkowy poziom). Na AKO: 184 pozycje w 40 wspólnych ścieżkach → po B7 zero kolizji, walidacja czysta.
 - **Globalny `near_dupe --all` wykonany i ZOSTAJE** (decyzja użytkownika 2026-09-19): 11 871 relacji (11 556 near_duplicate, 315 older_version) z 13 555 treści z podpisami, w 1,6 s; eksport w `20_WORK/relations.jsonl` (3,7 MB — celowo poza repo, bo odtwarzalny). Relacje łączące RÓŻNE przedmioty: na razie 1 para (PEiM↔AKO), bo obie strony muszą mieć przypisany przedmiot; przybędzie z każdym przetworzonym przedmiotem.
@@ -169,12 +229,58 @@
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-09-24T23:05:54+02:00
+- Odświeżono: 2026-09-30T02:57:59+02:00
 - Branch: `master`
-- Commit: `ed691c2`
+- Commit: `f21d88b`
 - Git status:
   ```text
-  (clean)
+  M docs/SYNAPSE.md
+   M reports/HANDOFF.md
+   M scripts/orglib/synapse_vault.py
+   M scripts/synapse_export.py
+   M studio/README.md
+   M studio/TODO-studio.md
+   M studio/graf/CLAUDE.md
+   M studio/graf/Synapse.Generator/Synapse.Generator.Tests/Domain/Mapping/FrontmatterMapperTests.cs
+   M studio/graf/Synapse.Generator/Synapse.Generator.Tests/EndToEnd/FixtureVaultGraphTests.cs
+   M studio/graf/Synapse.Generator/Synapse.Generator.Tests/Fixtures/golden-graph.json
+   M studio/graf/Synapse.Generator/Synapse.Generator.Tests/Git/GitHistoryReaderTests.cs
+   M studio/graf/Synapse.Generator/Synapse.Generator/Configuration/FrontmatterMapConfig.cs
+   M studio/graf/Synapse.Generator/Synapse.Generator/Domain/Graph/GraphBuilder.cs
+   M studio/graf/Synapse.Generator/Synapse.Generator/Domain/Graph/GraphNode.cs
+   M studio/graf/Synapse.Generator/Synapse.Generator/Domain/Mapping/ConfigurableFrontmatterMapper.cs
+   M studio/graf/Synapse.Generator/Synapse.Generator/Domain/Mapping/MappedFrontmatter.cs
+   M studio/graf/Synapse.Generator/Synapse.Generator/Git/GitHistoryReader.cs
+   M studio/graf/Synapse.Generator/Synapse.Generator/Serialization/JsonGraphSerializer.cs
+   M studio/graf/schema/graph-schema.md
+   M studio/graf/synapse-viewer/src/App.svelte
+   M studio/graf/synapse-viewer/src/components/palette/CommandPalette.svelte
+   M studio/graf/synapse-viewer/src/domain/commandPalette/actionsRegistry.ts
+   M studio/graf/synapse-viewer/src/domain/graph/GraphModel.ts
+   M studio/graf/synapse-viewer/src/domain/graph/selectors.test.ts
+   M studio/graf/synapse-viewer/src/domain/graph/selectors.ts
+   M studio/graf/synapse-viewer/src/layout/ClassicShell.svelte
+   M studio/graf/synapse-viewer/src/layout/CommandShell.svelte
+   M studio/graf/synapse-viewer/src/layout/RailShell.svelte
+   M studio/graf/synapse-viewer/src/schema/schemaValidation.test.ts
+   M tests/test_synapse_export_cli.py
+   M tests/test_synapse_vault.py
+   M tests/test_synapse_vendor_contract.py
+  ?? studio/docs/screens/14-graf-explorer.png
+  ?? studio/docs/screens/14b-graf-explorer-telefon.png
+  ?? studio/docs/screens/15-graf-macierz.png
+  ?? studio/graf/Synapse.Generator/Synapse.Generator.Tests/Helpers/FixtureVaultRepo.cs
+  ?? studio/graf/Synapse.Generator/Synapse.Generator.Tests/Helpers/GitCommand.cs
+  ?? studio/graf/schema/graph.schema.v3.json
+  ?? studio/graf/synapse-viewer/src/components/explorer/
+  ?? studio/graf/synapse-viewer/src/components/matrix/
+  ?? studio/graf/synapse-viewer/src/domain/format/
+  ?? studio/graf/synapse-viewer/src/domain/graph/coverageMatrix.test.ts
+  ?? studio/graf/synapse-viewer/src/domain/graph/coverageMatrix.ts
+  ?? studio/graf/synapse-viewer/src/domain/graph/millerKeyboard.test.ts
+  ?? studio/graf/synapse-viewer/src/domain/graph/millerKeyboard.ts
+  ?? studio/graf/synapse-viewer/src/domain/graph/millerTree.test.ts
+  ?? studio/graf/synapse-viewer/src/domain/graph/millerTree.ts
   ```
 - Pierwsze otwarte TODO: - [ ] B12. `scripts/provenance.py` — `reports/provenance.jsonl` + README per przedmiot do `paczka_meta/` + `00_SOURCES/linki.txt` z `source_packages`
 <!-- END AUTO -->
