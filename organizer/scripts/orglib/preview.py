@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import io
 import sqlite3
+import zipfile
 from pathlib import Path
 from typing import Iterable
 
@@ -118,6 +119,27 @@ def source_text_head(source: Path, limit: int) -> str | None:
         return None
     text = looks_like_text(raw)
     return None if text is None else text[:limit]
+
+
+def archive_head(source: Path, limit: int) -> tuple[list[str], int]:
+    """Spis plików w archiwum: ``(pierwsze nazwy, ile ich jest naprawdę)``.
+
+    Archiwum nie ma głowy tekstu ani obrazu, więc bez tego jest w grafie kropką bez
+    treści — a paczka z kodem laborki mówi, czym jest, dopiero gdy widać zawartość.
+    Czytane bez rozpakowywania (sama tablica katalogowa), więc nic nie ląduje na dysku.
+
+    Obsługiwany jest ZIP; RAR i 7z wymagałyby zewnętrznych bibliotek i dostają puste
+    ``([], 0)`` — tak samo jak plik uszkodzony albo nieobecny. Brak spisu to informacja
+    „nie umiem pokazać”, a nie błąd: podgląd nigdy nie przerywa eksportu.
+    """
+    try:
+        with zipfile.ZipFile(source) as archive:
+            names = sorted(
+                info.filename for info in archive.infolist() if not info.is_dir()
+            )
+    except (OSError, zipfile.BadZipFile):
+        return [], 0
+    return names[:limit] if limit > 0 else [], len(names)
 
 
 def text_head(paths: config.Paths, relative_path: str | None, limit: int) -> str | None:
