@@ -35,9 +35,13 @@ public class ConfigurableFrontmatterMapper : IFrontmatterMapper
         var modified = GetString(frontmatter, _config.ModifiedKey);
         var noteType = GetString(frontmatter, _config.TypeKey);
         var relations = GetRelations(frontmatter, _config.RelationsKey);
+        var sha256 = GetString(frontmatter, _config.Sha256Key);
+        var sizeBytes = GetLong(frontmatter, _config.SizeBytesKey);
+        var contentKind = GetString(frontmatter, _config.ContentKindKey);
 
         return new MappedFrontmatter(
-            title, category, level, status, tags, aliases, modified, noteType, relations);
+            title, category, level, status, tags, aliases, modified, noteType, relations,
+            sha256, sizeBytes, contentKind);
     }
 
     /// <summary>
@@ -124,6 +128,18 @@ public class ConfigurableFrontmatterMapper : IFrontmatterMapper
             return null;
 
         return int.TryParse(value.ToString(), out var result) ? result : null;
+    }
+
+    /// <summary>
+    /// Like <see cref="GetInt"/>, but 64-bit: a file size is not guaranteed to fit an int,
+    /// and a wrapped size is worse than no size at all.
+    /// </summary>
+    private static long? GetLong(Dictionary<string, object?> frontmatter, string key)
+    {
+        if (!frontmatter.TryGetValue(key, out var value) || value is null)
+            return null;
+
+        return long.TryParse(value.ToString(), out var result) ? result : null;
     }
 
     private static IReadOnlyList<string> GetList(Dictionary<string, object?> frontmatter, string key)

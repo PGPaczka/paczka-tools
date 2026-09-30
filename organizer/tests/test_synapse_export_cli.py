@@ -382,3 +382,32 @@ def test_refuses_to_write_into_material_trees(workspace, tree):
 
     assert result.exit_code == 1
     assert not forbidden.exists()
+
+
+def test_file_note_carries_identity_as_front_matter_not_only_prose(workspace):
+    """Widok listy musi wiedzieć, czym jest plik, bez czytania jego treści.
+
+    Powstał po wpadce: pełne `sha256` i rozmiar były wyłącznie w treści notatki,
+    a generator bierze do `excerpt` jedynie jej głowę — więc 850 z 4083 plików
+    w prawdziwym grafie nie miało czym odesłać do studia (`/?sha=…`).
+    """
+    assert runner.invoke(cli.app, []).exit_code == 0
+    notes = notes_of(vault(workspace))
+
+    plik = next(p for name, p in notes.items() if name.startswith("ako-") and "plik1" in name)
+    head, _ = frontmatter(plik)
+
+    assert f'sha256: "{SHA["b"]}"' in head
+    assert "sizeBytes: 2048" in head
+    assert 'contentKind: "pdf"' in head
+
+
+def test_container_notes_have_no_content_identity(workspace):
+    """Semestr, przedmiot i kategoria nie są treścią — nie udają jej pustym sha."""
+    assert runner.invoke(cli.app, []).exit_code == 0
+    notes = notes_of(vault(workspace))
+
+    head, _ = frontmatter(notes["sem3"])
+
+    assert "sha256" not in head
+    assert "sizeBytes" not in head

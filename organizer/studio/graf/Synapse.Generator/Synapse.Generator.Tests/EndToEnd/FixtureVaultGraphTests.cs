@@ -33,7 +33,7 @@ public class FixtureVaultGraphTests
             // bin/Debug/net8.0 → ../../../ → Tests project → ../../../../ → repo root
             var projectDir = Path.GetFullPath(Path.Combine(assemblyDir, "..", "..", ".."));
             var repoRoot   = Path.GetFullPath(Path.Combine(projectDir, "..", ".."));
-            return Path.Combine(repoRoot, "schema", "graph.schema.v2.json");
+            return Path.Combine(repoRoot, "schema", "graph.schema.v3.json");
         }
     }
 
@@ -88,7 +88,7 @@ public class FixtureVaultGraphTests
         var errors     = schema.Validate(json);
 
         errors.Should().BeEmpty(
-            because: $"graph.json must conform to graph.schema.v2.json; errors: " +
+            because: $"graph.json must conform to graph.schema.v3.json; errors: " +
                      string.Join("; ", errors.Select(e => e.ToString())));
     }
 
@@ -148,11 +148,11 @@ public class FixtureVaultGraphTests
     // ── JSON structure ────────────────────────────────────────────────────────
 
     [Fact]
-    public void SerializedJson_HasSchemaVersion2()
+    public void SerializedJson_HasSchemaVersion3()
     {
         var doc = JsonDocument.Parse(_fixture.Value.Json);
         doc.RootElement.GetProperty("schemaVersion").GetInt32()
-            .Should().Be(JsonGraphSerializer.SchemaVersion).And.Be(2);
+            .Should().Be(JsonGraphSerializer.SchemaVersion).And.Be(3);
     }
 
     [Fact]

@@ -198,3 +198,28 @@ def test_small_files_are_not_rounded_down_to_zero():
     assert human_size(579843) == "566 kB"
     assert human_size(5 * 1024 * 1024) == "5.0 MB"
     assert human_size(0) == ""
+
+
+def test_file_note_carries_sha_size_and_kind_as_fields_not_only_prose() -> None:
+    """Powstał po wpadce: pełne `sha256` było wyłącznie w treści notatki, a graf bierze
+    do `excerpt` tylko jej głowę — więc 850 z 4083 plików nie dało się połączyć ze
+    studiem ani posortować po rozmiarze. Te trzy rzeczy są danymi, nie prozą."""
+    page = render_note(note(
+        type=NODE_FILE,
+        sha256="a" * 64,
+        size_bytes=172_032,
+        content_kind="image",
+    ))
+
+    assert f'sha256: "{"a" * 64}"' in page
+    assert "sizeBytes: 172032" in page
+    assert 'contentKind: "image"' in page
+
+
+def test_notes_without_a_content_keep_the_front_matter_clean() -> None:
+    """Semestr i przedmiot nie są plikiem — puste pola mają zniknąć, nie być `null`."""
+    page = render_note(note())
+
+    assert "sha256" not in page
+    assert "sizeBytes" not in page
+    assert "contentKind" not in page

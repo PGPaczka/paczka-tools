@@ -106,6 +106,13 @@ class Note:
     relations: list[Relation] = field(default_factory=list)
     #: Katalog w vaulcie (bez nazwy pliku); pusty = korzeń.
     folder: str = ""
+    #: Tożsamość i metryka TREŚCI — tylko dla notatek pliku. Te trzy pola są w treści
+    #: notatki także słownie, ale tam czyta je człowiek: graf bierze do `excerpt` samą
+    #: jej głowę, więc pełne sha ginęło dla większych notatek i widok nie miał czym
+    #: trafić z powrotem do studia (`/?sha=…`) ani po czym sortować.
+    sha256: str | None = None
+    size_bytes: int | None = None
+    content_kind: str | None = None
 
     @property
     def path(self) -> str:
@@ -143,6 +150,12 @@ def render_note(note: Note) -> str:
         lines.append("aliases: [" + ", ".join(_yaml_scalar(a) for a in note.aliases) + "]")
     if note.modified:
         lines.append(f"modified: {_yaml_scalar(note.modified)}")
+    if note.sha256:
+        lines.append(f"sha256: {_yaml_scalar(note.sha256)}")
+    if note.size_bytes is not None:
+        lines.append(f"sizeBytes: {note.size_bytes}")
+    if note.content_kind:
+        lines.append(f"contentKind: {_yaml_scalar(note.content_kind)}")
     if note.relations:
         lines.append("relations:")
         for relation in note.relations:

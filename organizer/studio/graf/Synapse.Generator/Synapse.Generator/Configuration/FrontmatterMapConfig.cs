@@ -11,5 +11,11 @@ public record FrontmatterMapConfig(
     // What a note IS in the vault's own taxonomy (e.g. semester / subject / file).
     string TypeKey = "type",
     // Typed relations: a sequence of { target, kind, confidence } mappings.
-    string RelationsKey = "relations"
+    string RelationsKey = "relations",
+    // Identity and metrics of the CONTENT a note stands for, when it stands for one.
+    // A vault of plain notes leaves these absent; a vault generated from an index uses
+    // them so a viewer can address the content itself instead of parsing the excerpt.
+    string Sha256Key = "sha256",
+    string SizeBytesKey = "sizeBytes",
+    string ContentKindKey = "contentKind"
 );

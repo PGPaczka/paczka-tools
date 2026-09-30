@@ -62,7 +62,10 @@ public class GraphBuilder
                 Excerpt: ComputeExcerpt(note.BodyMarkdown),
                 WordCount: ComputeWordCount(note.BodyMarkdown),
                 History: effectiveHistory,
-                NoteType: fm.NoteType
+                NoteType: fm.NoteType,
+                Sha256: fm.Sha256,
+                SizeBytes: fm.SizeBytes,
+                ContentKind: fm.ContentKind
             ));
         }
 

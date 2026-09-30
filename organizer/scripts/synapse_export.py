@@ -266,6 +266,12 @@ def build_notes(
             )],
             body=body,
             folder=f"sem{semester}/{slugify(skrot, limit=16)}",
+            # To samo, co wyżej w treści, ale jako dane: widoki grafu potrzebują sha,
+            # żeby odesłać do studia, a rozmiaru i rodzaju — żeby wiersz pliku mówił
+            # cokolwiek poza nazwą. Z `excerpt` nie da się tego wziąć, bo jest ucinany.
+            sha256=sha,
+            size_bytes=size or None,
+            content_kind=kind,
         ))
         bucket = per_category[(semester, skrot, category)]
         bucket["files"] += 1
@@ -383,6 +389,9 @@ def build_notes(
                     "przypisze jej do przedmiotu, nie ma decyzji ani miejsca docelowego.",
                 ]),
                 folder="nieprzypisane",
+                sha256=sha,
+                size_bytes=int(copies[0]["size_bytes"]) if copies else None,
+                content_kind=kinds.get(sha, "other"),
             ))
 
     # ── przedmioty i semestry ────────────────────────────────────────────────

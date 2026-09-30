@@ -4,7 +4,7 @@ export type NodeKind = 'real' | 'ghost'
  * Schema contract version. The generator writes it, the viewer refuses anything else —
  * there is no migration machinery by design, regenerating the graph takes seconds.
  */
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 3
 
 /**
  * `kind` on an edge says WHY two notes are connected. `link` is a plain [[wikilink]];
@@ -30,6 +30,15 @@ export interface RealNode {
   history?: string[]
   /** What the note IS in the vault's taxonomy (e.g. 'semester' | 'subject' | 'file'). */
   type?: string | null
+  /**
+   * Identity of the CONTENT this note stands for, when it stands for one. Absent for
+   * ordinary notes, which are their own content. A view uses these to address the content
+   * itself — link to it, size it, say what it is — instead of reading them out of the
+   * excerpt, which is truncated and loses them for longer notes.
+   */
+  sha256?: string
+  sizeBytes?: number
+  contentKind?: string
 }
 
 export interface GhostNode {

@@ -13,11 +13,13 @@ namespace Synapse.Generator.Serialization;
 public class JsonGraphSerializer
 {
     /// <summary>
-    /// Bumped to 2 when nodes gained <c>type</c> and edges gained <c>kind</c>/<c>confidence</c>.
+    /// Bumped to 2 when nodes gained <c>type</c> and edges gained <c>kind</c>/<c>confidence</c>;
+    /// to 3 when a node gained the identity of the content it stands for
+    /// (<c>sha256</c>, <c>sizeBytes</c>, <c>contentKind</c>).
     /// The viewer hard-equality-checks this; there is no migration machinery by design —
     /// regenerating the graph takes seconds.
     /// </summary>
-    public const int SchemaVersion = 2;
+    public const int SchemaVersion = 3;
 
     private static readonly JsonSerializerOptions WriteOptions = new()
     {
@@ -147,6 +149,18 @@ public class JsonGraphSerializer
         // history: include only when non-empty (schema says "absent if no git history")
         if (node.History.Count > 0)
             obj["history"] = ToJsonArray(node.History);
+
+        // Content identity: only for notes that stand for something else. Writing nulls
+        // here would tell a viewer "this note has no content", which is a different claim
+        // from "this note IS the content".
+        if (node.Sha256 is not null)
+            obj["sha256"] = node.Sha256;
+
+        if (node.SizeBytes.HasValue)
+            obj["sizeBytes"] = JsonValue.Create(node.SizeBytes.Value);
+
+        if (node.ContentKind is not null)
+            obj["contentKind"] = node.ContentKind;
 
         return obj;
     }

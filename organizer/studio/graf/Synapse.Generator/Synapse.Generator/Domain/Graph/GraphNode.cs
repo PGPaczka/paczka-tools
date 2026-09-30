@@ -23,7 +23,13 @@ public sealed record RealGraphNode(
     string Excerpt,
     int WordCount,
     IReadOnlyList<string> History,
-    string? NoteType = null
+    string? NoteType = null,
+    // Identity of the CONTENT this note stands for, carried through from frontmatter.
+    // Absent for ordinary notes; a vault generated from an index uses it so a viewer can
+    // address the content itself rather than scraping it out of the excerpt.
+    string? Sha256 = null,
+    long? SizeBytes = null,
+    string? ContentKind = null
 ) : GraphNode(Id);
 
 /// <summary>A note referenced by wikilinks but not found on disk.</summary>

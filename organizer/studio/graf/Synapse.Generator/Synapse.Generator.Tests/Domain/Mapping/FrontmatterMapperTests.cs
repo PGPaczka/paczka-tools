@@ -134,4 +134,46 @@ public class FrontmatterMapperTests
         var fm = new Dictionary<string, object?> { ["status"] = "not-started" };
         mapper.Map(fm, "note.md").Status.Should().Be("not-started");
     }
+
+    // ── Content identity (sha256 / sizeBytes / contentKind) ───────────────────
+
+    [Fact]
+    public void ContentIdentity_IsMappedWhenDeclared()
+    {
+        var mapper = CreateMapper();
+        var fm = new Dictionary<string, object?>
+        {
+            ["sha256"]      = new string('a', 64),
+            ["sizeBytes"]   = "172032",
+            ["contentKind"] = "image"
+        };
+
+        var result = mapper.Map(fm, "note.md");
+
+        result.Sha256.Should().Be(new string('a', 64));
+        result.SizeBytes.Should().Be(172032);
+        result.ContentKind.Should().Be("image");
+    }
+
+    [Fact]
+    public void ContentIdentity_IsNullWhenAbsent()
+    {
+        var mapper = CreateMapper();
+
+        var result = mapper.Map(new Dictionary<string, object?>(), "note.md");
+
+        result.Sha256.Should().BeNull();
+        result.SizeBytes.Should().BeNull();
+        result.ContentKind.Should().BeNull();
+    }
+
+    [Fact]
+    public void SizeBytes_BeyondIntRange_IsKept()
+    {
+        // A recording in 90_MEDIA can pass 2 GB; int would silently wrap it to nonsense.
+        var mapper = CreateMapper();
+        var fm = new Dictionary<string, object?> { ["sizeBytes"] = "3221225472" };
+
+        mapper.Map(fm, "note.md").SizeBytes.Should().Be(3221225472L);
+    }
 }

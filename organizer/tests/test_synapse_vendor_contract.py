@@ -36,7 +36,7 @@ from orglib.synapse_vault import (
 #: konfiguracyjnej, którą inne testy przestawiają na katalog tymczasowy.
 GRAF = Path(__file__).resolve().parents[1] / "studio" / "graf"
 PROJECT = GRAF / "Synapse.Generator" / "Synapse.Generator"
-SCHEMA = GRAF / "schema" / "graph.schema.v2.json"
+SCHEMA = GRAF / "schema" / "graph.schema.v3.json"
 
 pytestmark = [
     pytest.mark.vendor,
@@ -56,6 +56,7 @@ def build_vault(root: Path) -> None:
              folder="sem3"),
         Note(id="ako-lab-aaaaaaaa", title="lab.pdf", type=NODE_FILE, category="laboratoria",
              level=2, status=STATUS_ACTIVE, tags=["rodzaj-pdf"], modified="2026-09-19",
+             sha256="a" * 64, size_bytes=172032, content_kind="pdf",
              relations=[
                  Relation("sem3-ako", EDGE_BELONGS_TO),
                  Relation("ako-kol-bbbbbbbb", "near_duplicate", 0.78),
@@ -91,7 +92,24 @@ def graph(tmp_path_factory) -> dict:
 
 def test_graph_validates_against_their_schema(graph) -> None:
     jsonschema.validate(graph, json.loads(SCHEMA.read_text(encoding="utf-8")))
-    assert graph["schemaVersion"] == 2
+    assert graph["schemaVersion"] == 3
+
+
+def test_content_identity_survives_the_round_trip(graph) -> None:
+    """Sha, rozmiar i rodzaj mają przejść przez PRAWDZIWY generator, nie tylko przez nasz
+    renderer front mattera.
+
+    Powstał razem z kontraktem v3: wcześniej pełne sha było wyłącznie w treści notatki,
+    a do grafu trafiała jej ucięta głowa — 850 z 4083 plików nie miało czym odesłać do
+    studia. Gdyby generator zgubił te pola po drodze, wyglądałoby to tak samo.
+    """
+    nodes = {n["id"]: n for n in graph["nodes"] if n["kind"] == "real"}
+
+    assert nodes["ako-lab-aaaaaaaa"]["sha256"] == "a" * 64
+    assert nodes["ako-lab-aaaaaaaa"]["sizeBytes"] == 172032
+    assert nodes["ako-lab-aaaaaaaa"]["contentKind"] == "pdf"
+    # Notatka, która niczego nie reprezentuje, nie udaje treści pustym polem.
+    assert "sha256" not in nodes["sem3-ako"]
 
 
 def test_node_types_survive_the_round_trip(graph) -> None:
