@@ -2,6 +2,40 @@
 
 ## Kontekst ręczny
 
+- **Przygotowanie do pilotażu AKO: przewodnik po potoku + kategoria jako zakres pracy (2026-09-30).**
+  Zaczęło się od pytania „plan nie jest właśnie przejrzeniem?” i to pytanie okazało się
+  najważniejszym wnioskiem: **nie jest**. `plan.jsonl` to propozycja maszyny (reguły + AI +
+  relacje, zero udziału człowieka), a „przejrzane” znaczy, że ktoś ją potwierdził albo
+  nadpisał. Dlatego `plan` buduje się **dwa razy** — drugi przebieg jest jedynym momentem,
+  w którym ręczne decyzje wchodzą do `plan_hash`, czyli do tego, na co daje się zgodę.
+  Nie było tego nigdzie napisane; teraz jest w nowym `docs/PIPELINE.md`.
+  - **Rozmiar pilotażu jest mniejszy, niż wygląda:** AKO ma 2519 pozycji planu, ale tylko
+    **69 z `needs_review`** (egzamin 32, laboratoria 28, wykład 5, kolokwia 2, opracowania 2).
+    Reszta ma pewność ≥ 0,7 — poniżej progu nie ma ani jednej pozycji.
+  - **Pułapka pierwszej kategorii:** ćwiczenia (81 pozycji, wszystkie `copy`) mają **zero**
+    pozycji do przeglądu, więc kolejka decyzji jest dla nich pusta. To dobry test mechaniki,
+    ale praca nad taką kategorią jest w liście pozycji i w drzewie docelowym, nie w kolejce —
+    i panel musi to powiedzieć, bo inaczej wygląda na zepsuty.
+  - **Kolejka nie umiała zawęzić się do kategorii**, choć wszystkie części już były:
+    `queries.items` obsługiwał filtr, a `App.svelte` miał stan `category` wpięty w listę
+    pozycji. Brakowało jednego parametru w `/api/queue` i jednego propa. Szczegóły i decyzje
+    nazewnicze — `studio/TODO-studio.md`, sekcja z tej daty.
+  - **Ze studia da się dziś odpalić 6 etapów z 12** (`plan`, `validate`, `review`,
+    `apply-dry`, `apply`, `verify` + przebudowa grafu). Brakuje `prepare`/`classify`/
+    `relate`/`ai-resolve` oraz etapów globalnych (`scan`/`hash`/`extract`/`status`, które
+    nie biorą `--semester/--skrot`, więc nie pasują do obecnej trasy). **Do pilotażu AKO
+    to nie jest blokada** — te etapy dla AKO są wykonane. Przed ich wpuszczeniem do UI
+    trzeba jednak: blokady równoległości (**nie ma jej dziś w ogóle** — ani w `runner.py`,
+    ani w `app.py`) i wyższego `TIMEOUT_S` niż 3600 s, bo sam `extract --ocr-images`
+    zajął 2977 s.
+  - **Apply per kategoria nie jest dziś możliwe i nie warto tego obchodzić:** `build_plan`,
+    `validate_plan`, `apply` i `verify` biorą wyłącznie `--semester/--skrot`, a `plan_hash`
+    liczy się z zawartości pliku i bramka sprawdza go wobec nagłówka. Ręcznie odfiltrowany
+    plan to obejście bramki, nie jej użycie. Zamiast tego kategorię domyka się `apply
+    (dry-run)`, a `APPLY` idzie raz na cały przedmiot.
+  - Drobiazg z tej samej okolicy: klasa `.dim` była w `DecisionPanel.svelte` używana, ale
+    **nigdy nie miała reguły CSS** — tekst pomocniczy nie był przygaszony. Dopisana.
+
 - **Notatka pliku w grafie rysuje się z PÓL, a prowenancja jest drzewem (2026-09-30, kontrakt v4).**
   Zgłoszenie dotyczyło wyglądu, ale przyczyna była strukturalna: treść notatki to markdown,
   a renderer viewera ma wyłączony HTML — z takiej treści nie da się wydobyć ani koloru, ani
@@ -27,6 +61,23 @@
     `format` od `no-copy`.
   - `graph.json` 5,1 → 11,2 MB, po gzipie **0,80 MB**. Ścieżka `.md` notatki zeszła
     z nagłówka do stopki.
+  - **Druga runda po realnym użyciu: panel miał wszystkie fakty, ale nie dało się po nim
+    skakać wzrokiem.** Trzy pytania dostały trzy sekcje z nagłówkiem i linią działową
+    (`SectionHeading.svelte`, wspólny, żeby czwarta sekcja nie wymyślała czwartego stylu).
+    Drzewo prowenancji rysują **linie CSS**, nie znak `└`: każdy potomek kładzie własny
+    odcinek pionowego prowadnika, a ostatni urywa go na łokciu. Znak w tekście gubił się
+    przy zawijaniu długich ścieżek — a miał kolor `--border-2`, czyli praktycznie kolor tła
+    panelu; stąd nowy token `--border-3` dla prowadnic. Stopka `Statystyki` ma jedną wartość
+    na wiersz. **Znów: widać to tylko na zrzucie z prawdziwych danych** — 232 testy i build
+    były zielone przez cały czas, bo żaden z nich nie mierzy, czy da się to przeczytać.
+  - **Pułapka przy tej okazji: goły `vite build` położył grafa w studiu na pustej stronie.**
+    Weryfikacja szła przez `vite preview` na własnym porcie, gdzie viewer stoi w korzeniu —
+    a `dist/` jest ten sam, który studio serwuje pod `/graf/`, i build bez `--base=/graf/`
+    wypisał `<script src="/assets/…">`. Pod studiem to 404, więc zostaje pusty
+    `<div id="app">` **bez jednego błędu w konsoli**, a `dist` jest w `.gitignore`, więc
+    `git status` też milczy. Viewera buduj tylko przez `just studio-graf` (albo
+    `npm run build -- --base=/graf/`) i sprawdzaj go pod `127.0.0.1:8765/graf/`, nie na
+    własnym porcie — preview w korzeniu maskuje dokładnie ten błąd.
 
 - **Viewer dostał dwa widoki do PRZEGLĄDANIA plików, a graf.json kontrakt v3 (2026-09-30).**
   Graf odpowiada „co z czym się łączy"; „gdzie jest ten plik" nie odpowiadał nikt. Doszły
@@ -263,49 +314,30 @@
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-09-30T10:34:17+02:00
+- Odświeżono: 2026-09-30T22:29:18+02:00
 - Branch: `master`
-- Commit: `436a297`
+- Commit: `c88a58c`
 - Git status:
   ```text
-  M docs/SYNAPSE.md
+  M README.md
+   M TODO.md
+   M docs/CLI.md
    M reports/HANDOFF.md
-   M scripts/orglib/preview.py
-   M scripts/orglib/synapse_vault.py
-   M scripts/synapse_export.py
    M studio/README.md
    M studio/TODO-studio.md
-   M studio/graf/CLAUDE.md
-   M studio/graf/Synapse.Generator/Synapse.Generator.Tests/Domain/Mapping/FrontmatterMapperTests.cs
-   M studio/graf/Synapse.Generator/Synapse.Generator.Tests/EndToEnd/FixtureVaultGraphTests.cs
-   M studio/graf/Synapse.Generator/Synapse.Generator.Tests/Fixtures/golden-graph.json
-   M studio/graf/Synapse.Generator/Synapse.Generator/Configuration/FrontmatterMapConfig.cs
-   M studio/graf/Synapse.Generator/Synapse.Generator/Domain/Graph/GraphBuilder.cs
-   M studio/graf/Synapse.Generator/Synapse.Generator/Domain/Graph/GraphNode.cs
-   M studio/graf/Synapse.Generator/Synapse.Generator/Domain/Mapping/ConfigurableFrontmatterMapper.cs
-   M studio/graf/Synapse.Generator/Synapse.Generator/Domain/Mapping/MappedFrontmatter.cs
-   M studio/graf/Synapse.Generator/Synapse.Generator/Parsing/YamlFrontmatterReader.cs
-   M studio/graf/Synapse.Generator/Synapse.Generator/Serialization/JsonGraphSerializer.cs
-   M studio/graf/schema/graph-schema.md
+   M studio/api/app.py
+   M studio/graf/synapse-viewer/src/app.css
    M studio/graf/synapse-viewer/src/components/detail/DetailPanel.svelte
-   M studio/graf/synapse-viewer/src/domain/graph/GraphModel.ts
-   M studio/graf/synapse-viewer/src/schema/schemaValidation.test.ts
-   M tests/test_synapse_export_cli.py
-   M tests/test_synapse_vault.py
-   M tests/test_synapse_vendor_contract.py
-  ?? studio/docs/screens/16-graf-notatka-pliku.png
-  ?? studio/docs/screens/16b-graf-notatka-telefon.png
-  ?? studio/graf/Synapse.Generator/Synapse.Generator/Domain/Mapping/YamlJson.cs
-  ?? studio/graf/schema/graph.schema.v4.json
-  ?? studio/graf/synapse-viewer/src/components/detail/CopyButton.svelte
-  ?? studio/graf/synapse-viewer/src/components/detail/FileFacts.svelte
-  ?? studio/graf/synapse-viewer/src/components/detail/FilePreview.svelte
-  ?? studio/graf/synapse-viewer/src/components/detail/ProvenanceBranch.svelte
-  ?? studio/graf/synapse-viewer/src/components/detail/ProvenanceTreeView.svelte
-  ?? studio/graf/synapse-viewer/src/domain/graph/provenanceTree.test.ts
-  ?? studio/graf/synapse-viewer/src/domain/graph/provenanceTree.ts
-  ?? studio/graf/synapse-viewer/src/lib/
-  ?? tests/test_preview_archive.py
+   M studio/graf/synapse-viewer/src/components/detail/FileFacts.svelte
+   M studio/graf/synapse-viewer/src/components/detail/ProvenanceBranch.svelte
+   M studio/graf/synapse-viewer/src/components/detail/ProvenanceTreeView.svelte
+   M studio/web/src/App.svelte
+   M studio/web/src/components/DecisionPanel.svelte
+   M studio/web/src/lib/api.ts
+   M studio/web/src/lib/prefs.ts
+   M tests/test_studio_decisions.py
+  ?? docs/PIPELINE.md
+  ?? studio/graf/synapse-viewer/src/components/detail/SectionHeading.svelte
   ```
 - Pierwsze otwarte TODO: - [ ] B12. `scripts/provenance.py` — `reports/provenance.jsonl` + README per przedmiot do `paczka_meta/` + `00_SOURCES/linki.txt` z `source_packages`
 <!-- END AUTO -->

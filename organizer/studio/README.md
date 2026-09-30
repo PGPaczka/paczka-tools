@@ -7,6 +7,7 @@ uruchamia te same skrypty. Zabiera konsolę, nie dokłada nowego świata.
 
 ![Pulpit studia](docs/screens/01-pulpit.png)
 
+- **co znaczy każdy etap i jak przejść przedmiot po kolei:** [`../docs/PIPELINE.md`](../docs/PIPELINE.md)
 - plan i uzasadnienia decyzji: [`PLAN.md`](PLAN.md)
 - stan prac i historia wpadek: [`TODO-studio.md`](TODO-studio.md)
 - zasady dla agentów w tym zakresie: [`AGENTS.md`](AGENTS.md), [`CLAUDE.md`](CLAUDE.md)
@@ -134,6 +135,16 @@ oraz liczniki indeksu, te same, które pokazuje `just status`.
 Jedna pozycja na ekranie: **podgląd dokumentu po lewej**, propozycja potoku po prawej.
 Podgląd to renderowana strona PDF (`←`/`→` przewraca strony), miniatura obrazu albo
 głowa tekstu z etapu extract — czyli decydujesz, patrząc na dokument, a nie na nazwę pliku.
+
+**Zakres pracy bierze się z wyboru kategorii** w panelu przedmiotu: kolejka podaje
+wtedy wyłącznie tę kategorię, a nagłówek mówi, nad czym pracujesz (`AKO · laboratoria`).
+Praca idzie kategoriami, bo laboratoria i ćwiczenia to różny materiał i różne pytania —
+bez tego zawężenia kolejka wrzuca egzaminy między laby. Wybór przeżywa odświeżenie
+strony i jest przycinany do kategorii, które ten przedmiot naprawdę ma.
+
+Kategoria bez pozycji `needs_review` daje **pustą kolejkę i zdanie, co z tym zrobić**,
+a nie milczący pusty ekran: to realny stan (AKO ćwiczenia — 81 pozycji, zero spornych),
+w którym praca polega na przejrzeniu listy pozycji i drzewa docelowego, nie na klikaniu.
 
 ![Kolejka decyzji z podglądem](docs/screens/03-decyzje.png)
 
@@ -571,7 +582,7 @@ Wszystko pod `http://127.0.0.1:8765`. Parametry opcjonalne oznaczone `?`.
 | `GET /api/items/{sha256}` | — | decyzja, wszystkie kopie, relacje, plan, ślad `apply` |
 | `GET /api/preview/{sha256}` | — | głowa tekstu, rodzaj podglądu, liczba stron |
 | `GET /api/preview/{sha256}/image` | `page?=1 width?` | strona PDF jako PNG albo obraz; `width` (80–2000) dla siatek i porównań |
-| `GET /api/queue` | `semester? skrot? limit?=1` | kolejka decyzji |
+| `GET /api/queue` | `semester? skrot? category? limit?=1` | kolejka decyzji (zawężalna do jednej kategorii) |
 | `GET /api/clusters` | `semester? skrot? noise?` | klastry near-dupe |
 | `GET /api/clusters/diff` | `left right` | dwie treści obok siebie + relacja |
 | `GET /api/search` | `q limit?=50` | wyszukiwanie przekrojowe |

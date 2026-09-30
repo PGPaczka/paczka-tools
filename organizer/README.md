@@ -9,6 +9,8 @@ deployowane — uruchamiane na żądanie, produkuje PR-y do repo docelowego
 Rodzeństwo w `paczka-tools/`: `ects_extractor` (buduje strukturę paczki z
 oficjalnej strony przedmiotów) — organizer robi to samo, tylko ze starych paczek.
 
+- **Zaczynasz tutaj:** [`docs/PIPELINE.md`](docs/PIPELINE.md) — co znaczy każdy etap,
+  jakiej decyzji wymaga i jak go przejść w studiu
 - Architektura: [`docs/ARCHITEKTURA_FINALv1.md`](docs/ARCHITEKTURA_FINALv1.md)
 - Struktura repo i organizacji: [`docs/ORGANIZACJA.md`](docs/ORGANIZACJA.md)
 - Zasady wspólne agentów: [`AGENTS.md`](AGENTS.md); adapter Claude:
@@ -29,6 +31,9 @@ skopiowane. Źródła są read-only, nic nie jest kasowane, provenance zachowane
 scan → hash → dedup (pliki + foldery) → extract → classify (det.) →
   [AI dla unresolved] → plan → validate → [review] → apply → verify
 ```
+
+Co każdy etap **znaczy** i jakiej decyzji od Ciebie wymaga —
+[`docs/PIPELINE.md`](docs/PIPELINE.md). Same komendy — [`docs/CLI.md`](docs/CLI.md).
 
 Wynik (`apply`) trafia do `paczka/` w klonie repo docelowego, na branchu
 `subject/{SKROT}`, i dalej jako PR. Kod i operacyjne raporty zostają tutaj.

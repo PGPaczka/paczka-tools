@@ -4,6 +4,9 @@ Cała droga od stosu cudzych paczek do materiałów w repo: **jakie komendy, w j
 kolejności i po czym poznać, że etap się udał**. Wersja z interfejsem — te same
 etapy, ale w przeglądarce — jest w `studio/README.md`.
 
+Jeśli robisz to pierwszy raz, zacznij od [`PIPELINE.md`](PIPELINE.md): tam jest,
+**co dany etap znaczy** i czemu plan buduje się dwa razy. Tutaj są same komendy.
+
 Zasady, na których stoi ten proces (`AGENTS.md`), w trzech zdaniach: `00_SOURCES`
 jest tylko do odczytu, nic nie jest kasowane, a materiały ruszają się dopiero po
 zaakceptowaniu konkretnego planu. Każda komenda niżej albo czyta, albo pisze do

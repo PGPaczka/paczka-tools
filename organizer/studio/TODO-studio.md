@@ -735,6 +735,16 @@ renderer ma wyłączony HTML — z takiej treści nie da się wydobyć ani kolor
       W nagłówku jest ścieżka docelowa z etykietą „leży/trafi do paczki".
 - [x] **Przyciski kopiowania** przy ścieżce docelowej, sha, każdym liściu prowenancji
       i ścieżce notatki; wspólny `lib/clipboard.ts` zamiast czterech kopii tej samej pętli.
+- [x] **Czytelność notatki pliku** (2026-09-30, zgłoszone po pierwszym realnym użyciu):
+      panel był jedną kolumną drobnego tekstu, po której nie dało się skakać wzrokiem.
+      Trzy pytania dostały trzy sekcje z nagłówkiem i linią działową — `Zawartość`,
+      `Trafi/Leży w paczce`, `Prowenancja` (wspólny `SectionHeading.svelte`, żeby czwarta
+      sekcja nie wymyślała czwartego stylu). Drzewo prowenancji rysuje się **liniami CSS**,
+      nie znakiem `└`: każdy potomek kładzie własny odcinek pionowego prowadnika, ostatni
+      urywa go na łokciu. Znak w tekście ginął przy zawijaniu długich ścieżek i miał kolor
+      `--border-2`, czyli o włos od tła panelu — stąd nowy token `--border-3`. Stopka
+      `Statystyki` ma jedną wartość na wiersz z etykietą; w jednej linijce „128 words"
+      i data łamały się na trzy poszarpane kolumny.
 
 Trzy rzeczy, których nie widać w kodzie:
 
@@ -758,6 +768,36 @@ Przy okazji z danych: z 459 treści bez podglądu **356 to artefakty budowania V
 w ogóle powinny być w paczce, zostaje otwarte.
 
 `graph.json` urósł z 5,1 do 11,2 MB, po gzipie **0,80 MB** (studio serwuje spakowane).
+
+## Przygotowanie do pilotażu AKO (2026-09-30)
+
+- [x] **Kategoria jako zakres pracy w kolejce decyzji.** Praca idzie kategoriami
+      (AKO-laby osobno od AKO-ćwiczeń), a kolejka tego nie umiała: `/api/queue` brało
+      tylko `semester`/`skrot`, choć `queries.items` filtr po kategorii obsługiwało od
+      dawna, a `App.svelte` **już miał** stan `category` — wpięty w listę pozycji, ale
+      nie w kolejkę. Doszło: parametr `category` w `/api/queue`, prop `scopeCategory`
+      w `DecisionPanel` (nazwa dłuższa celowo — `decide()` ma parametr `category`
+      znaczący kategorię NADAWANĄ pozycji, to zupełnie co innego niż zakres pracy),
+      zakres w nagłówku panelu i zapamiętanie wyboru w `prefs`.
+      - **Zapamiętana kategoria jest przycinana do tego, co przedmiot naprawdę ma** —
+        ta sama zasada co przy filtrach viewera. Wybór spoza listy dawałby pustą listę
+        i pustą kolejkę bez śladu, dlaczego.
+      - **Pusta kolejka musiała zacząć mówić, co się stało.** AKO ćwiczenia to
+        81 pozycji i **zero** `needs_review`, więc zawężenie do tej kategorii daje pusto
+        — „Brak pozycji do przeglądu" wyglądało wtedy jak usterka. Teraz panel nazywa
+        zakres i mówi, że praca nad taką kategorią jest w liście pozycji i w drzewie
+        docelowym, nie w kolejce.
+      - Sprawdzone na żywym indeksie, nie tylko na fixture: AKO bez filtru to 68 pozycji
+        w pięciu kategoriach, `?category=laboratoria` → 28 (same laboratoria),
+        `?category=egzamin` → 32, `?category=cwiczenia` → 0. **Liczby z bazy różnią się
+        o jeden od `plan.jsonl`** (68 vs 69, wykład 4 vs 5), bo plik jest z 2026-09-19,
+        a baza ma od tego czasu ręczną decyzję — plan to migawka, baza to stan.
+      - Przy okazji: klasa `.dim` była w `DecisionPanel.svelte` używana, ale **nigdzie
+        nie miała reguły** — tekst pomocniczy nie był przygaszony. Dopisana.
+      - Testy: `tests/test_studio_decisions.py` — fixture ma teraz **dwie** kategorie
+        do przeglądu, bo przy jednej „zawężenie" przechodzi także wtedy, gdy filtr jest
+        ignorowany. Drugi test pilnuje, że kategoria bez spornych pozycji daje pusto,
+        a nie całą kolejkę.
 
 ## Zależności od potoku
 
