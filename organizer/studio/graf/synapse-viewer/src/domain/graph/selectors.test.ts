@@ -6,6 +6,7 @@ import {
   backlinks,
   outgoing,
   defaultFiltersFor,
+  realNodesIgnoringNodeType,
   LARGE_VAULT_NODES,
 } from './selectors'
 import type { KnowledgeGraph } from './GraphModel'
@@ -362,5 +363,36 @@ describe('connected-only', () => {
 
   it('is off by default, so the vault never silently shrinks', () => {
     expect(visibleNodes(miniGraph, base).map((n) => n.id)).toContain('vim-shortcuts')
+  })
+})
+
+describe('widok struktury: filtry bez wymiaru typu węzła', () => {
+  const base = {
+    categories: [], statuses: [], levels: [], tags: [], nodeTypes: [], relationKinds: [],
+  }
+
+  it('oddaje pliki, które filtr domyślny grafu chowa', () => {
+    // Powstał po tym, jak się okazało, że `defaultFiltersFor` odznacza najdrobniejszy typ
+    // i Cards przy dużym vaulcie pokazuje wyłącznie kontenery. Dla grafu to słuszne,
+    // dla przeglądania — zabójcze: plików nie ma, zanim ktokolwiek o nie poprosi.
+    const skeleton = { ...base, nodeTypes: ['semester', 'subject'] }
+
+    const shown = realNodesIgnoringNodeType(miniGraph, skeleton).map((n) => n.id)
+
+    expect(shown).toContain('docker-basics')
+  })
+
+  it('pozostałe wymiary filtra dalej obowiązują', () => {
+    const shown = realNodesIgnoringNodeType(miniGraph, { ...base, categories: ['DevOps'] })
+
+    expect(shown.map((n) => n.id).sort()).toEqual(['docker-basics', 'docker-volumes'])
+  })
+
+  it('nie wpuszcza ghostów', () => {
+    // Ghost nie ma typu ani kategorii, więc w drzewie zawierania wypłynąłby jako plik,
+    // który do niczego nie należy.
+    const shown = realNodesIgnoringNodeType(miniGraph, base)
+
+    expect(shown.every((n) => n.kind === 'real')).toBe(true)
   })
 })

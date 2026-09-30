@@ -38,6 +38,8 @@
   import DashboardView from './components/dashboard/DashboardView.svelte'
   import VennView from './components/venn/VennView.svelte'
   import CardsView from './components/cards/CardsView.svelte'
+  import ExplorerView from './components/explorer/ExplorerView.svelte'
+  import CoverageMatrixView from './components/matrix/CoverageMatrixView.svelte'
   import SettingsModal from './components/settings/SettingsModal.svelte'
   import ClassicShell from './layout/ClassicShell.svelte'
   import RailShell from './layout/RailShell.svelte'
@@ -45,7 +47,7 @@
 
   // ── App state ──────────────────────────────────────────────
   let loading = true
-  let view: 'graph' | 'cards' | 'dash' | 'venn' = 'graph'
+  let view: 'graph' | 'cards' | 'dash' | 'venn' | 'explorer' | 'matrix' = 'graph'
   let paletteOpen = false
   let settingsOpen = false
 
@@ -145,7 +147,22 @@
 
   // ── Action handlers ────────────────────────────────────────
   function handleSwitchView(e: CustomEvent<string>) {
-    view = e.detail as 'graph' | 'cards' | 'dash' | 'venn'
+    view = e.detail as 'graph' | 'cards' | 'dash' | 'venn' | 'explorer' | 'matrix'
+  }
+
+  /**
+   * A cell of the coverage matrix is a question ("AKO, kolokwia — show me those"), so it
+   * narrows the filters and hands over to the explorer. Not to the graph: there the
+   * node-type filter hides files, which is exactly what the reader just asked to see.
+   */
+  function narrowToCell(tag: string | null, category: string) {
+    filters.update((f) => ({
+      ...f,
+      categories: [category],
+      tags: tag ? [tag] : [],
+      tagMode: 'all',
+    }))
+    view = 'explorer'
   }
 
   function handleSwitchLayout(e: CustomEvent<string>) {
@@ -165,7 +182,7 @@
   }
 
   function handlePaletteSwitchView(e: CustomEvent<string>) {
-    view = e.detail as 'graph' | 'cards' | 'dash' | 'venn'
+    view = e.detail as 'graph' | 'cards' | 'dash' | 'venn' | 'explorer' | 'matrix'
   }
 
   function handlePaletteSwitchLayout(e: CustomEvent<string>) {
@@ -228,6 +245,10 @@
           <CardsView />
         {:else if view === 'dash'}
           <DashboardView />
+        {:else if view === 'explorer'}
+          <ExplorerView />
+        {:else if view === 'matrix'}
+          <CoverageMatrixView onPick={narrowToCell} />
         {/if}
       </svelte:fragment>
       <svelte:fragment slot="detail">
@@ -255,6 +276,10 @@
           <CardsView />
         {:else if view === 'dash'}
           <DashboardView />
+        {:else if view === 'explorer'}
+          <ExplorerView />
+        {:else if view === 'matrix'}
+          <CoverageMatrixView onPick={narrowToCell} />
         {/if}
       </svelte:fragment>
       <svelte:fragment slot="filters">
@@ -290,6 +315,10 @@
           <CardsView />
         {:else if view === 'dash'}
           <DashboardView />
+        {:else if view === 'explorer'}
+          <ExplorerView />
+        {:else if view === 'matrix'}
+          <CoverageMatrixView onPick={narrowToCell} />
         {/if}
       </svelte:fragment>
       <svelte:fragment slot="detail">

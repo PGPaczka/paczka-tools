@@ -1,11 +1,11 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte'
 
-  export let view: 'graph' | 'cards' | 'dash' | 'venn' = 'graph'
+  export let view: 'graph' | 'cards' | 'dash' | 'venn' | 'explorer' | 'matrix' = 'graph'
   export let vaultName: string = 'Synapse'
 
   const dispatch = createEventDispatcher<{
-    switchView: 'graph' | 'cards' | 'dash' | 'venn'
+    switchView: 'graph' | 'cards' | 'dash' | 'venn' | 'explorer' | 'matrix'
     openSettings: void
     openPalette: void
   }>()
@@ -33,6 +33,22 @@
       <circle cx="6.5" cy="9" r="5" fill-opacity=".55"/>
       <circle cx="11.5" cy="9" r="5" fill-opacity=".55"/>
     </svg>`,
+    explorer: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+      <rect x="1" y="2" width="4" height="12" rx="1"/>
+      <rect x="6" y="2" width="4" height="12" rx="1" fill-opacity=".7"/>
+      <rect x="11" y="2" width="4" height="12" rx="1" fill-opacity=".45"/>
+    </svg>`,
+    matrix: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+      <rect x="1" y="1" width="4" height="4" rx=".8"/>
+      <rect x="6" y="1" width="4" height="4" rx=".8" fill-opacity=".5"/>
+      <rect x="11" y="1" width="4" height="4" rx=".8"/>
+      <rect x="1" y="6" width="4" height="4" rx=".8" fill-opacity=".5"/>
+      <rect x="6" y="6" width="4" height="4" rx=".8"/>
+      <rect x="11" y="6" width="4" height="4" rx=".8" fill-opacity=".5"/>
+      <rect x="1" y="11" width="4" height="4" rx=".8"/>
+      <rect x="6" y="11" width="4" height="4" rx=".8" fill-opacity=".5"/>
+      <rect x="11" y="11" width="4" height="4" rx=".8" fill-opacity=".25"/>
+    </svg>`,
     search: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
       <circle cx="7" cy="7" r="5"/>
       <line x1="11" y1="11" x2="15" y2="15"/>
@@ -42,11 +58,13 @@
     </svg>`,
   }
 
-  const views: Array<{ id: 'graph' | 'cards' | 'dash' | 'venn'; icon: string; label: string }> = [
+  const views: Array<{ id: 'graph' | 'cards' | 'dash' | 'venn' | 'explorer' | 'matrix'; icon: string; label: string }> = [
     { id: 'graph', icon: ICONS.graph, label: 'Graph' },
     { id: 'venn', icon: ICONS.venn, label: 'Venn' },
     { id: 'cards', icon: ICONS.cards, label: 'Cards' },
     { id: 'dash', icon: ICONS.dash, label: 'Dashboard' },
+    { id: 'explorer', icon: ICONS.explorer, label: 'Explorer' },
+    { id: 'matrix', icon: ICONS.matrix, label: 'Matrix' },
   ]
 </script>
 

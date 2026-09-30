@@ -1,10 +1,10 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte'
 
-  export let view: 'graph' | 'cards' | 'dash' | 'venn' = 'graph'
+  export let view: 'graph' | 'cards' | 'dash' | 'venn' | 'explorer' | 'matrix' = 'graph'
 
   const dispatch = createEventDispatcher<{
-    switchView: 'graph' | 'cards' | 'dash' | 'venn'
+    switchView: 'graph' | 'cards' | 'dash' | 'venn' | 'explorer' | 'matrix'
     openSettings: void
     openPalette: void
   }>()
@@ -23,11 +23,13 @@
    */
   let filtersOpen = false
 
-  const views: Array<{ id: 'graph' | 'cards' | 'dash' | 'venn'; label: string }> = [
+  const views: Array<{ id: 'graph' | 'cards' | 'dash' | 'venn' | 'explorer' | 'matrix'; label: string }> = [
     { id: 'graph', label: 'Graph' },
     { id: 'venn', label: 'Venn' },
     { id: 'cards', label: 'Cards' },
     { id: 'dash', label: 'Dash' },
+    { id: 'explorer', label: 'Explorer' },
+    { id: 'matrix', label: 'Matrix' },
   ]
 </script>
 

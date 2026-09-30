@@ -1,4 +1,4 @@
-import type { KnowledgeGraph, GraphNode, GraphEdge } from './GraphModel'
+import type { KnowledgeGraph, GraphNode, GraphEdge, RealNode } from './GraphModel'
 import { presentNodeTypes } from './edgeStyle'
 
 /**
@@ -112,6 +112,26 @@ export function visibleNodes(graph: KnowledgeGraph, filters: GraphFilters): Grap
     }
   }
   return passes.filter((n) => linked.has(n.id))
+}
+
+/**
+ * The same filters, minus the node-type dimension, over real notes only.
+ *
+ * A structural view (columns, matrix) lives on the level the graph hides. `defaultFiltersFor`
+ * deselects the finest type so a large vault opens as a skeleton — right for a force layout,
+ * fatal for browsing, because it means the files are gone before the reader asks anything.
+ * Ghosts are dropped outright: they have no type, category or level, so in a view built out
+ * of the containment tree they would surface as files that belong nowhere.
+ *
+ * Every other dimension still applies, so narrowing in the filter panel and switching views
+ * keeps its meaning.
+ */
+export function realNodesIgnoringNodeType(
+  graph: KnowledgeGraph,
+  filters: GraphFilters,
+): RealNode[] {
+  const withoutTypes: GraphFilters = { ...filters, nodeTypes: [], connectedOnly: false }
+  return visibleNodes(graph, withoutTypes).filter((n): n is RealNode => n.kind === 'real')
 }
 
 /**

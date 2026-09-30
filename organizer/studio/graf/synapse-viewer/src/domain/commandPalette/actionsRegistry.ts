@@ -10,6 +10,9 @@ export interface ActionCallbacks {
   switchViewGraph: () => void
   switchViewCards: () => void
   switchViewDash: () => void
+  switchViewVenn: () => void
+  switchViewExplorer: () => void
+  switchViewMatrix: () => void
   switchLayoutClassic: () => void
   switchLayoutRail: () => void
   switchLayoutCommand: () => void
@@ -31,6 +34,21 @@ const ICONS: Record<string, string> = {
     <rect x="1" y="1" width="14" height="4" rx="1"/>
     <rect x="1" y="7" width="6" height="8" rx="1"/>
     <rect x="9" y="7" width="6" height="8" rx="1"/>
+  </svg>`,
+  venn: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+    <circle cx="6" cy="8" r="4.5" fill-opacity=".55"/><circle cx="10" cy="8" r="4.5" fill-opacity=".55"/>
+  </svg>`,
+  explorer: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+    <rect x="1" y="2" width="4" height="12" rx="1"/>
+    <rect x="6" y="2" width="4" height="12" rx="1" fill-opacity=".7"/>
+    <rect x="11" y="2" width="4" height="12" rx="1" fill-opacity=".45"/>
+  </svg>`,
+  matrix: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+    <rect x="1" y="1" width="4" height="4" rx=".8"/><rect x="6" y="1" width="4" height="4" rx=".8" fill-opacity=".5"/>
+    <rect x="11" y="1" width="4" height="4" rx=".8"/><rect x="1" y="6" width="4" height="4" rx=".8" fill-opacity=".5"/>
+    <rect x="6" y="6" width="4" height="4" rx=".8"/><rect x="11" y="6" width="4" height="4" rx=".8" fill-opacity=".5"/>
+    <rect x="1" y="11" width="4" height="4" rx=".8"/><rect x="6" y="11" width="4" height="4" rx=".8" fill-opacity=".5"/>
+    <rect x="11" y="11" width="4" height="4" rx=".8" fill-opacity=".25"/>
   </svg>`,
   classic: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
     <rect x="1" y="1" width="14" height="3" rx="1"/>
@@ -71,6 +89,28 @@ export function buildActionsRegistry(callbacks: ActionCallbacks): PaletteAction[
       hint: 'Show dashboard stats',
       icon: ICONS.dash,
       run: callbacks.switchViewDash,
+    },
+    {
+      // Venn was the one view with a tab but no action — reachable by mouse only.
+      id: 'switch-view-venn',
+      label: 'Venn view',
+      hint: 'Compare sets of notes',
+      icon: ICONS.venn,
+      run: callbacks.switchViewVenn,
+    },
+    {
+      id: 'switch-view-explorer',
+      label: 'Explorer view',
+      hint: 'Walk the vault as columns',
+      icon: ICONS.explorer,
+      run: callbacks.switchViewExplorer,
+    },
+    {
+      id: 'switch-view-matrix',
+      label: 'Matrix view',
+      hint: 'Coverage by subject and category',
+      icon: ICONS.matrix,
+      run: callbacks.switchViewMatrix,
     },
     {
       id: 'switch-layout-classic',
