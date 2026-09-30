@@ -314,30 +314,12 @@
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-09-30T22:29:18+02:00
+- Odświeżono: 2026-10-01T00:13:36+02:00
 - Branch: `master`
-- Commit: `c88a58c`
+- Commit: `8da0e6c`
 - Git status:
   ```text
-  M README.md
-   M TODO.md
-   M docs/CLI.md
-   M reports/HANDOFF.md
-   M studio/README.md
-   M studio/TODO-studio.md
-   M studio/api/app.py
-   M studio/graf/synapse-viewer/src/app.css
-   M studio/graf/synapse-viewer/src/components/detail/DetailPanel.svelte
-   M studio/graf/synapse-viewer/src/components/detail/FileFacts.svelte
-   M studio/graf/synapse-viewer/src/components/detail/ProvenanceBranch.svelte
-   M studio/graf/synapse-viewer/src/components/detail/ProvenanceTreeView.svelte
-   M studio/web/src/App.svelte
-   M studio/web/src/components/DecisionPanel.svelte
-   M studio/web/src/lib/api.ts
-   M studio/web/src/lib/prefs.ts
-   M tests/test_studio_decisions.py
-  ?? docs/PIPELINE.md
-  ?? studio/graf/synapse-viewer/src/components/detail/SectionHeading.svelte
+  (clean)
   ```
 - Pierwsze otwarte TODO: - [ ] B12. `scripts/provenance.py` — `reports/provenance.jsonl` + README per przedmiot do `paczka_meta/` + `00_SOURCES/linki.txt` z `source_packages`
 <!-- END AUTO -->
