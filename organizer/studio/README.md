@@ -233,12 +233,18 @@ To tutaj zapada decyzja o ruszeniu materiałów.
   decyzji reguł.
 
 Etapy uruchamiają **prawdziwe skrypty potoku** jako podproces; log leci na żywo, a wynikiem
-jest **kod wyjścia**, nie treść logu:
+jest **kod wyjścia**, nie treść logu. Stoją w dwóch rzędach: **przygotowanie** (uruchamiane
+raz na przedmiot) nad **przeglądem i wykonaniem** (pętla, do której się wraca) — „zbuduj plan"
+klika się po każdej partii decyzji, a `wycinek` raz, więc jeden rząd zapraszał do pomyłki:
 
 ![Etap uruchomiony z widoku](docs/screens/08-plan-etap.png)
 
 | Przycisk | Skrypt | Uwagi |
 |---|---|---|
+| `wycinek` | `prepare_subject.py` | manifest przedmiotu z indeksu |
+| `klasyfikuj` | `classify.py` | reguły i heurystyki; zero kosztu AI |
+| `AI na resztki` | `ai_resolve.py` | nierozstrzygnięte idą do modelu z `thresholds.yaml` (konto OpenAI) |
+| `podobieństwo` | `near_dupe.py` | relacje near-duplicate i starszych wersji |
 | `zbuduj plan` | `build_plan.py` | scala decyzje w jeden `plan.jsonl` |
 | `waliduj` | `validate_plan.py` | bramka; kod 2 = planu nie wolno wykonać |
 | `review.html` | `review_report.py` | samowystarczalna strona przeglądu |
@@ -488,6 +494,13 @@ Odpowiednik `reports/STATUS.md` na żywo, bez generowania pliku: liczniki ogóln
 przedmiotów, statusy plików, metody klasyfikacji, kategorie i akcje. Liczone
 `status_report.collect`, czyli tym samym kodem co `just status`.
 
+Tutaj stoją też **etapy indeksu**: `skanuj źródła`, `hashuj`, `dedup katalogów`,
+`ekstrahuj tekst`, `wczytaj paczkę`, `przelicz STATUS.md`. Nie w zakładce planu, bo nie
+dotyczą żadnego przedmiotu — to praca nad indeksem jako całością, a ten widok jest o nim.
+OCR obrazów przy ekstrakcji jest osobnym przełącznikiem, nie wartością domyślną: odróżnia
+przebieg kilkuminutowy od kilkugodzinnego, więc ma być wyborem człowieka. Gdy gdziekolwiek
+w studiu trwa inny etap, przyciski są wyszarzone i panel mówi, co trwa.
+
 ![Statystyki na żywo](docs/screens/12-statystyki.png)
 
 ---
@@ -583,6 +596,7 @@ Wszystko pod `http://127.0.0.1:8765`. Parametry opcjonalne oznaczone `?`.
 | `GET /api/preview/{sha256}` | — | głowa tekstu, rodzaj podglądu, liczba stron |
 | `GET /api/preview/{sha256}/image` | `page?=1 width?` | strona PDF jako PNG albo obraz; `width` (80–2000) dla siatek i porównań |
 | `GET /api/queue` | `semester? skrot? category? limit?=1` | kolejka decyzji (zawężalna do jednej kategorii) |
+| `GET /api/pipeline` | — | etapy indeksu z ich limitami czasu + nazwa trwającego etapu |
 | `GET /api/clusters` | `semester? skrot? noise?` | klastry near-dupe |
 | `GET /api/clusters/diff` | `left right` | dwie treści obok siebie + relacja |
 | `GET /api/search` | `q limit?=50` | wyszukiwanie przekrojowe |
@@ -606,13 +620,30 @@ Wszystko pod `http://127.0.0.1:8765`. Parametry opcjonalne oznaczone `?`.
 | `POST /api/decisions/undo` | — | cofnięcie ostatniej |
 | `DELETE /api/decisions/{sha256}` | — | cofnięcie jednej pozycji |
 | `POST /api/clusters/resolve` | `canonical_sha256 members[] decided_by?` | rozstrzygnięcie klastra |
-| `POST /api/plan/{sem}/{skrot}/run` | `stage` + dla `apply`: `confirm plan_hash` | etap jako podproces CLI, log strumieniem SSE |
+| `POST /api/plan/{sem}/{skrot}/run` | `stage` + dla `apply`: `confirm plan_hash` | etap przedmiotu jako podproces CLI, log strumieniem SSE |
+| `POST /api/pipeline/run` | `stage` + dla `extract`: `ocr_images?` | etap **indeksu** jako podproces CLI, log strumieniem SSE |
 
-`stage` to jedna z: `plan`, `validate`, `review`, `apply-dry`, `apply`, `verify` —
-zamknięta lista; cokolwiek innego to 422, nie komenda.
+`stage` przedmiotu to jedna z: `prepare`, `classify`, `ai-resolve`, `relate`, `plan`,
+`validate`, `review`, `apply-dry`, `apply`, `verify`. `stage` indeksu — `scan`, `hash`,
+`fold-hash`, `extract`, `scan-target`, `status`. Obie listy są zamknięte i rozłączne;
+cokolwiek innego to 422, nie komenda.
+
+Trasy są dwie, bo skrypty są dwóch rodzajów: etapy indeksu nie znają
+`--semester/--skrot`, więc jedna trasa musiałaby udawać, że przedmiot jest opcjonalny.
 
 Strumień etapu to ramki SSE: `start` (pełne argv — widać dokładnie, co zostało
 uruchomione), `line` (kolejne linie wyjścia), `done` (`code` — kod wyjścia etapu).
+
+**Jeden etap na raz, na całe studio.** Wszystkie piszą do tej samej bazy, a `scan`,
+`hash` i `extract` przemielają ją w całości — `classify` czytający stan, który `extract`
+właśnie zmienia, to nie jest „wolniej", tylko niepoprawnie. Drugie żądanie w trakcie
+pierwszego dostaje **409 z nazwą trwającego etapu i nie startuje żadnego procesu**;
+blokada pada razem z końcem strumienia, także gdy przeglądarka zamknie połączenie
+w połowie kilkugodzinnego `extract`.
+
+Limity czasu są per etap, bo godzina nie wystarcza wszystkim: `extract` ma 12 h
+(sam przebieg z OCR obrazów zajął tu **2977 s**), `scan`, `hash`, `fold-hash`
+i `scan-target` po 6 h, reszta domyślną godzinę.
 
 ---
 

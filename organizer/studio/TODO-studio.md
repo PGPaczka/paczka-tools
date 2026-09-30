@@ -799,6 +799,43 @@ w ogóle powinny być w paczce, zostaje otwarte.
         ignorowany. Drugi test pilnuje, że kategoria bez spornych pozycji daje pusto,
         a nie całą kolejkę.
 
+- [x] **Cały potok da się uruchomić z przeglądarki** (2026-10-01). Było 6 etapów z 12;
+      doszło 10 przycisków, więc nie zostało ani jednego etapu „tylko z konsoli".
+      - **Etapy przedmiotu** (`prepare`, `classify`, `ai-resolve`, `relate`) zmieściły się
+        w istniejącym `build_argv` bez zmiany kształtu — poza `ai_resolve.py`, który jako
+        jedyny z tej czwórki **nie zna `--db`** (czyta manifest, pisze obok niego).
+        Dopisanie flagi „dla symetrii" dałoby etap startujący i odbijający się od parsera.
+        W widoku stoją osobnym rzędem nad pętlą przeglądu: `wycinek` klika się raz,
+        a `zbuduj plan` po każdej partii decyzji, więc jeden rząd zapraszał do pomyłki.
+      - **Etapy indeksu** (`scan`, `hash`, `fold-hash`, `extract`, `scan-target`, `status`)
+        dostały własną trasę `POST /api/pipeline/run` i miejsce w zakładce statystyk.
+        Nie znają `--semester/--skrot`, więc wciśnięcie ich pod trasę przedmiotu znaczyłoby
+        udawanie, że przedmiot jest opcjonalny.
+      - **Blokada „jeden etap na raz" na całe studio** — warunek wpuszczenia tych etapów,
+        nie ozdoba. Wcześniej **nie było jej w ogóle**: dopóki etapy wpisywało się z konsoli,
+        pilnowała ich jedna para rąk, a z przyciskami uruchomienie `classify` w trakcie
+        `extract` to jedno kliknięcie — i to nie jest „wolniej", tylko czytanie stanu, który
+        ktoś właśnie zmienia. Drugie żądanie dostaje 409 z nazwą trwającego etapu i **nie
+        startuje procesu**; blokadę zajmuje trasa, bo po rozpoczęciu strumienia odmowa nie
+        może już być kodem HTTP.
+      - **Zwolnienie wisi na `finally` strumienia**, więc działa też przy zamknięciu karty
+        w połowie kilkugodzinnego `extract`. Testowane na samym opakowaniu, nie przez
+        `TestClient`: klient jest synchroniczny i szybki etap zdąży się skończyć, zanim da
+        się cokolwiek zaobserwować „w trakcie" — pierwsza wersja tego testu była zielona
+        z przypadku.
+      - **Limity czasu per etap.** `TIMEOUT_S` = 3600 s dla wszystkich było za ciasne:
+        sam `extract --ocr-images` zajął **2977 s**, czyli 83% limitu. `extract` ma teraz
+        12 h, etapy chodzące po całych źródłach 6 h, reszta godzinę.
+      - OCR obrazów jest **osobnym przełącznikiem**, nie wartością domyślną — odróżnia
+        przebieg kilkuminutowy od kilkugodzinnego, więc ma być wyborem człowieka.
+      - Sprawdzone na żywym indeksie: `/api/pipeline` podaje sześć etapów z limitami,
+        `status` i `prepare` (AKO) kończą się kodem 0, drugi etap w trakcie pierwszego
+        dostaje 409, nieznana nazwa — 422 z listą dozwolonych.
+      - Przy okazji: `--warn` był używany w `DecisionPanel`, `HistoryPanel` i `StatsPanel`,
+        ale **nigdy nie był zdefiniowany** w `app.css`. `color: var(--warn)` jest wtedy
+        deklaracją nieprawidłową i po cichu wypada, więc komunikaty błędów nie były
+        czerwone w żadnym z tych widoków. Token dopisany jako alias `--red`.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

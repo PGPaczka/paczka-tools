@@ -128,19 +128,25 @@ a drugi przebieg jest **jedynym** momentem, w którym Twoje poprawki wchodzą do
 
 ## 4. Etap po etapie
 
-Znacznik **[studio]** oznacza etap z przyciskiem w zakładce *plan*.
-**[konsola]** — na razie tylko z wiersza poleceń.
+Znacznik mówi, gdzie etap ma przycisk: **[plan]** to zakładka planu przedmiotu,
+**[indeks]** to zakładka statystyk. Każdy etap potoku da się dziś uruchomić z przeglądarki;
+komendy zostają, bo studio woła dokładnie te same skrypty i przekazuje ich kod wyjścia.
+
+**Jeden etap na raz, na całe studio.** Wszystkie piszą do tej samej bazy, a `scan`,
+`hash` i `extract` przemielają ją w całości — więc gdy jeden trwa, pozostałe przyciski
+są wyszarzone, a żądanie wysłane z pominięciem interfejsu dostaje odmowę (409) i nic
+nie startuje.
 
 ### Etapy globalne — raz na całe źródła
 
 | Etap | Co robi | Po czym poznasz | Gdzie |
 |---|---|---|---|
-| `just scan` | chodzi po `00_SOURCES`, zapisuje każdy plik i katalog | `reports/SOURCES_TREE.md` + liczby w `just status` | [konsola] |
-| `just hash` | sha256 każdego pliku → identyczne bajty scalają się w jedną treść | spadek „pliki" → „treści" w `just status` | [konsola] |
-| `just fold-hash` | `tree_hash` katalogów: identyczne poddrzewa dostają `duplicate_of` i wypadają z dalszej pracy | liczba katalogów-duplikatów | [konsola] |
-| `just extract` | wyciąga tekst z PDF/docx; `--ocr-images` dokłada OCR obrazów (wolne: ~50 min na całości) | „treści z wyekstrahowanym tekstem" w `just status` | [konsola] |
-| `just scan-target` | wciąga **ground truth** z repo paczki | kolumna „w paczce" w `reports/STATUS.md` | [konsola] |
-| `just status` | przelicza `reports/STATUS.md` z indeksu | tabela przedmioty × etapy | [konsola] |
+| `just scan` | chodzi po `00_SOURCES`, zapisuje każdy plik i katalog | `reports/SOURCES_TREE.md` + liczby w `just status` | [indeks] |
+| `just hash` | sha256 każdego pliku → identyczne bajty scalają się w jedną treść | spadek „pliki" → „treści" w `just status` | [indeks] |
+| `just fold-hash` | `tree_hash` katalogów: identyczne poddrzewa dostają `duplicate_of` i wypadają z dalszej pracy | liczba katalogów-duplikatów | [indeks] |
+| `just extract` | wyciąga tekst z PDF/docx; OCR obrazów jako osobny przełącznik (wolne: ~50 min na całości) | „treści z wyekstrahowanym tekstem" w `just status` | [indeks] |
+| `just scan-target` | wciąga **ground truth** z repo paczki | kolumna „w paczce" w `reports/STATUS.md` | [indeks] |
+| `just status` | przelicza `reports/STATUS.md` z indeksu | tabela przedmioty × etapy | [indeks] |
 
 Bez `extract` nie ma sensownego `relate`: podobieństwo liczy się z podpisów treści,
 a obraz bez OCR porównuje się tylko percepcyjnie — czyli dwie białe kartki wychodzą
@@ -148,57 +154,57 @@ a obraz bez OCR porównuje się tylko percepcyjnie — czyli dwie białe kartki 
 
 ### Etapy przedmiotu
 
-**B1 · `just subject-prepare 3 AKO`** — [konsola]
+**B1 · `just subject-prepare 3 AKO`** — **[plan: `wycinek`]**
 Wycina z indeksu wszystko, co należy do tego przedmiotu.
 → `reports/AKO/manifest_slice.jsonl`. Nic nie zmienia w materiałach.
 
-**B3 · `just subject-classify 3 AKO`** — [konsola]
+**B3 · `just subject-classify 3 AKO`** — **[plan: `klasyfikuj`]**
 Reguły deterministyczne i heurystyki z `syntax.yaml`: kategoria, rok, ścieżka
 docelowa, akcja (`copy`/`skip`/`media`/`quarantine`), pewność i **uzasadnienie**.
 Zero kosztu AI.
 → `plan.det.jsonl` (rozstrzygnięte) + `unresolved.jsonl` (bez sygnału).
 
-**B5 · `just subject-ai-resolve 3 AKO`** — [konsola]
+**B5 · `just subject-ai-resolve 3 AKO`** — **[plan: `AI na resztki`]**
 Resztki z `unresolved.jsonl` idą do modelu wskazanego w `config/thresholds.yaml: llm`
 — domyślnie `codex_cli`, czyli **konto OpenAI, nie limit koordynatora**. Wznawialne,
 z pamięcią podręczną.
 → `plan.ai.jsonl`.
 
-**B6 · `just subject-relate 3 AKO`** — [konsola]
+**B6 · `just subject-relate 3 AKO`** — **[plan: `podobieństwo`]**
 Podobieństwo treści: simhash/minhash dla tekstu, phash dla obrazów (z kontrolą
 zgodności tekstu z OCR), plus sygnał wspólnego katalogu źródłowego.
 → `relations.jsonl` + tabela `relations`. To dzięki temu plan umie powiedzieć
 „ta treść już jest w paczce, pomiń".
 
-**B7 · `just subject-plan 3 AKO`** — **[studio: `zbuduj plan`]**
+**B7 · `just subject-plan 3 AKO`** — **[plan: `zbuduj plan`]**
 Scala wszystko w **jeden** `plan.jsonl`: decyzje deterministyczne, AI, **Twoje
 ręczne**, relacje i ground truth. Rozstrzyga kolizje ścieżek docelowych i liczy
 `plan_hash`.
 → `plan.jsonl` z nagłówkiem `_meta`. **Ten etap uruchamiasz ponownie po każdej
 partii decyzji** — inaczej Twoje poprawki nie są w planie.
 
-**B8 · `just subject-validate 3 AKO`** — **[studio: `waliduj`]**
+**B8 · `just subject-validate 3 AKO`** — **[plan: `waliduj`]**
 Bramka. Sprawdza zgodność `plan_hash` z zawartością, kolizje celów, próby
 nadpisania ground truth, lint nazewnictwa.
 → `validation.jsonl`. **Kod 2 = planu NIE WOLNO wykonać.**
 
-**B9 · `just subject-review 3 AKO`** — **[studio: `review.html`]**
+**B9 · `just subject-review 3 AKO`** — **[plan: `review.html`]**
 Samowystarczalna strona do obejrzenia okiem (miniatury w środku).
 → `reports/AKO/review.html`.
 
-**PRZEGLĄD — [studio]**
+**PRZEGLĄD — [zakładka decyzje]**
 Tu pracujesz Ty. Szczegóły w sekcji 5.
 
-**B10 · `just subject-apply 3 AKO`** — **[studio: `apply (dry-run)` / `APPLY`]**
+**B10 · `just subject-apply 3 AKO`** — **[plan: `apply (dry-run)` / `APPLY`]**
 Bez `--yes` to **dry-run**: niczego nie kopiuje, pokazuje diff wykonania.
 Z `--yes --expect-hash <odcisk>` kopiuje materiały do repo docelowego na gałąź
 `subject/{SKROT}`. Bramka B8 jest wykonywana **jeszcze raz** tutaj.
 
-**B11 · `just subject-verify 3 AKO`** — **[studio: `verify`]**
+**B11 · `just subject-verify 3 AKO`** — **[plan: `verify`]**
 Przelicza hash tego, co wylądowało, wobec planu.
 → `verification.jsonl`. **Kod 2 = nie commituj materiałów.**
 
-**Graf — [studio: zakładka graf → `przebuduj`]**
+**Graf — [zakładka graf → `przebuduj`]**
 Graf jest **migawką**: decyzji nie widać, dopóki nie przeliczysz vaulta i `graph.json`.
 Przycisk robi oba kroki. Po przebudowie **porównaj liczby z podsumowania eksportu
 z liczbami generatora** — rozjazd znaczy, że vault się nie parsuje. To cicha awaria:
