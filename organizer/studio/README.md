@@ -293,6 +293,34 @@ który wcześniej nie kończył się przez 45 s, staje w ~10 s. Minimapa rysuje 
 elementów DOM przemalowywanych przy każdej klatce przesuwania i to ona, a nie graf,
 odpowiadała za większość zacięć na telefonie.
 
+#### Notatka pliku: dane zamiast akapitu
+
+![Notatka pliku](docs/screens/16-graf-notatka-pliku.png)
+
+Kliknięty plik nie jest już ścianą jednolitego tekstu. Panel rysuje się z **pól** węzła
+(kontrakt v4), bo renderer markdownu ma wyłączony HTML i z treści nie dało się wydobyć ani
+koloru, ani plakietki.
+
+- **podgląd na górze** — obraz, strona PDF-a z przewracaniem, głowa tekstu z kolorowaniem
+  składni albo spis plików w archiwum; gdy nie ma czego pokazać, kafelka mówi wprost, czy
+  to wina formatu, czy braku kopii na dysku;
+- **ścieżka docelowa** z etykietą „leży w paczce" albo „trafi do paczki" — katalogi
+  przygaszone, nazwa pliku pełnym kontrastem. Ścieżka samej notatki `.md`, która wcześniej
+  zajmowała nagłówek, zeszła do stopki: opisywała notatkę, nie materiał;
+- **decyzja jako plakietki** — akcja, kategoria w swoim kolorze, pewność barwiona progiem
+  (0,9 / 0,7), metoda drobnym drukiem, uzasadnienie przygaszoną prozą;
+- **prowenancja drzewem** — korzeniem jest paczka źródłowa, łańcuch bez wyboru zwija się
+  w jeden wiersz, więc pion zajmuje wyłącznie miejsce, gdzie kopie naprawdę się rozchodzą.
+  Wspólna nazwa pliku (ma ją 92% treści) stoi raz nad drzewem, nie w każdym wierszu;
+- **przyciski kopiowania** przy ścieżce docelowej, sha, każdej ścieżce źródłowej i ścieżce
+  notatki.
+
+Węzeł wozi do 25 kopii i pełną ich liczbę, więc rekordzista z 260 kopiami mówi „i jeszcze
+235 — pełna lista w studiu" zamiast rozwijać ścianę. Na telefonie całość czyta się bez
+poziomego przewijania:
+
+![Notatka pliku na telefonie](docs/screens/16b-graf-notatka-telefon.png)
+
 #### Explorer — przeglądanie po drzewie, nie po kłębku
 
 Graf pokazuje KSZTAŁT paczki i jest w tym dobry. Do dojścia do konkretnego pliku się nie

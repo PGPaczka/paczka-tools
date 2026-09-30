@@ -716,6 +716,49 @@ testy 237 → 216 (zniknęło 21 testów Venna).
 będzie miał konflikt w tych plikach. Świadomy wybór — ten fork i tak jest przerobiony pod
 paczkę.
 
+## Notatka pliku rysowana z pól, prowenancja drzewem (2026-09-30)
+
+Zgłoszenie ze zrzutu ekranu: „długie ścieżki, zlewają się, mało się wyróżniają, wszystko
+w jednym kolorze, dużo tekstu". Przyczyna była strukturalna: cała notatka to markdown, a
+renderer ma wyłączony HTML — z takiej treści nie da się wydobyć ani koloru, ani plakietki.
+
+- [x] **Kontrakt v4**: węzeł pliku niesie blok `file` (`decision`, `provenance`, `preview`,
+      `studioUrl`). Generator **nie zna jego kształtu** — `Domain/Mapping/YamlJson.cs`
+      przenosi go w całości do JSON-a, więc następna zmiana kontraktu nie wraca do C#.
+- [x] **Prowenancja drzewem** (`domain/graph/provenanceTree.ts`): korzeniem jest paczka
+      źródłowa, łańcuch bez wyboru zwija się w jeden wiersz, wspólna nazwa pliku raz nad
+      drzewem. Węzeł wozi do 25 kopii i pełną liczbę — rekordzista ma 260.
+- [x] **Podgląd dla każdego rodzaju**: eksport zaczął wołać `source_text_head` (studio robiło
+      tak od dawna) i nowe `archive_head` dla ZIP-ów. **Bez podglądu zostało 459 z 4083
+      treści (11%) zamiast 1441 (35%)**, a kafelka mówi, czy to wina formatu, czy braku kopii.
+- [x] **Ścieżka `.md` z nagłówka** zeszła do stopki — opisywała notatkę, nie materiał.
+      W nagłówku jest ścieżka docelowa z etykietą „leży/trafi do paczki".
+- [x] **Przyciski kopiowania** przy ścieżce docelowej, sha, każdym liściu prowenancji
+      i ścieżce notatki; wspólny `lib/clipboard.ts` zamiast czterech kopii tej samej pętli.
+
+Trzy rzeczy, których nie widać w kodzie:
+
+- **Surowy `\n` w cytowanym skalarze YAML-a rozwalił front matter 1891 notatek.** Podgląd
+  tekstowy niesie prawdziwe znaki nowej linii, a `_yaml_scalar` ich nie eskejpował: wiersz
+  `---` w środku podglądu zamykał blok, a `relations:` z treści pliku zaczynał nowy.
+  Generator zgłosił **3018 krawędzi zamiast 5604** i 47 ghostów zamiast 77 — cicho, bo każda
+  notatka z osobna wyglądała poprawnie. Złapane przez porównanie liczb eksportu z liczbami
+  generatora, nie przez test. Teraz jest i test, i nawyk: **po `just synapse-view` sprawdź,
+  czy generator zgłasza tyle samo krawędzi, ile zadeklarował eksport.**
+- **YamlDotNet parsuje `0.9` jako `float`.** Poszerzenie do `double` utrwalało błąd
+  pojedynczej precyzji i w grafie lądowało `0.8999999761581421`. Konwerter idzie teraz przez
+  formę tekstową `"R"`. Złapał to test kontraktu na prawdziwym generatorze — test jednostkowy
+  z literałem `0.9` (czyli `double`) przechodził.
+- **Eksport wstawiał adres podglądu na sam rodzaj treści**, nie sprawdzając, czy jest co
+  pokazać: dla treści bez kopii na dysku dawało to zepsuty obrazek. To inne zdanie niż
+  „nie mamy tego pliku", więc `preview.missing` rozróżnia teraz `format` i `no-copy`.
+
+Przy okazji z danych: z 459 treści bez podglądu **356 to artefakty budowania Visual Studio**
+(`.obj`, `.pdb`, `.ilk`, `.idb`, `.exe`). Nie ma tam czego pokazywać — ale to pytanie, czy
+w ogóle powinny być w paczce, zostaje otwarte.
+
+`graph.json` urósł z 5,1 do 11,2 MB, po gzipie **0,80 MB** (studio serwuje spakowane).
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3

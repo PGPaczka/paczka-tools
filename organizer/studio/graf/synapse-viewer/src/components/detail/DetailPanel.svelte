@@ -11,6 +11,8 @@
   import { wikilinkPlugin } from '../../markdown/wikilinkPlugin'
   import { fetchBody, getCachedBody, noteBodyVersion } from '../../stores/noteBodyStore'
   import MarkdownBody from './MarkdownBody.svelte'
+  import FileFacts from './FileFacts.svelte'
+  import CopyButton from './CopyButton.svelte'
   import type { RealNode, GhostNode, GraphNode } from '../../domain/graph/GraphModel'
 
   export let canEdit: boolean = false
@@ -105,18 +107,6 @@
   // Notatki vaulta są u nas GENEROWANE z indeksu (`just synapse`), więc nie ma czego
   // otwierać w Obsidianie — link prowadziłby do pliku, którego nikt nie edytuje ręcznie
   // i którego kolejny eksport i tak nadpisze. Usunięte świadomie, nie przez przeoczenie.
-
-  let pathCopied = false
-  let copyTimeout: ReturnType<typeof setTimeout> | null = null
-
-  function copyPath() {
-    if (!realNode?.path) return
-    navigator.clipboard.writeText(realNode.path).then(() => {
-      pathCopied = true
-      if (copyTimeout) clearTimeout(copyTimeout)
-      copyTimeout = setTimeout(() => { pathCopied = false }, 1500)
-    })
-  }
 
   function close() {
     selectedId.set(null)
@@ -216,31 +206,14 @@
       </div>
     {/if}
 
-    <!-- Location bar (real nodes only) -->
-    {#if realNode}
-      <div class="location-bar">
-        <svg class="folder-icon" width="12" height="12" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path d="M1 3.5A1.5 1.5 0 0 1 2.5 2h3.379a1.5 1.5 0 0 1 1.06.44l.83.83A1.5 1.5 0 0 0 8.83 3.75H13.5A1.5 1.5 0 0 1 15 5.25v7.25A1.5 1.5 0 0 1 13.5 14h-11A1.5 1.5 0 0 1 1 12.5V3.5Z" stroke="currentColor" stroke-width="1.4"/>
-        </svg>
-        <span class="location-path" title={realNode.path}>{realNode.path}</span>
-        <button
-          class="copy-btn"
-          class:copy-btn--ok={pathCopied}
-          on:click={copyPath}
-          title="Copy vault-relative path"
-          aria-label="Copy path"
-        >
-          {#if pathCopied}
-            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 6l3 3 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          {:else}
-            <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.4"/><path d="M5 11H3a1.5 1.5 0 0 1-1.5-1.5V3A1.5 1.5 0 0 1 3 1.5h7A1.5 1.5 0 0 1 11.5 3v2" stroke="currentColor" stroke-width="1.4"/></svg>
-          {/if}
-        </button>
-      </div>
+    <!-- Notatka pliku rysuje się z pól: z markdownu (HTML wyłączony) nie da się
+         zbudować układu, a ścieżka `.md` w nagłówku opisywała notatkę, nie materiał. -->
+    {#if realNode?.file}
+      <FileFacts node={realNode} file={realNode.file} />
     {/if}
 
     <!-- Body -->
-    {#if realNode}
+    {#if realNode && !realNode.file}
       {#if bodyLoading && !getCachedBody(realNode.path)}
         <div class="body-loading">
           <span class="loading-dot"></span>
@@ -378,6 +351,9 @@
         {#if realNode.modified}
           <span class="meta-item">Modified {realNode.modified.slice(0, 10)}</span>
         {/if}
+        <span class="meta-grow"></span>
+        <span class="meta-item note-path" title={realNode.path}>{realNode.path}</span>
+        <CopyButton value={realNode.path} label="Copy vault path" />
       </div>
     {/if}
   </aside>
@@ -720,6 +696,20 @@
     border: 1px solid var(--border);
     border-radius: 3px;
     padding: 1px 4px;
+  }
+
+  .meta-grow { flex: 1; }
+
+  /* Ścieżka SAMEJ notatki w vaulcie: bywa potrzebna przy debugowaniu eksportu, ale nie
+     jest odpowiedzią na żadne pytanie o materiał — stąd stopka, nie nagłówek. */
+  .note-path {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--muted-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 55%;
   }
 
   .meta-footer {

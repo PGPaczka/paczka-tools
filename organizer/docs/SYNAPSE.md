@@ -29,6 +29,7 @@ Krawędź umiała powiedzieć tylko, ŻE dwie notatki są połączone. Dodaliśm
 | `--no-git` / `skipGitHistory` | `Program.cs`, `GeneratorPipeline` |
 | `schemaVersion` 2 | `schema/graph.schema.v2.json` + `graph-schema.md` |
 | `schemaVersion` 3: `sha256`, `sizeBytes`, `contentKind` na węźle (2026-09-30) | `schema/graph.schema.v3.json`, mapper i serializer generatora, `RealNode` w viewerze |
+| `schemaVersion` 4: blok `file` — decyzja, prowenancja, podgląd (2026-09-30) | `schema/graph.schema.v4.json`, `YamlJson` w generatorze, panel `FileFacts` w viewerze |
 | rysowanie krawędzi wg rodzaju, legenda, filtry typu i rodzaju, grupowanie w panelu | `synapse-viewer/src/**` |
 
 Przy okazji naprawione **cudze, wcześniejsze usterki**: projekt testów generatora w ogóle
@@ -114,6 +115,40 @@ sens; w upstreamowym demo po prostu ich nie ma.
 Rozmiar też: z wiersza w `files`, a gdy go nie ma — ze `stat` pliku w paczce. Podawany
 jest w bajtach poniżej kilobajta, bo zaokrąglanie robiło z 271 B „0 kB". Pusty rozmiar
 znaczy „nie wiem", nie „mało".
+
+### Notatka pliku jako DANE, nie akapit (schemat v4, 2026-09-30)
+
+Węzeł pliku niesie blok `file` z czterema częściami: `decision` (akcja, ścieżka docelowa,
+`inPackage`, kategoria, pewność, metoda, uzasadnienie), `provenance` (`total` plus do 25 par
+`{package, path}`), `preview` (patrz niżej) i `studioUrl`. Panel viewera rysuje z nich układ,
+bo z markdownu się nie da: renderer ma **wyłączony HTML**, więc wszystko było w jednym kolorze
+i jednej ramce.
+
+**Treść notatki zostaje** i opisuje to samo słowami. To świadome dublowanie: `search-index.json`
+generator buduje z TREŚCI, więc gdyby ścieżki źródłowe z niej zniknęły, przestałyby być
+wyszukiwalne.
+
+Generator nie zna kształtu tego bloku — `Domain/Mapping/YamlJson.cs` przenosi go w całości do
+JSON-a. Dzięki temu kolejna zmiana kontraktu jest zmianą po stronie eksportu i viewera, bez
+wracania do C#. Typy przeżywają, bo czytnik YAML-a typuje **niecytowane** skalary
+(`WithAttemptingUnquotedStringTypeDeserialization`), a eksport cytuje każdy napis: katalog
+nazwany `true` zostaje napisem, `confidence: 0.9` liczbą. Dwie pułapki po drodze, obie
+z testami: YamlDotNet parsuje `0.9` jako `float`, więc poszerzenie do `double` dawało
+`0.8999999761581421`; a skalar w cudzysłowie **musi mieć eskejpowane znaki nowej linii** —
+podgląd tekstowy z surowym `\n` rozwalał front matter 1891 notatek i gubił 2586 relacji.
+
+### Podgląd dla każdego rodzaju
+
+`preview.kind` to jedno z `image` · `page` · `text` · `listing` · `none`. Kolejność ustalania
+w `synapse_export.py: build_preview` idzie od najlepszego do najuczciwszego: obraz lub strona
+PDF-a, tekst z etapu extract, tekst czytany **wprost z pliku źródłowego**
+(`orglib/preview.py: source_text_head` — studio robiło tak od dawna, eksport zaczął), spis
+plików w archiwum ZIP (`archive_head`, bez rozpakowywania), a na końcu `none` z powodem:
+`format` (formatu nie umiemy pokazać) albo `no-copy` (żadna kopia nie leży na dysku).
+
+Efekt na realnych danych: **bez podglądu zostało 459 z 4083 treści (11%) zamiast 1441 (35%)**.
+Z pozostałych 459 aż 356 to artefakty budowania Visual Studio (`.obj`, `.pdb`, `.ilk`, `.idb`,
+`.exe`) — tam naprawdę nie ma czego pokazać, a ich obecność w paczce to osobne pytanie.
 
 ### Tożsamość treści jako POLA, nie proza (schemat v3, 2026-09-30)
 
@@ -208,7 +243,7 @@ studio czyta swój graf wyłącznie z `20_WORK/synapse/`.
 
 4 189 węzłów (7 semestrów + 98 przedmiotów + 4 084 pliki), 5 469 krawędzi
 (4 182 `belongs_to`, 1 183 `near_duplicate`, 104 `older_version`), 128 ghostów,
-**0 ostrzeżeń, 0 sierot**, `graph.json` przechodzi walidację `graph.schema.v3.json`.
+**0 ostrzeżeń, 0 sierot**, `graph.json` przechodzi walidację `graph.schema.v4.json`.
 Generowanie vaulta i grafu: kilka sekund.
 
 ## Co się z tego realnie wyczytuje

@@ -1,4 +1,4 @@
-# graph.json Schema — Synapse v3
+# graph.json Schema — Synapse v4
 
 `graph.json` is the sole contract between **Synapse.Generator** (C# producer)
 and **synapse-viewer** (Svelte/Vite consumer). Both sides are versioned by
@@ -16,7 +16,7 @@ file is snapshot-testable and git-diffable.
 
 | Field          | Type     | Description |
 |----------------|----------|-------------|
-| `schemaVersion`| `integer`| Always `3`. Hard-equality-checked by the viewer. |
+| `schemaVersion`| `integer`| Always `4`. Hard-equality-checked by the viewer. |
 | `generatedAt`  | `string` | ISO-8601 UTC timestamp of the run. |
 | `vault`        | object   | Aggregate stats (see below). |
 | `nodes[]`      | array    | Polymorphic; each item is a `RealNode` or `GhostNode`. |
@@ -60,7 +60,16 @@ file is snapshot-testable and git-diffable.
   "history": ["2026-04-02", "2026-05-18", "2026-06-10"],
   "sha256": "19de49b537bcf60a125e463f6d1263fc53c36ee91c69331127a08eef1d470893",
   "sizeBytes": 172032,
-  "contentKind": "pdf"
+  "contentKind": "pdf",
+  "file": {
+    "decision": { "action": "copy", "target": "paczka/SEM3/AKO/ćwiczenia/plik.pdf",
+                  "inPackage": false, "category": "cwiczenia", "confidence": 0.9,
+                  "method": "heuristic", "reason": "nearest folder on the path",
+                  "needsReview": false },
+    "provenance": { "total": 5, "copies": [{ "package": "Paczki Infa", "path": "3 SEM/plik.pdf" }] },
+    "preview": { "kind": "page", "imageUrl": "/api/preview/19de…/image?width=720", "pages": 4 },
+    "studioUrl": "/?sha=19de…"
+  }
 }
 ```
 
@@ -93,6 +102,13 @@ reader that scrapes them out of it loses them for every longer note.
 
 A container note (a semester, a subject) must leave them absent rather than send empty
 values: "this note has no content" is a different claim from "this note is the content".
+
+**`file`** = what the note's CONTENT is, when the note stands for a file: `decision`
+(what will happen to it and how sure that is), `provenance` (`total` plus the copies that
+travelled, which may be fewer), `preview` (`kind` of `image` | `page` | `text` | `listing` |
+`none`, with `missing` saying why when there is none) and `studioUrl`. A vault of
+hand-written notes leaves it absent, and a viewer without it falls back to rendering the
+note body.
 
 **`history`** = commit dates from `git log --follow --format=%ad --date=short`,
 oldest→newest. Absent (key omitted) when the file has no git history (e.g.
@@ -198,7 +214,7 @@ the full raw text is preserved in `edges[].linkText`.
 ## Versioning policy
 
 `schemaVersion` is a bare integer. Increment it when the shape changes
-incompatibly. The viewer does a hard `=== 3` check and blocks with a message
+incompatibly. The viewer does a hard `=== 4` check and blocks with a message
 on mismatch — re-run the generator to produce a new `graph.json`. No reader
 migration machinery.
 
@@ -208,3 +224,9 @@ migration machinery.
 **v2 → v3**: real nodes gained optional `sha256`, `sizeBytes` and `contentKind`. The
 fields are optional, but the version still moves: the check is an equality, so a viewer
 that does not know them would otherwise load a file it cannot fully read.
+
+**v3 → v4**: real nodes gained an optional `file` object — how the content was decided,
+where its copies came from, and what can be shown of it. The generator carries it verbatim
+(`Domain/Mapping/YamlJson.cs`) and interprets none of it, so the vault can change its shape
+without touching this code. Types survive because unquoted scalars are typed on read and a
+vault quotes the strings it means as strings.

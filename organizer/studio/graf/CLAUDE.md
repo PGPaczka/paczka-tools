@@ -15,7 +15,7 @@ An implemented application with three parts:
 - **`deploy/`** — Raspberry Pi deployment: bare `vault.git`, a `post-receive` hook that
   regenerates the graph on every push, Caddy in front of the built viewer.
 
-`schema/graph.schema.v3.json` and `schema/graph-schema.md` are the contract between the two
+`schema/graph.schema.v4.json` and `schema/graph-schema.md` are the contract between the two
 halves; `schemaVersion` is hard-equality-checked by the viewer, with no migration machinery.
 
 **Historical note, because it costs people a day:** `SynapseVariants.dc.html`, `support.js`,
@@ -59,7 +59,7 @@ An unresolved relation target becomes a ghost node, exactly like a dangling wiki
 
 ## Known-failing tests
 
-None — 65/65 as of 2026-09-30.
+None — 69/69 as of 2026-09-30.
 
 Four of them were red between 2026-09-22 and 2026-09-30, and the cause is worth keeping:
 `GitHistoryReaderTests` (×2), `AllRealNodes_HaveNonEmptyHistory` and `Json_MatchesGoldenFile`
