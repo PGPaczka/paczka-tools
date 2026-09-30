@@ -6,7 +6,9 @@
   import { scopeLevels } from '../../domain/graph/scope'
   import type { RealNode } from '../../domain/graph/GraphModel'
 
-  export let onPick: ((tag: string | null, category: string) => void) | undefined = undefined
+  export let onPick:
+    | ((tag: string | null, category: string, subjectId?: string) => void)
+    | undefined = undefined
 
   $: nodes = $graph ? realNodesIgnoringNodeType($graph, $filters) : []
   $: matrix = buildCoverageMatrix(nodes, $graph?.edges ?? [])
@@ -38,7 +40,9 @@
   function pick(row: MatrixRow, category: string) {
     const tag = subjectTags.get(row.subject.id) ?? null
     selectedId.set(row.subject.id)
-    onPick?.(tag, category)
+    // The node id goes along with the tag: the tag narrows THIS view, the id is what
+    // the host can resolve back to a subject without parsing anything by hand.
+    onPick?.(tag, category, row.subject.id)
   }
 </script>
 

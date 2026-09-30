@@ -887,6 +887,16 @@ export async function rebuildGraph(onLine: (line: string) => void): Promise<numb
   return readStageStream(response, onLine);
 }
 
+/** Przedmiot stojący za id węzła grafu — wejście z macierzy pokrycia w pracę. */
+export interface GraphScope {
+  semester: number;
+  skrot: string;
+  grupa: string;
+}
+
+export const getGraphScope = (nodeId: string, signal?: AbortSignal) =>
+  fetchJson<GraphScope>(`/api/graph/scope/${encodeURIComponent(nodeId)}`, signal);
+
 export const getPipeline = (signal?: AbortSignal) =>
   fetchJson<PipelineState>('/api/pipeline', signal);
 

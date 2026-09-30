@@ -135,6 +135,31 @@ def test_a_node_without_content_is_404_not_a_guess(client) -> None:
     assert client.get("/api/graph/content/sem3-ako").status_code == 404
 
 
+def test_subject_node_resolves_back_to_the_subject(client) -> None:
+    """Tym wchodzi się z macierzy pokrycia w pracę: klik w komórkę
+    „przedmiot × kategoria" musi dać studiu przedmiot, a nie samo id węzła."""
+    node = client.get("/api/graph/subject/3/AKO").json()["node"]
+
+    body = client.get(f"/api/graph/scope/{node}").json()
+
+    assert (body["semester"], body["skrot"]) == (3, "AKO")
+
+
+def test_scope_round_trips_with_the_subject_link(client) -> None:
+    """Obie trasy stoją na tej samej funkcji `subject_id`, więc muszą się domykać —
+    inaczej pierwsza zmiana kontraktu id po cichu wskazywałaby nie ten przedmiot."""
+    node = subject_id(3, "AKO")
+
+    assert client.get(f"/api/graph/scope/{node}").json()["skrot"] == "AKO"
+
+
+def test_a_node_that_is_not_a_subject_is_404(client) -> None:
+    """Węzeł pliku nie jest zakresem pracy, a zgadywanie „to chyba AKO" byłoby
+    gorsze niż błąd."""
+    assert client.get(f"/api/graph/scope/{file_id(SHA['b'], 'plik_b.pdf')}").status_code == 404
+    assert client.get("/api/graph/scope/sem9-czegotakiegoniema").status_code == 404
+
+
 def test_an_ambiguous_prefix_returns_candidates_instead_of_choosing(client, workspace) -> None:
     """Dwie treści o tym samym skrócie sha to wybór dla człowieka, nie losowanie."""
     twin = SHA["a"][:ID_SHA_PREFIX] + "9" * 56

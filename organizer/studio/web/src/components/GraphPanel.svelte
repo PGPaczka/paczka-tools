@@ -7,6 +7,7 @@
     rebuildGraph,
     type GraphContentRef,
     type GraphStatus,
+    getGraphScope,
   } from '../lib/api';
   import { bytes, percent } from '../lib/format';
 
@@ -18,10 +19,18 @@
     focusNode?: string | null;
     /** „Otwórz przedmiot” — powrót z grafu do listy studia. */
     onOpenSubject?: (semester: number, skrot: string) => void;
+    /** Zakres wybrany w macierzy pokrycia: przedmiot + kategoria (kierunek: graf → studio). */
+    onScope?: (semester: number, skrot: string, category: string) => void;
   }
 
-  let { semester = null, skrot = null, grupa = null, focusNode = null, onOpenSubject }: Props =
-    $props();
+  let {
+    semester = null,
+    skrot = null,
+    grupa = null,
+    focusNode = null,
+    onOpenSubject,
+    onScope,
+  }: Props = $props();
 
   let status = $state<GraphStatus | null>(null);
   let error = $state<string | null>(null);
@@ -102,14 +111,50 @@
     }
   }
 
+  /** Ostatni zakres, jaki już przepuściliśmy — `hashchange` sypie się kilka razy
+   *  przy jednym kliknięciu, a każdy przelot to zapytanie do API i przeskok widoku. */
+  let lastScope = '';
+
+  /** Zakres z macierzy: `scope=<id węzła>&cat=<kategoria>`.
+   *
+   *  Id węzła rozwiązuje BACKEND (`/api/graph/scope/…`) tą samą funkcją, która je
+   *  tworzy — widok nie parsuje go wzorcem, bo słownik kategorii i konwencja id
+   *  bywają rozjechane (`docs/SYNAPSE.md`) i ciche trafienie w nie ten przedmiot
+   *  byłoby gorsze niż błąd.
+   */
+  async function applyScope(hash: string): Promise<void> {
+    if (hash === lastScope) return;
+    lastScope = hash;
+    const params = new URLSearchParams(hash);
+    const node = params.get('scope');
+    const category = params.get('cat');
+    if (!node || !category) return;
+    try {
+      const scope = await getGraphScope(node);
+      pickError = null;
+      onScope?.(scope.semester, scope.skrot, category);
+    } catch (exc) {
+      pickError = exc instanceof Error ? exc.message : String(exc);
+    }
+  }
+
   /** Viewer trzyma zaznaczenie w fragmencie URL-a, a ramka jest tego samego
    *  pochodzenia co studio — stąd powrót działa bez zmian w cudzym repo. */
   function watchFrame(): void {
     const view = frame?.contentWindow;
     if (!view) return;
     const read = () => {
-      const node = view.location.hash.replace(/^#/, '');
-      if (node) resolve(node);
+      const hash = view.location.hash.replace(/^#/, '');
+      if (!hash) return;
+      // Viewer mówi dwiema rzeczami przez ten sam kanał: zaznaczonym węzłem
+      // i wybranym zakresem pracy. Zakres zaczyna się od `scope=`, czego id notatki
+      // nigdy nie robi (te kończą się skrótem sha) — bez tego rozgałęzienia studio
+      // próbowałoby rozwiązać zakres jako węzeł i pokazywało 404.
+      if (hash.startsWith('scope=')) {
+        applyScope(hash);
+        return;
+      }
+      resolve(hash);
     };
     read();
     view.addEventListener('hashchange', read);

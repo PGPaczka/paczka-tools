@@ -71,6 +71,10 @@
   let detail = $state<SubjectDetail | null>(null);
   let detailError = $state<string | null>(null);
   let category = $state<string | null>(null);
+  /** Czy zapamiętana kategoria została już odtworzona (albo odrzucona jako nieistniejąca).
+   *  Deklaracja stoi tu, przy `category`, a nie przy swoim efekcie niżej: pisze do niej
+   *  także `startWorkOnScope`, a `let` użyty przed swoją linią to strefa martwa. */
+  let restoredCategory = false;
   let onlyReview = $state(false);
   let limit = $state(PAGE);
   let page = $state<ItemsPage | null>(null);
@@ -138,6 +142,33 @@
     limit = PAGE;
     detail = null;
     page = null;
+  }
+
+  /**
+   * Zakres z macierzy pokrycia: „AKO × laboratoria — nad tym pracuję”.
+   *
+   * Macierz odpowiada na pytanie „czego brakuje”, a stamtąd wychodzi się do roboty,
+   * więc ląduje się w kolejce decyzji już zawężonej — a nie w widoku, w którym trzeba
+   * jeszcze raz wyklikać ten sam wybór. Kategoria jest ustawiana PO `select()`, bo
+   * `select()` ją czyści (kategoria jednego przedmiotu nie znaczy nic w innym).
+   */
+  function startWorkOnScope(
+    semesterValue: number,
+    skrotValue: string,
+    categoryValue: string,
+  ): void {
+    const row = (dashboard?.subjects ?? []).find(
+      (item) => item.semester === semesterValue && item.skrot === skrotValue,
+    );
+    if (!row) return;
+    select(row);
+    semester = row.semester;
+    grupa = row.grupa;
+    category = categoryValue;
+    // Jawny wybór wygrywa z zapamiętanym: bez tego odtworzenie kategorii z prefs
+    // (jeśli jeszcze nie zdążyło zadziałać) nadpisałoby to, co ktoś właśnie kliknął.
+    restoredCategory = true;
+    mode = 'decide';
   }
 
   /** Powrót z grafu: zaznacz przedmiot tej treści i wróć do przeglądarki. */
@@ -274,7 +305,6 @@
    *  po powrocie na inny przedmiot (albo po przebudowie planu, która kategorię
    *  wygasiła) wybór spoza listy dawałby pustą listę pozycji i pustą kolejkę bez
    *  śladu, dlaczego. Ta sama zasada co przy filtrach viewera. */
-  let restoredCategory = false;
   $effect(() => {
     if (restoredCategory || !detail || !saved.category) return;
     restoredCategory = true;
@@ -486,6 +516,7 @@
           skrot={selected?.skrot}
           grupa={selected?.grupa}
           onOpenSubject={openSubjectFromGraph}
+          onScope={startWorkOnScope}
         />
       {:else if mode === 'folders'}
         <FolderLinkPanel />

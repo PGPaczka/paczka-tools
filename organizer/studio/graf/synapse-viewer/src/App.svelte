@@ -153,7 +153,7 @@
    * narrows the filters and hands over to the explorer. Not to the graph: there the
    * node-type filter hides files, which is exactly what the reader just asked to see.
    */
-  function narrowToCell(tag: string | null, category: string) {
+  function narrowToCell(tag: string | null, category: string, subjectId?: string) {
     filters.update((f) => ({
       ...f,
       categories: [category],
@@ -161,6 +161,28 @@
       tagMode: 'all',
     }))
     view = 'explorer'
+    announceScope(subjectId, category)
+  }
+
+  /**
+   * Tells the host (studio) which subject and category the reader just chose.
+   *
+   * The only channel to the host is the URL fragment — the viewer is embedded in a
+   * same-origin iframe and knows nothing about studio. A `scope=` fragment is
+   * deliberately unlike a note id (those end in a sha prefix), so the host can tell
+   * the two apart instead of trying to resolve this as a node and getting a 404.
+   *
+   * Standalone (`npm run dev`, or the viewer on its own host) nobody listens, and
+   * writing the fragment costs nothing.
+   */
+  function announceScope(subjectId: string | undefined, category: string) {
+    if (!subjectId) return
+    const params = new URLSearchParams({ scope: subjectId, cat: category })
+    // replaceState, not `location.hash = …`: the scope is not a place to come back
+    // to, and it would otherwise pile up in the back button on every cell click.
+    history.replaceState(null, '', `#${params.toString()}`)
+    // replaceState nie wywołuje `hashchange` samo, a host słucha właśnie jego.
+    window.dispatchEvent(new Event('hashchange'))
   }
 
   function handleSwitchLayout(e: CustomEvent<string>) {

@@ -907,6 +907,43 @@ def create_app(
         node = subject_id(subject.semester, subject.skrot, subject.grupa, ambiguous=ambiguous)
         return {"node": node, "url": graph_link.deep_link(node)}
 
+    @app.get("/api/graph/scope/{node_id}", tags=["graph"])
+    def graph_scope(
+        node_id: str = PathParam(min_length=1, max_length=160),
+    ) -> dict[str, Any]:
+        """Przedmiot stojący za id węzła — odwrotność :func:`graph_subject`.
+
+        Tym wchodzi się z macierzy pokrycia w pracę: klik w komórkę
+        „przedmiot × kategoria" ma ustawić zakres w studiu, a viewer zna wyłącznie
+        swoje id węzła.
+
+        Id NIE jest parsowane wzorcem. Generujemy je dla katalogu tą samą funkcją,
+        która je tworzy (``synapse_vault.subject_id``), i szukamy trafienia —
+        inaczej pierwsza zmiana kontraktu id po cichu zaczęłaby wskazywać nie ten
+        przedmiot, a nie zgłaszać błąd.
+        """
+        from orglib.synapse_vault import subject_id
+
+        licznik: dict[str, int] = {}
+        for other in catalog:
+            klucz = other.skrot.casefold()
+            licznik[klucz] = licznik.get(klucz, 0) + 1
+
+        for subject in catalog:
+            ambiguous = licznik[subject.skrot.casefold()] > 1
+            if subject_id(
+                subject.semester, subject.skrot, subject.grupa, ambiguous=ambiguous
+            ) == node_id:
+                return {
+                    "semester": subject.semester,
+                    "skrot": subject.skrot,
+                    "grupa": subject.grupa,
+                }
+        raise HTTPException(
+            status_code=404,
+            detail=f"węzeł {node_id!r} nie jest węzłem przedmiotu z subjects.yaml",
+        )
+
     @app.get("/api/graph/content/{node_id}", tags=["graph"])
     def graph_content(
         node_id: str = PathParam(min_length=1, max_length=160),
