@@ -220,12 +220,13 @@ Studio: `just studio-build && just studio-graf && just studio` → `127.0.0.1:87
 Kolejność kategorii: od najprostszej do najgęstszej w wątpliwości. Dla AKO było to
 **ćwiczenia → wykład → kolokwia → opracowania → laboratoria → egzamin → inne**.
 
-**1. Zobacz, z czym masz do czynienia.**
+**1. Zobacz, z czym masz do czynienia — i od razu wejdź w robotę.**
 Zakładka **graf** → **Matrix** → komórka `przedmiot × kategoria`. Trzy paski mówią,
-ile jest w paczce, ile zaplanowane, ile do przeglądu. Stąd wiesz, czy to dziesięć
-minut, czy pół godziny.
+ile jest w paczce, ile zaplanowane, ile do przeglądu — stąd wiesz, czy to dziesięć
+minut, czy pół godziny. **Klik w komórkę ustawia zakres pracy w studiu i otwiera
+kolejkę decyzji już zawężoną** do tego przedmiotu i tej kategorii.
 
-**2. Ustaw zakres.**
+**2. Albo ustaw zakres ręcznie.**
 Lista przedmiotów → przedmiot → klik w kategorię w panelu przedmiotu. Zawęża to
 listę pozycji **i kolejkę decyzji**, a wybór przeżywa odświeżenie strony.
 

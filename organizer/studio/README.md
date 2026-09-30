@@ -288,7 +288,18 @@ viewera i generatora są w repo: `studio/graf/` — wciągnięte jako `git subtr
 
 - **studio → graf**: wybrany przedmiot otwiera graf na jego węźle (`/graf#sem3-ako`);
 - **graf → studio**: kliknięty węzeł pliku ląduje w pasku pod grafem jako konkretna treść —
-  nazwa, kategoria, decyzja, pewność i ścieżka docelowa — z przyciskiem „otwórz przedmiot”.
+  nazwa, kategoria, decyzja, pewność i ścieżka docelowa — z przyciskiem „otwórz przedmiot”;
+- **macierz → praca**: klik w komórkę `przedmiot × kategoria` ustawia zakres w studiu
+  i przerzuca do **kolejki decyzji** już zawężonej. Macierz odpowiada na pytanie „czego
+  brakuje”, a stamtąd wychodzi się do roboty — lądowanie w widoku, w którym trzeba jeszcze
+  raz wyklikać ten sam wybór, było zwykłą stratą dwóch kliknięć.
+
+Kanał jest jeden — fragment URL-a ramki — ale niesie dwie różne rzeczy. Zaznaczony węzeł
+to samo id notatki; zakres pracy zaczyna się od `scope=`, czego id notatki nigdy nie robi
+(te kończą się skrótem sha). Bez tego rozróżnienia studio próbowałoby rozwiązać zakres jako
+treść i pokazywało 404. Id węzła na przedmiot przekłada **backend**
+(`GET /api/graph/scope/{node_id}`) tą samą funkcją, która to id tworzy — widok nie parsuje
+go wzorcem, bo ciche trafienie w nie ten przedmiot byłoby gorsze niż błąd.
 
 Na ekranie dotykowym **jeden palec przesuwa, dwa skalują** (sufit powiększenia
 podniesiony z 2,6 do 6 — przy czterech tysiącach węzłów węzeł ma kilka pikseli, podłoga
@@ -608,6 +619,7 @@ Wszystko pod `http://127.0.0.1:8765`. Parametry opcjonalne oznaczone `?`.
 | `GET /api/graph/status` | — | czy graf zbudowany, ile notatek |
 | `GET /api/graph/node/{sha256}` | — | węzeł grafu dla treści |
 | `GET /api/graph/subject/{sem}/{skrot}` | `grupa?` | węzeł przedmiotu |
+| `GET /api/graph/scope/{node_id}` | — | przedmiot stojący za węzłem (odwrotność wyżej); 404 dla węzła, który nie jest przedmiotem |
 | `GET /api/graph/content/{node_id}` | — | treść pokazana przez węzeł |
 
 ### Zapis — wyłącznie decyzje, nigdy materiały

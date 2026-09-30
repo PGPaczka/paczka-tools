@@ -836,6 +836,40 @@ w ogóle powinny być w paczce, zostaje otwarte.
         deklaracją nieprawidłową i po cichu wypada, więc komunikaty błędów nie były
         czerwone w żadnym z tych widoków. Token dopisany jako alias `--red`.
 
+- [x] **Macierz pokrycia ustawia zakres pracy w studiu** (2026-10-01). Klik w komórkę
+      `przedmiot × kategoria` zawężał dotąd filtry **wewnątrz viewera** i przerzucał do
+      Explorera — studio dalej nie wiedziało, nad czym pracujesz, więc ten sam wybór
+      trzeba było wyklikać drugi raz. Teraz ustawia przedmiot i kategorię i otwiera
+      kolejkę decyzji.
+      - **Kanał był już gotowy i nie wymagał zmian w cudzym repo**: studio czyta
+        `location.hash` ramki i słucha `hashchange`, bo iframe jest tego samego
+        pochodzenia. Doszło tylko drugie znaczenie tego kanału.
+      - **Rozróżnienie po prefiksie, nie po kształcie.** Zaznaczony węzeł to samo id
+        notatki; zakres zaczyna się od `scope=`, czego id notatki nigdy nie robi (kończą
+        się skrótem sha). Bez tego rozgałęzienia studio próbowałoby rozwiązać zakres jako
+        treść i pokazywało 404 zamiast otworzyć kolejkę.
+      - **Id węzła na przedmiot przekłada backend** (`GET /api/graph/scope/{node_id}`),
+        i to **generując id dla katalogu tą samą funkcją, która je tworzy**
+        (`synapse_vault.subject_id`), a nie parsując wzorcem. Pierwsza zmiana kontraktu id
+        przy parsowaniu zaczęłaby po cichu wskazywać nie ten przedmiot; tak zaczyna
+        zwracać 404. Test domyka obieg wobec `/api/graph/subject`.
+      - `replaceState`, nie `location.hash = …`: zakres nie jest miejscem, do którego się
+        wraca, a inaczej każdy klik w komórkę odkładałby się w przycisku „wstecz".
+        `replaceState` nie wywołuje `hashchange`, więc viewer wysyła je sam.
+      - `hashchange` sypie się kilka razy na jedno kliknięcie, więc panel pamięta ostatni
+        przepuszczony zakres — bez tego każdy przelot to zapytanie do API i przeskok widoku.
+      - Jawny wybór z macierzy **wygrywa z zapamiętanym**: `startWorkOnScope` zaznacza
+        `restoredCategory`, inaczej odtworzenie kategorii z `prefs` mogłoby nadpisać to,
+        co ktoś właśnie kliknął. Przy okazji deklaracja tej flagi przeniesiona do reszty
+        stanu — `let` używany 140 linii przed swoją linią to strefa martwa czekająca
+        na pierwszego, kto zawoła to wcześniej.
+      - **Czego świadomie NIE zrobiono:** `studioUrl` notatki pliku (`/?sha=…`) dalej
+        prowadzi do wyszukiwarki, a nie do kolejki decyzji. Kolejka pokazuje pozycje
+        `needs_review` uporządkowane po pewności i **nie ma pojęcia „ta konkretna
+        pozycja"** — kliknięty plik często nie jest sporny, więc wylądowałoby się przy
+        innym. Wyszukiwarka pokazuje dokładnie ten plik, który się kliknęło; to jest
+        lepsze, dopóki kolejka nie umie przypiąć wskazanej treści.
+
 ## Zależności od potoku
 
 - **B10** `apply.py`, **B11** `verify.py` → S3
