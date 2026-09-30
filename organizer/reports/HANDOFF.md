@@ -2,6 +2,31 @@
 
 ## Kontekst ręczny
 
+- **Cały potok da się uruchomić z przeglądarki (2026-10-01).** Było 6 etapów z 12.
+  Szczegóły i decyzje projektowe — `studio/TODO-studio.md`, wpis z tej daty. Tu to,
+  co warto pamiętać przy następnej sesji:
+  - **Blokady równoległości wcześniej NIE BYŁO W OGÓLE** i nikt tego nie zauważył, bo
+    etapy wpisywało się z konsoli — pilnowała ich jedna para rąk. Z przyciskami
+    `classify` w trakcie `extract` to jedno kliknięcie. Teraz: jedna blokada na całe
+    studio, drugie żądanie dostaje 409 i **nie startuje procesu**.
+  - **Blokadę zajmuje trasa, nie strumień.** Po rozpoczęciu `StreamingResponse` odmowa
+    nie może już być kodem HTTP, a etap, który wystartował i zaraz zginął, wygląda
+    w logu na awarię skryptu, nie na zajętą bazę.
+  - **Pierwsza wersja testu zwolnienia blokady była zielona z przypadku.** `TestClient`
+    jest synchroniczny, więc szybki etap kończy się, zanim da się cokolwiek zaobserwować
+    „w trakcie" — asercja `running() == …` przechodziła tylko dlatego, że nie miała czego
+    sprawdzić. Ten kontrakt testuje się na samym opakowaniu strumienia.
+  - **`ai_resolve.py` jako jedyny etap przedmiotu nie zna `--db`.** Symetria kusi, parser
+    nie wybacza; pilnuje tego istniejący test argv wobec prawdziwych parserów.
+  - Limity czasu są per etap: 3600 s dla wszystkich było za ciasne, bo sam `extract`
+    z OCR zajął 2977 s (83%).
+  - **`--warn` nie był zdefiniowany**, choć używały go trzy komponenty — błędy nie były
+    czerwone nigdzie w studiu. Nieprawidłowa deklaracja CSS wypada po cichu.
+  - Przy okazji odświeżone `reports/STATUS.md` i manifest AKO: oba pochodziły sprzed
+    przebiegu OCR, więc opisywały nieistniejący stan (7788 → 12846 treści z tekstem,
+    936 → 12569 relacji). **Do porównania takich plików używaj `orglib.jsonl`** — niosą
+    U+2028 i własny czytnik na `splitlines()` odtwarza awarię z 2026-09-19.
+
 - **Przygotowanie do pilotażu AKO: przewodnik po potoku + kategoria jako zakres pracy (2026-09-30).**
   Zaczęło się od pytania „plan nie jest właśnie przejrzeniem?” i to pytanie okazało się
   najważniejszym wnioskiem: **nie jest**. `plan.jsonl` to propozycja maszyny (reguły + AI +
@@ -314,12 +339,12 @@
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-10-01T00:13:36+02:00
+- Odświeżono: 2026-10-01T00:36:04+02:00
 - Branch: `master`
-- Commit: `8da0e6c`
+- Commit: `20d43a0`
 - Git status:
   ```text
-  (clean)
+  M reports/HANDOFF.md
   ```
 - Pierwsze otwarte TODO: - [ ] B12. `scripts/provenance.py` — `reports/provenance.jsonl` + README per przedmiot do `paczka_meta/` + `00_SOURCES/linki.txt` z `source_packages`
 <!-- END AUTO -->
