@@ -21,7 +21,7 @@ namespace Synapse.Generator.Tests.EndToEnd;
 /// </summary>
 public class FixtureVaultGraphTests
 {
-    private static string VaultRoot => FixtureVaultPath.GetPath();
+    private static string VaultRoot => FixtureVaultRepo.Path;
 
     // Path to the schema file (navigate from assembly → project → repo root)
     private static string SchemaPath
