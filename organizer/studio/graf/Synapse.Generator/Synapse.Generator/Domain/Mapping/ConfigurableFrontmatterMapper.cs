@@ -38,10 +38,13 @@ public class ConfigurableFrontmatterMapper : IFrontmatterMapper
         var sha256 = GetString(frontmatter, _config.Sha256Key);
         var sizeBytes = GetLong(frontmatter, _config.SizeBytesKey);
         var contentKind = GetString(frontmatter, _config.ContentKindKey);
+        var file = frontmatter.TryGetValue(_config.FileKey, out var raw)
+            ? YamlJson.Convert(raw)
+            : null;
 
         return new MappedFrontmatter(
             title, category, level, status, tags, aliases, modified, noteType, relations,
-            sha256, sizeBytes, contentKind);
+            sha256, sizeBytes, contentKind, file);
     }
 
     /// <summary>

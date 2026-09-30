@@ -151,6 +151,12 @@ def test_file_note_carries_a_preview_and_a_link_back_to_studio(workspace):
     conn.commit()
     conn.close()
 
+    # PDF pokazuje pierwszą stronę tylko wtedy, gdy kopia NAPRAWDĘ leży na dysku:
+    # adres podglądu dla nieistniejącego pliku to zepsuty obrazek, nie podgląd.
+    zrodlo = workspace.sources / "P" / "SEM3" / "AKO" / "plik1.pdf"
+    zrodlo.parent.mkdir(parents=True, exist_ok=True)
+    zrodlo.write_bytes(b"%PDF-1.4 udawany")
+
     assert runner.invoke(cli.app, []).exit_code == 0
     notes = notes_of(vault(workspace))
 
@@ -411,3 +417,137 @@ def test_container_notes_have_no_content_identity(workspace):
 
     assert "sha256" not in head
     assert "sizeBytes" not in head
+
+
+def test_a_content_with_no_copy_on_disk_says_so_instead_of_a_broken_image(workspace):
+    """Powstał po tej zmianie: eksport wstawiał adres podglądu na sam rodzaj treści,
+    nie sprawdzając, czy jest co pokazać. Dla treści bez kopii na dysku dawało to
+    zepsuty obrazek — a to inne zdanie niż „nie mamy tego pliku”."""
+    import yaml
+
+    assert runner.invoke(cli.app, []).exit_code == 0
+    notes = notes_of(vault(workspace))
+
+    pdf = next(p for name, p in notes.items() if name.startswith("ako-") and "plik1" in name)
+    head, tresc = frontmatter(pdf)
+
+    assert yaml.safe_load(head)["file"]["preview"] == {"kind": "none", "missing": "no-copy"}
+    assert "/image" not in tresc
+
+
+def test_the_file_block_carries_the_decision_and_the_provenance(workspace):
+    """Panel viewera rysuje z pól, bo z markdownu (HTML wyłączony) nie da się zbudować
+    układu — ale te same fakty zostają w treści, bo z niej powstaje `search-index.json`."""
+    import yaml
+
+    assert runner.invoke(cli.app, []).exit_code == 0
+    notes = notes_of(vault(workspace))
+
+    _, plik = next((n, p) for n, p in notes.items() if n.startswith("ako-") and "plik1" in n)
+    head, tresc = frontmatter(plik)
+    blok = yaml.safe_load(head)["file"]
+
+    assert blok["decision"]["action"] == "copy"
+    assert blok["decision"]["target"].endswith("/kolokwia/bbbb.pdf")
+    assert blok["decision"]["inPackage"] is False
+    assert blok["decision"]["confidence"] == 0.95
+    assert blok["provenance"] == {
+        "total": 1,
+        "copies": [{"package": "P", "path": "SEM3/AKO/plik1.pdf"}],
+    }
+    assert blok["studioUrl"] == f"/?sha={SHA['b']}"
+    assert "SEM3/AKO/plik1.pdf" in tresc, "ścieżka zostaje w treści, inaczej znika z wyszukiwarki"
+
+
+def test_ground_truth_is_marked_as_already_in_the_package(workspace):
+    import yaml
+
+    assert runner.invoke(cli.app, []).exit_code == 0
+    notes = notes_of(vault(workspace))
+
+    _, plik = next((n, p) for n, p in notes.items() if n.startswith("ako-") and "plik0" in n)
+    head, _ = frontmatter(plik)
+
+    assert yaml.safe_load(head)["file"]["decision"]["inPackage"] is True
+
+
+def test_provenance_is_capped_but_the_count_is_honest(workspace):
+    """Rekordowa treść w prawdziwym indeksie ma 260 kopii — tyle wierszy to nie
+    prowenancja, tylko ściana. Lista jest ucinana, liczba nie."""
+    import yaml
+
+    conn = db.connect(workspace.work_db)
+    for index in range(30):
+        db.upsert_file(conn, {
+            "source_package": "P", "source_relative_path": f"SEM3/kopie/k{index:02}.pdf",
+            "folder_path": "P/SEM3", "size_bytes": 2048, "sha256": SHA["b"],
+            "modified_date": "2026-01-01T00:00:00Z", "status": "extracted",
+        })
+    conn.commit()
+    conn.close()
+
+    assert runner.invoke(cli.app, []).exit_code == 0
+    notes = notes_of(vault(workspace))
+    head, tresc = frontmatter(
+        next(p for n, p in notes.items() if n.startswith("ako-") and "plik1" in n)
+    )
+    prowenancja = yaml.safe_load(head)["file"]["provenance"]
+
+    assert prowenancja["total"] == 31
+    assert len(prowenancja["copies"]) == cli.PROVENANCE_COPIES
+    assert "i jeszcze 6" in tresc
+
+
+def test_a_file_extract_never_touched_still_gets_a_preview(workspace):
+    """1441 z 4083 treści nie miało w grafie żadnego podglądu, bo eksport pytał wyłącznie
+    o wynik etapu extract. Studio od dawna czyta wtedy sam plik źródłowy — teraz eksport też."""
+    import yaml
+
+    zrodlo = workspace.sources / "P" / "SEM3" / "AKO" / "plik2.pdf"
+    zrodlo.parent.mkdir(parents=True, exist_ok=True)
+    zrodlo.write_text("#include <stdio.h>\nint main(void) { return 0; }\n", encoding="utf-8")
+
+    conn = db.connect(workspace.work_db)
+    conn.execute("UPDATE content SET content_kind = 'code' WHERE sha256 = ?", (SHA["c"],))
+    conn.commit()
+    conn.close()
+
+    assert runner.invoke(cli.app, []).exit_code == 0
+    notes = notes_of(vault(workspace))
+    head, tresc = frontmatter(
+        next(p for n, p in notes.items() if n.startswith("ako-") and "plik2" in n)
+    )
+    podglad = yaml.safe_load(head)["file"]["preview"]
+
+    assert podglad["kind"] == "text"
+    assert "int main" in podglad["text"]
+    assert "int main" in tresc, "podgląd zostaje też w treści, dla wyszukiwarki"
+
+
+def test_an_archive_shows_what_is_inside(workspace):
+    """Archiwum nie ma ani głowy tekstu, ani obrazu — bez spisu jest kropką bez treści."""
+    import yaml
+    import zipfile
+
+    zrodlo = workspace.sources / "P" / "SEM3" / "AKO" / "plik2.pdf"
+    zrodlo.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(zrodlo, "w") as archive:
+        archive.writestr("lab1/main.c", b"int main(void){}")
+        archive.writestr("lab1/Makefile", b"all:")
+
+    conn = db.connect(workspace.work_db)
+    conn.execute("UPDATE content SET content_kind = 'archive' WHERE sha256 = ?", (SHA["c"],))
+    conn.commit()
+    conn.close()
+
+    assert runner.invoke(cli.app, []).exit_code == 0
+    notes = notes_of(vault(workspace))
+    head, tresc = frontmatter(
+        next(p for n, p in notes.items() if n.startswith("ako-") and "plik2" in n)
+    )
+    podglad = yaml.safe_load(head)["file"]["preview"]
+
+    assert podglad["kind"] == "listing"
+    assert podglad["entries"] == ["lab1/Makefile", "lab1/main.c"]
+    assert podglad["entriesTotal"] == 2
+    assert "lab1/main.c" in tresc

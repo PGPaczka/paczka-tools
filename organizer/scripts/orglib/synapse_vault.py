@@ -113,6 +113,10 @@ class Note:
     sha256: str | None = None
     size_bytes: int | None = None
     content_kind: str | None = None
+    #: Wszystko, co viewer rysuje o PLIKU zamiast czytać z prozy: decyzja, prowenancja,
+    #: podgląd, odnośnik do studia. Zagnieżdżone mapy i listy — patrz `_yaml_block`.
+    #: Treść notatki dalej opisuje to samo słowami, bo z niej powstaje `search-index.json`.
+    file: dict[str, Any] | None = None
 
     @property
     def path(self) -> str:
@@ -128,12 +132,63 @@ class Note:
 
 
 def _yaml_scalar(value: Any) -> str:
+    """Wartość jako skalar YAML w cudzysłowie — zawsze w jednej linii.
+
+    Znaki sterujące MUSZĄ być eskejpowane, a nie tylko cudzysłów i ukośnik. Podgląd
+    tekstowy niesie prawdziwe znaki nowej linii, a surowy `\\n` w cytowanym skalarze
+    kończy go i zamienia dalszy ciąg pliku we front matter: wiersz `---` w środku
+    podglądu zamykał blok, a `relations:` z treści pliku zaczynał nowy. Rozpadło się
+    tak 1891 notatek i 2586 relacji — cicho, bo każda z osobna wyglądała poprawnie.
+    """
     if isinstance(value, bool):
         return "true" if value else "false"
     if isinstance(value, (int, float)):
         return str(value)
-    text = str(value).replace("\\", "\\\\").replace('"', '\\"')
+    text = (
+        str(value)
+        .replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")
+    )
     return f'"{text}"'
+
+
+def _yaml_block(value: Any, indent: int) -> list[str]:
+    """Mapa albo lista jako wiersze YAML-a o zadanym wcięciu.
+
+    Własne, bo vault nie ma zależności od biblioteki YAML, a generator czyta te pliki
+    prawdziwym parserem — więc cytowanie musi być pewne. Każdy skalar idzie przez
+    `_yaml_scalar`: w nazwach katalogów z tych paczek siedzą dwukropki i cudzysłowy,
+    a to w YAML-u składnia, nie tekst. Puste mapy i listy są POMIJANE: `klucz:` bez
+    wartości znaczy `null`, czyli co innego niż „nie ma czego pokazać”.
+    """
+    pad = " " * indent
+    lines: list[str] = []
+
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if item is None or item == {} or item == []:
+                continue
+            if isinstance(item, (dict, list)):
+                lines.append(f"{pad}{key}:")
+                lines.extend(_yaml_block(item, indent + 2))
+            else:
+                lines.append(f"{pad}{key}: {_yaml_scalar(item)}")
+        return lines
+
+    for item in value:
+        if isinstance(item, dict):
+            rows = _yaml_block(item, indent + 2)
+            if not rows:
+                continue
+            # Pierwszy wiersz mapy dzieli wiersz z myślnikiem, reszta zostaje wcięta.
+            lines.append(f"{pad}- {rows[0].lstrip()}")
+            lines.extend(rows[1:])
+        else:
+            lines.append(f"{pad}- {_yaml_scalar(item)}")
+    return lines
 
 
 def render_note(note: Note) -> str:
@@ -156,6 +211,11 @@ def render_note(note: Note) -> str:
         lines.append(f"sizeBytes: {note.size_bytes}")
     if note.content_kind:
         lines.append(f"contentKind: {_yaml_scalar(note.content_kind)}")
+    if note.file:
+        block = _yaml_block(note.file, 2)
+        if block:
+            lines.append("file:")
+            lines.extend(block)
     if note.relations:
         lines.append("relations:")
         for relation in note.relations:

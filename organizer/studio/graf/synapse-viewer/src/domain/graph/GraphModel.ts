@@ -4,7 +4,7 @@ export type NodeKind = 'real' | 'ghost'
  * Schema contract version. The generator writes it, the viewer refuses anything else —
  * there is no migration machinery by design, regenerating the graph takes seconds.
  */
-export const SCHEMA_VERSION = 3
+export const SCHEMA_VERSION = 4
 
 /**
  * `kind` on an edge says WHY two notes are connected. `link` is a plain [[wikilink]];
@@ -39,6 +39,53 @@ export interface RealNode {
   sha256?: string
   sizeBytes?: number
   contentKind?: string
+  /**
+   * Everything the vault knows about the FILE a note stands for. Absent on an ordinary
+   * note — and on any vault that does not generate one — in which case the detail panel
+   * falls back to rendering the note's markdown, exactly as before.
+   */
+  file?: FileInfo
+}
+
+/** One place a copy of this content was found. */
+export interface ProvenanceCopy {
+  package: string
+  /** Path inside that package, file name included. */
+  path: string
+}
+
+export interface FileInfo {
+  decision?: {
+    action?: string
+    /** Where the file lives, or will live, inside the package. */
+    target?: string
+    /** True when it is already there — then `target` describes the present, not a plan. */
+    inPackage?: boolean
+    category?: string
+    confidence?: number
+    method?: string
+    reason?: string
+    needsReview?: boolean
+  }
+  provenance?: {
+    /** How many copies exist; `copies` may carry fewer. */
+    total: number
+    copies: ProvenanceCopy[]
+  }
+  preview?: {
+    kind: 'image' | 'page' | 'text' | 'listing' | 'none'
+    /** The vault decides where a picture comes from; the viewer only loads it. */
+    imageUrl?: string
+    pages?: number
+    text?: string
+    language?: string
+    truncated?: boolean
+    entries?: string[]
+    entriesTotal?: number
+    /** Why there is no preview: the format has none, or no copy is on disk. */
+    missing?: 'format' | 'no-copy'
+  }
+  studioUrl?: string
 }
 
 export interface GhostNode {

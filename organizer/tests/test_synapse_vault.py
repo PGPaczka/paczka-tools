@@ -223,3 +223,102 @@ def test_notes_without_a_content_keep_the_front_matter_clean() -> None:
     assert "sha256" not in page
     assert "sizeBytes" not in page
     assert "contentKind" not in page
+
+
+def test_file_block_survives_as_nested_yaml() -> None:
+    """Powstał, bo `file` to pierwsze ZAGNIEŻDŻONE pole front mattera: dotąd renderer
+    umiał skalary i jedną płaską listę `relations`. Zła wcięcie albo niezacytowana
+    wartość nie wywala eksportu — daje generatorowi notatkę, której nie umie sparsować."""
+    page = render_note(note(
+        type=NODE_FILE,
+        sha256="a" * 64,
+        file={
+            "decision": {"action": "copy", "target": "paczka/SEM3/AKO/ćw/plik.pdf",
+                         "inPackage": False, "category": "cwiczenia", "confidence": 0.9,
+                         "method": "heuristic", "reason": "najbliższy katalog",
+                         "needsReview": False},
+            "provenance": {"total": 260, "copies": [
+                {"package": "Paczki Infa", "path": "3 SEM/AKO/plik.pdf"},
+                {"package": "Semestr 3 paczka", "path": "AKO/plik.pdf"},
+            ]},
+            "preview": {"kind": "page", "imageUrl": "/api/preview/x/image", "pages": 12},
+            "studioUrl": "/?sha=" + "a" * 64,
+        },
+    ))
+
+    head = page.split("---\n")[1]
+    assert "file:\n" in head
+    assert '    action: "copy"' in head
+    assert "    confidence: 0.9" in head, "liczba zostaje liczbą, nie napisem"
+    assert "    inPackage: false" in head, "bool zostaje boolem"
+    assert "    total: 260" in head
+    assert '      - package: "Paczki Infa"' in head
+    assert '        path: "3 SEM/AKO/plik.pdf"' in head
+    assert "    pages: 12" in head
+
+
+def test_note_without_a_file_block_keeps_the_front_matter_flat() -> None:
+    assert "file:" not in render_note(note())
+
+
+def test_a_colon_in_a_path_does_not_break_the_block() -> None:
+    """W nazwach z paczek trafiają się dwukropki i cudzysłowy — w YAML-u to składnia."""
+    page = render_note(note(
+        type=NODE_FILE,
+        file={"provenance": {"total": 1, "copies": [
+            {"package": 'Paczki "INFA"', "path": "3 SEM: stare/plik.pdf"},
+        ]}},
+    ))
+
+    assert '      - package: "Paczki \\"INFA\\""' in page
+    assert '        path: "3 SEM: stare/plik.pdf"' in page
+
+
+def test_front_matter_parses_with_a_real_yaml_parser() -> None:
+    """Asercje na podciągach sprawdzają, czy tekst WYGLĄDA jak YAML. Generator czyta go
+    prawdziwym parserem (YamlDotNet), więc ten test czyta tak samo i porównuje round-trip.
+    Nazwy katalogów w tych paczkach mają dwukropki, cudzysłowy i ukośniki wsteczne —
+    czyli składnię YAML-a, nie tekst."""
+    import yaml
+
+    blok = {
+        "decision": {"action": "copy", "target": 'paczka/SEM3/AKO "stare"/ćw: 2017/plik.pdf',
+                     "inPackage": False, "confidence": 0.9, "needsReview": False},
+        "provenance": {"total": 260, "copies": [
+            {"package": 'Paczki "Infa"', "path": "3 SEM: stare\\nowe/plik.pdf"},
+        ]},
+        "preview": {"kind": "listing", "entries": ["docs/opis: notatka.txt"], "truncated": True},
+    }
+
+    head = render_note(note(type=NODE_FILE, file=blok)).split("---\n")[1]
+
+    assert yaml.safe_load(head)["file"] == blok
+
+
+def test_empty_corners_of_the_block_are_dropped_not_nulled() -> None:
+    """`klucz:` bez wartości to w YAML-u `null`, czyli inne zdanie niż „nie ma czego pokazać”."""
+    import yaml
+
+    head = render_note(note(
+        type=NODE_FILE,
+        file={"decision": {"action": "skip", "reason": None}, "provenance": {}, "preview": {}},
+    )).split("---\n")[1]
+
+    assert yaml.safe_load(head)["file"] == {"decision": {"action": "skip"}}
+
+
+def test_a_newline_in_a_value_cannot_break_out_of_the_front_matter() -> None:
+    """Powstał po realnej regresji: podgląd tekstowy niósł prawdziwe znaki nowej linii,
+    a cytowany skalar ich nie eskejpował. Front matter 1891 notatek rozpadał się w locie
+    i generator gubił 2586 relacji — cicho, bo każda notatka z osobna wyglądała poprawnie.
+    Wartość z `---`, dwukropkiem i myślnikiem na początku linii to najgorszy przypadek."""
+    import yaml
+
+    zlosliwy = 'pierwsza\n---\nrelations:\n  - target: "cudzy"\n\ttab\r\n'
+
+    head = render_note(note(
+        type=NODE_FILE,
+        file={"preview": {"kind": "text", "text": zlosliwy}},
+    )).split("---\n")[1]
+
+    assert yaml.safe_load(head)["file"]["preview"]["text"] == zlosliwy

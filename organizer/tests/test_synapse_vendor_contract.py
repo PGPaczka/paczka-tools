@@ -36,7 +36,7 @@ from orglib.synapse_vault import (
 #: konfiguracyjnej, którą inne testy przestawiają na katalog tymczasowy.
 GRAF = Path(__file__).resolve().parents[1] / "studio" / "graf"
 PROJECT = GRAF / "Synapse.Generator" / "Synapse.Generator"
-SCHEMA = GRAF / "schema" / "graph.schema.v3.json"
+SCHEMA = GRAF / "schema" / "graph.schema.v4.json"
 
 pytestmark = [
     pytest.mark.vendor,
@@ -57,6 +57,15 @@ def build_vault(root: Path) -> None:
         Note(id="ako-lab-aaaaaaaa", title="lab.pdf", type=NODE_FILE, category="laboratoria",
              level=2, status=STATUS_ACTIVE, tags=["rodzaj-pdf"], modified="2026-09-19",
              sha256="a" * 64, size_bytes=172032, content_kind="pdf",
+             file={
+                 "decision": {"action": "copy", "target": "paczka/SEM3/AKO/lab.pdf",
+                              "inPackage": False, "confidence": 0.9, "needsReview": False},
+                 "provenance": {"total": 260, "copies": [
+                     {"package": "Paczki Infa", "path": "3 SEM/lab.pdf"},
+                     {"package": "true", "path": "260"},
+                 ]},
+                 "preview": {"kind": "page", "imageUrl": "/api/preview/a/image", "pages": 12},
+             },
              relations=[
                  Relation("sem3-ako", EDGE_BELONGS_TO),
                  Relation("ako-kol-bbbbbbbb", "near_duplicate", 0.78),
@@ -92,7 +101,29 @@ def graph(tmp_path_factory) -> dict:
 
 def test_graph_validates_against_their_schema(graph) -> None:
     jsonschema.validate(graph, json.loads(SCHEMA.read_text(encoding="utf-8")))
-    assert graph["schemaVersion"] == 3
+    assert graph["schemaVersion"] == 4
+
+
+def test_the_file_block_survives_the_round_trip_with_its_types(graph) -> None:
+    """Zagnieżdżony blok przechodzi przez PRAWDZIWY parser YAML-a generatora.
+
+    Typy są tu sednem: pewność, która dojedzie jako napis `"0.9"`, przestaje być liczbą
+    do porównania, a katalog nazwany `true` nie może zamienić się w wartość logiczną.
+    Nasz emiter cytuje każdy napis, a generator ufa cudzysłowom — ten test pilnuje obu stron.
+    """
+    blok = {n["id"]: n for n in graph["nodes"] if n["kind"] == "real"}["ako-lab-aaaaaaaa"]["file"]
+
+    assert blok["decision"]["confidence"] == 0.9
+    assert blok["decision"]["inPackage"] is False
+    assert blok["provenance"]["total"] == 260
+    assert blok["provenance"]["copies"][1] == {"package": "true", "path": "260"}
+    assert blok["preview"]["pages"] == 12
+
+
+def test_a_note_that_is_not_a_file_has_no_file_block(graph) -> None:
+    nodes = {n["id"]: n for n in graph["nodes"] if n["kind"] == "real"}
+
+    assert "file" not in nodes["sem3-ako"]
 
 
 def test_content_identity_survives_the_round_trip(graph) -> None:

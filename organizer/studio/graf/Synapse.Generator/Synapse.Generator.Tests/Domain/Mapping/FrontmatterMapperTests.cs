@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using FluentAssertions;
 using Synapse.Generator.Configuration;
 using Synapse.Generator.Domain.Mapping;
@@ -175,5 +176,97 @@ public class FrontmatterMapperTests
         var fm = new Dictionary<string, object?> { ["sizeBytes"] = "3221225472" };
 
         mapper.Map(fm, "note.md").SizeBytes.Should().Be(3221225472L);
+    }
+
+    // ── Nested `file` block (schema v4) ──────────────────────────────────────
+
+    [Fact]
+    public void FileBlock_KeepsItsShapeAndTypes()
+    {
+        // The vault writes a nested block so a viewer can lay a file note out from data
+        // instead of parsing prose. Types matter: a confidence that arrives as the string
+        // "0.9" is not a number any reader can compare, and a path that arrives as a
+        // number stops being a path.
+        var mapper = CreateMapper();
+        var fm = new Dictionary<string, object?>
+        {
+            ["file"] = new Dictionary<object, object>
+            {
+                ["decision"] = new Dictionary<object, object>
+                {
+                    ["action"] = "copy",
+                    ["confidence"] = 0.9,
+                    ["inPackage"] = false,
+                },
+                ["provenance"] = new Dictionary<object, object>
+                {
+                    ["total"] = 260,
+                    ["copies"] = new List<object>
+                    {
+                        new Dictionary<object, object> { ["package"] = "Paczki Infa", ["path"] = "3 SEM/x.pdf" },
+                    },
+                },
+            },
+        };
+
+        var file = mapper.Map(fm, "note.md").File;
+
+        file.Should().NotBeNull();
+        file!["decision"]!["action"]!.GetValue<string>().Should().Be("copy");
+        file["decision"]!["confidence"]!.GetValue<double>().Should().Be(0.9);
+        file["decision"]!["inPackage"]!.GetValue<bool>().Should().BeFalse();
+        // Whole numbers are widened on purpose: a file size does not fit an int.
+        file["provenance"]!["total"]!.GetValue<long>().Should().Be(260);
+        file["provenance"]!["copies"]![0]!["package"]!.GetValue<string>().Should().Be("Paczki Infa");
+    }
+
+    [Fact]
+    public void FileBlock_IsNullWhenAbsent()
+    {
+        CreateMapper().Map(new Dictionary<string, object?>(), "note.md").File.Should().BeNull();
+    }
+
+    [Fact]
+    public void FileBlock_SurvivesAValueThatLooksLikeSomethingElse()
+    {
+        // A source folder really can be called "true" or "260". The vault quotes every
+        // string it writes, so such a value arrives here already as a string — and must
+        // stay one.
+        var mapper = CreateMapper();
+        var fm = new Dictionary<string, object?>
+        {
+            ["file"] = new Dictionary<object, object> { ["provenance"] = new Dictionary<object, object>
+            {
+                ["copies"] = new List<object>
+                {
+                    new Dictionary<object, object> { ["package"] = "true", ["path"] = "260" },
+                },
+            } },
+        };
+
+        var copy = mapper.Map(fm, "note.md").File!["provenance"]!["copies"]![0]!;
+
+        copy["package"]!.GetValue<string>().Should().Be("true");
+        copy["path"]!.GetValue<string>().Should().Be("260");
+    }
+
+    [Fact]
+    public void FileBlock_DoesNotWidenAFloatIntoNoise()
+    {
+        // The YAML reader parses an unquoted `0.9` as a float. Widening that to a double
+        // keeps the single-precision error, and the graph then carries 0.8999999761581421
+        // where the vault wrote 0.9. Caught by the contract test against the real generator.
+        var mapper = CreateMapper();
+        var fm = new Dictionary<string, object?>
+        {
+            ["file"] = new Dictionary<object, object> { ["decision"] = new Dictionary<object, object>
+            {
+                ["confidence"] = 0.9f,
+            } },
+        };
+
+        var value = mapper.Map(fm, "note.md").File!["decision"]!["confidence"]!;
+
+        value.GetValue<double>().Should().Be(0.9);
     }
 }

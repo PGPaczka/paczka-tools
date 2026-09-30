@@ -110,32 +110,137 @@ def load_index(
 #: rozpoznać materiał; więcej robi z notatki kopię pliku.
 PREVIEW_TEXT_CHARS = 400
 
+#: Ile linii tekstu pokazuje podgląd.
+PREVIEW_TEXT_LINES = 8
 
-def preview_block(sha: str, kind: str, text_head: str | None) -> list[str]:
-    """Podgląd treści w notatce: obraz, kilka linijek tekstu, i odnośnik do studia.
 
-    Kliknięcie węzła w grafie ma POKAZAĆ materiał, a nie tylko go opisać (zgłoszone
-    2026-09-24). Adresy są względne, więc działają wtedy i tylko wtedy, gdy viewera
-    serwuje studio — czyli tam, gdzie te dane w ogóle mają sens.
+#: Ile nazw ze środka archiwum wchodzi do podglądu.
+PREVIEW_ARCHIVE_ENTRIES = 20
+
+#: Ile kopii źródłowych niesie węzeł. Mediana to 3, dziewiąty decyl 5, a rekordzista
+#: ma 260 — tyle wierszy nie jest już prowenancją, tylko ścianą. Pełna liczba jedzie
+#: obok listy, żeby widok mógł uczciwie powiedzieć, ile jeszcze zostało.
+PROVENANCE_COPIES = 25
+
+
+def build_preview(
+    sha: str, kind: str, *, text_head: str | None, source: Path | None, filename: str,
+) -> dict[str, Any]:
+    """Co widok ma pokazać dla TEJ treści — jako dane, nie jako markdown.
+
+    Kolejność jest od najlepszego do najuczciwszego: obraz, tekst wyekstrahowany,
+    tekst wprost z pliku źródłowego (``other`` bywa zwykłym XML-em), spis archiwum,
+    a na końcu przyznanie się do braku. 1441 z 4083 treści nie miało tu ŻADNEGO
+    podglądu, bo eksport pytał wyłącznie o wynik etapu extract.
+
+    ``missing`` rozróżnia dwie przyczyny, które studio myli w jednym komunikacie:
+    ``format`` — formatu nie umiemy pokazać, ``no-copy`` — żadna kopia nie leży dziś
+    na dysku. Pierwsza jest trwała, druga znika po podpięciu źródeł.
     """
-    lines: list[str] = []
     if kind in preview.PAGE_KINDS or kind in preview.IMAGE_KINDS:
-        lines += [f"![podgląd](/api/preview/{sha}/image?width=720)", ""]
-    elif text_head:
-        wiersze = text_head.strip().splitlines()
-        skrocony = wiersze[:8]
+        if source is None:
+            return {"kind": "none", "missing": "no-copy"}
+        block: dict[str, Any] = {
+            "kind": "page" if kind in preview.PAGE_KINDS else "image",
+            "imageUrl": f"/api/preview/{sha}/image?width=720",
+        }
+        if kind in preview.PAGE_KINDS and (pages := preview.page_count(source)):
+            block["pages"] = pages
+        return block
+
+    head = text_head
+    if head is None and source is not None and kind in preview.SOURCE_TEXT_KINDS:
+        head = preview.source_text_head(source, PREVIEW_TEXT_CHARS)
+    if head:
+        wiersze = head.strip().splitlines()
+        block = {"kind": "text", "text": "\n".join(wiersze[:PREVIEW_TEXT_LINES])}
         # Urwany tekst ma WYGLĄDAĆ na urwany: bez tego czytający bierze osiem linijek
         # za całą treść pliku (zgłoszone 2026-09-24).
-        urwane = len(wiersze) > 8 or len(text_head) >= PREVIEW_TEXT_CHARS
-        if urwane:
-            skrocony.append("…")
-        lines += ["```", *skrocony, "```"]
-        if urwane:
-            lines += ["_fragment — całość w studiu_", ""]
-        else:
-            lines += [""]
+        if len(wiersze) > PREVIEW_TEXT_LINES or len(head) >= PREVIEW_TEXT_CHARS:
+            block["truncated"] = True
+        if language := preview.text_language(filename, kind):
+            block["language"] = language
+        return block
+
+    if kind == "archive" and source is not None:
+        entries, total = preview.archive_head(source, PREVIEW_ARCHIVE_ENTRIES)
+        if entries:
+            block = {"kind": "listing", "entries": entries, "entriesTotal": total}
+            if total > len(entries):
+                block["truncated"] = True
+            return block
+
+    return {"kind": "none", "missing": "format" if source is not None else "no-copy"}
+
+
+def preview_block(sha: str, block: Mapping[str, Any]) -> list[str]:
+    """Ten sam podgląd w treści notatki — dla człowieka i dla wyszukiwarki.
+
+    Panel rysuje z pól, ale `search-index.json` generator buduje z TREŚCI, więc to,
+    czego tu nie napiszemy, przestaje być wyszukiwalne. Adresy są względne, więc
+    działają wtedy i tylko wtedy, gdy viewera serwuje studio — czyli tam, gdzie te
+    dane w ogóle mają sens.
+    """
+    lines: list[str] = []
+    rodzaj = block.get("kind")
+    if rodzaj in ("image", "page"):
+        lines += [f"![podgląd]({block['imageUrl']})", ""]
+    elif rodzaj == "text":
+        tresc = str(block.get("text", "")).splitlines()
+        if block.get("truncated"):
+            tresc = [*tresc, "…"]
+        lines += ["```", *tresc, "```"]
+        lines += ["_fragment — całość w studiu_", ""] if block.get("truncated") else [""]
+    elif rodzaj == "listing":
+        lines += [f"Archiwum, {block['entriesTotal']} plików:", ""]
+        lines += [f"- `{name}`" for name in block.get("entries", [])]
+        lines += ["", ""] if not block.get("truncated") else ["- …", ""]
     lines += [f"[Otwórz w studiu](/?sha={sha})", ""]
     return lines
+
+
+def existing_copy(
+    paths: config.Paths, copies: list[sqlite3.Row], target: str | None,
+) -> Path | None:
+    """Pierwsza kopia treści, która NAPRAWDĘ leży na dysku — w źródłach albo w paczce.
+
+    890 pozycji ground truth nie ma ani jednego wiersza w ``files``: materiał trafił do
+    paczki dawno temu i nikt nie indeksował go jako pliku źródłowego. Bez sięgnięcia po
+    ścieżkę docelową ich podgląd byłby pusty, choć plik leży na dysku.
+    """
+    found = preview.first_existing_copy(
+        paths,
+        [(str(row["source_package"]), str(row["source_relative_path"])) for row in copies],
+    )
+    if found is not None:
+        return found
+    if not target:
+        return None
+    w_paczce = config.resolve_within(paths.target_repo, target)
+    return w_paczce if w_paczce is not None and w_paczce.is_file() else None
+
+
+def collect_previews(
+    paths: config.Paths,
+    decisions: Mapping[str, dict[str, Any]],
+    files: Mapping[str, list[sqlite3.Row]],
+    kinds: Mapping[str, str],
+    text_paths: Mapping[str, str],
+) -> dict[str, dict[str, Any]]:
+    """Podgląd dla każdej treści z decyzją — jedyne miejsce eksportu czytające materiały."""
+    out: dict[str, dict[str, Any]] = {}
+    for sha, decision in decisions.items():
+        copies = list(files.get(sha, []))
+        kind = kinds.get(sha, "other")
+        head = None
+        if kind not in preview.PAGE_KINDS and kind not in preview.IMAGE_KINDS:
+            head = preview.text_head(paths, text_paths.get(sha), PREVIEW_TEXT_CHARS)
+        source = existing_copy(paths, copies, str(decision.get("target_relative_path") or ""))
+        out[sha] = build_preview(
+            sha, kind, text_head=head, source=source,
+            filename=content_name(copies, decision, sha),
+        )
+    return out
 
 
 def content_name(copies: list[sqlite3.Row], decision: dict[str, Any] | None, sha: str) -> str:
@@ -163,7 +268,7 @@ def build_notes(
     auto_apply: float,
     include_unassigned: bool,
     scope: tuple[int, str] | None = None,
-    text_heads: Mapping[str, str] | None = None,
+    previews: Mapping[str, dict[str, Any]] | None = None,
     package_sizes: Mapping[str, int] | None = None,
 ) -> list[Note]:
     """Cały vault jako lista notatek. Czysta funkcja nad wynikiem zapytań."""
@@ -225,13 +330,43 @@ def build_notes(
         if decision["needs_review"]:
             tags.append("do-przegladu")
 
-        podglad = preview_block(sha, kind, (text_heads or {}).get(sha))
+        podglad_pol = (previews or {}).get(sha) or {"kind": "none", "missing": "no-copy"}
+        podglad = preview_block(sha, podglad_pol)
+        pokazane = copies[:PROVENANCE_COPIES]
         provenance = "\n".join(
-            f"- `{row['source_package']}/{row['source_relative_path']}`" for row in copies[:12]
+            f"- `{row['source_package']}/{row['source_relative_path']}`" for row in pokazane
         ) or "_brak kopii w indeksie_"
+        if len(copies) > len(pokazane):
+            provenance += f"\n- _i jeszcze {len(copies) - len(pokazane)} — pełna lista w studiu_"
         # Rozmiar niesie tylko tabela `files`; materiał leżący wyłącznie w paczce ma go
         # z pliku na dysku. Zero byłoby nieprawdą, a nie informacją o braku danych.
         size = int(copies[0]["size_bytes"]) if copies else (package_sizes or {}).get(sha, 0)
+        # Te same fakty, co w treści poniżej, ale jako DANE: panel viewera rysuje z nich
+        # układ, którego z markdownu zbudować się nie da (HTML jest tam wyłączony).
+        # Treść zostaje, bo `search-index.json` powstaje właśnie z niej.
+        blok_pliku: dict[str, Any] = {
+            "decision": {
+                "action": action or "",
+                "target": str(decision["target_relative_path"] or ""),
+                "inPackage": in_package,
+                "category": category,
+                "confidence": round(confidence, 2),
+                "method": str(decision["classification_method"] or ""),
+                "reason": str(decision["reason"] or ""),
+                "needsReview": bool(decision["needs_review"]),
+            },
+            "preview": podglad_pol,
+            "studioUrl": f"/?sha={sha}",
+        }
+        if copies:
+            blok_pliku["provenance"] = {
+                "total": len(copies),
+                "copies": [
+                    {"package": str(row["source_package"]),
+                     "path": str(row["source_relative_path"])}
+                    for row in pokazane
+                ],
+            }
         body = "\n".join([
             f"**{filename}** · `{kind}`" + (f" · {human_size(size)}" if size else ""),
             "",
@@ -266,6 +401,7 @@ def build_notes(
             )],
             body=body,
             folder=f"sem{semester}/{slugify(skrot, limit=16)}",
+            file=blok_pliku,
             # To samo, co wyżej w treści, ale jako dane: widoki grafu potrzebują sha,
             # żeby odesłać do studia, a rozmiaru i rodzaju — żeby wiersz pliku mówił
             # cokolwiek poza nazwą. Z `excerpt` nie da się tego wziąć, bo jest ucinany.
@@ -591,14 +727,9 @@ def export(
         finally:
             conn.close()
 
-        # Głowy tekstu czytamy TUTAJ, żeby `build_notes` zostało czystą funkcją nad
-        # wynikiem zapytań. Tylko dla treści, które nie mają podglądu obrazkowego.
-        text_heads = {
-            sha: head
-            for sha, path in text_paths.items()
-            if kinds.get(sha) not in preview.PAGE_KINDS and kinds.get(sha) not in preview.IMAGE_KINDS
-            and (head := preview.text_head(paths, path, PREVIEW_TEXT_CHARS))
-        }
+        # Podglądy składamy TUTAJ, żeby `build_notes` zostało czystą funkcją nad wynikiem
+        # zapytań: to jedyne miejsce w eksporcie, które dotyka materiałów na dysku.
+        previews = collect_previews(paths, decisions, files, kinds, text_paths)
 
         # Rozmiary materiałów, których nie ma w `files` — czytane z paczki, tak jak
         # podgląd. Stat jednego pliku jest tani, a bez tego notatka kłamie „0 kB".
@@ -613,7 +744,7 @@ def export(
         notes = build_notes(
             subjects=subjects, decisions=decisions, relations=relations, files=files,
             kinds=kinds, auto_apply=auto_apply, include_unassigned=include_unassigned,
-            scope=scope, text_heads=text_heads, package_sizes=package_sizes,
+            scope=scope, previews=previews, package_sizes=package_sizes,
         )
         for note in notes:
             note.validate()

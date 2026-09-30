@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+
 namespace Synapse.Generator.Domain.Mapping;
 
 public record MappedFrontmatter(
@@ -18,5 +20,7 @@ public record MappedFrontmatter(
     // content. SizeBytes is long because media files pass what an int can hold.
     string? Sha256 = null,
     long? SizeBytes = null,
-    string? ContentKind = null
+    string? ContentKind = null,
+    // Free-form structured block, carried verbatim (see YamlJson).
+    JsonNode? File = null
 );

@@ -4,7 +4,7 @@ import { resolve } from 'path'
 import Ajv from 'ajv'
 import addFormats from 'ajv-formats'
 
-const schemaPath = resolve(__dirname, '../../../schema/graph.schema.v3.json')
+const schemaPath = resolve(__dirname, '../../../schema/graph.schema.v4.json')
 const graphPath = resolve(__dirname, '../../public/graph.json')
 
 const rawSchema = JSON.parse(readFileSync(schemaPath, 'utf-8'))
@@ -15,7 +15,7 @@ addFormats(ajv)
 const validate = ajv.compile(rawSchema)
 
 describe('graph.json schema validation', () => {
-  it('public/graph.json is valid against graph.schema.v3.json', () => {
+  it('public/graph.json is valid against graph.schema.v4.json', () => {
     const valid = validate(rawGraph)
     if (!valid) {
       console.error('Validation errors:', JSON.stringify(validate.errors, null, 2))
@@ -23,12 +23,12 @@ describe('graph.json schema validation', () => {
     expect(valid).toBe(true)
   })
 
-  it('schema has schemaVersion 3 const', () => {
-    expect(rawSchema.properties.schemaVersion.const).toBe(3)
+  it('schema has schemaVersion 4 const', () => {
+    expect(rawSchema.properties.schemaVersion.const).toBe(4)
   })
 
   it('graph has correct structure', () => {
-    expect(rawGraph.schemaVersion).toBe(3)
+    expect(rawGraph.schemaVersion).toBe(4)
     expect(rawGraph.nodes).toBeInstanceOf(Array)
     expect(rawGraph.edges).toBeInstanceOf(Array)
     expect(rawGraph.warnings).toBeInstanceOf(Array)

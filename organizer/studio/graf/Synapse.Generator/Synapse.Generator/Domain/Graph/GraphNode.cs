@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+
 namespace Synapse.Generator.Domain.Graph;
 
 /// <summary>Discriminated-union base for graph nodes.</summary>
@@ -29,7 +31,9 @@ public sealed record RealGraphNode(
     // address the content itself rather than scraping it out of the excerpt.
     string? Sha256 = null,
     long? SizeBytes = null,
-    string? ContentKind = null
+    string? ContentKind = null,
+    // Structured block declared by the vault, carried through untouched.
+    JsonNode? File = null
 ) : GraphNode(Id);
 
 /// <summary>A note referenced by wikilinks but not found on disk.</summary>

@@ -15,11 +15,12 @@ public class JsonGraphSerializer
     /// <summary>
     /// Bumped to 2 when nodes gained <c>type</c> and edges gained <c>kind</c>/<c>confidence</c>;
     /// to 3 when a node gained the identity of the content it stands for
-    /// (<c>sha256</c>, <c>sizeBytes</c>, <c>contentKind</c>).
+    /// (<c>sha256</c>, <c>sizeBytes</c>, <c>contentKind</c>); to 4 when it gained
+    /// <c>file</c>, a structured block the vault owns and this generator only carries.
     /// The viewer hard-equality-checks this; there is no migration machinery by design —
     /// regenerating the graph takes seconds.
     /// </summary>
-    public const int SchemaVersion = 3;
+    public const int SchemaVersion = 4;
 
     private static readonly JsonSerializerOptions WriteOptions = new()
     {
@@ -161,6 +162,11 @@ public class JsonGraphSerializer
 
         if (node.ContentKind is not null)
             obj["contentKind"] = node.ContentKind;
+
+        // A JsonNode belongs to one parent, so the vault's block is cloned rather than
+        // attached: serialising the same graph twice must not throw.
+        if (node.File is not null)
+            obj["file"] = node.File.DeepClone();
 
         return obj;
     }

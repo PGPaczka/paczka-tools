@@ -65,7 +65,8 @@ public class GraphBuilder
                 NoteType: fm.NoteType,
                 Sha256: fm.Sha256,
                 SizeBytes: fm.SizeBytes,
-                ContentKind: fm.ContentKind
+                ContentKind: fm.ContentKind,
+                File: fm.File
             ));
         }
 

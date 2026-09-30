@@ -8,8 +8,13 @@ namespace Synapse.Generator.Parsing;
 /// </summary>
 public class YamlFrontmatterReader : IFrontmatterReader
 {
+    // Unquoted scalars keep their type (true, 12, 0.9); quoted ones stay strings. A vault
+    // that means a string quotes it, so a folder named `true` survives as text while a
+    // confidence survives as a number — which matters for the structured `file` block,
+    // where the generator carries values it does not interpret.
     private static readonly IDeserializer Deserializer = new DeserializerBuilder()
         .WithNamingConvention(NullNamingConvention.Instance)
+        .WithAttemptingUnquotedStringTypeDeserialization()
         .Build();
 
     /// <inheritdoc />

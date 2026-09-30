@@ -17,5 +17,8 @@ public record FrontmatterMapConfig(
     // them so a viewer can address the content itself instead of parsing the excerpt.
     string Sha256Key = "sha256",
     string SizeBytesKey = "sizeBytes",
-    string ContentKindKey = "contentKind"
+    string ContentKindKey = "contentKind",
+    // A structured block the vault owns end to end: the generator carries it to
+    // graph.json without knowing its shape, so the vault can change it alone.
+    string FileKey = "file"
 );
