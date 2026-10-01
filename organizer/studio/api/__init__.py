@@ -2,7 +2,7 @@
 
 ``scripts/`` nie jest instalowanym pakietem — moduły potoku (``orglib``,
 ``status_report``) leżą tam jako moduły najwyższego poziomu i tak są importowane
-w całym projekcie (``pytest.ini: pythonpath``). Backend musi je widzieć także
+w całym projekcie (``pyproject.toml: pythonpath``). Backend musi je widzieć także
 wtedy, gdy uruchamia go uvicorn, więc katalog dokładamy tutaj, raz, przy imporcie
 pakietu — zamiast powtarzać tę sztuczkę w każdym module studia.
 """
