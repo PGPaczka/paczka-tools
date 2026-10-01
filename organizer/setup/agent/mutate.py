@@ -37,7 +37,10 @@ app = typer.Typer(add_completion=False, help=__doc__)
 
 #: Co kopiujemy do piaskownicy. `.venv` świadomie pomijamy — interpreter bierzemy
 #: z prawdziwego repo, kopiowanie środowiska trwałoby dłużej niż sam test.
-_COPIED = ("scripts", "studio", "tests", "config", "prompts", "setup", "pytest.ini",
+#: `pyproject.toml` MUSI tu być: trzyma `pythonpath`, bez którego każdy test
+#: w piaskownicy wywala się na `ModuleNotFoundError` i mutacja wychodzi
+#: „WYKRYTA" nie sprawdzając niczego. Cicha zielona ściema, nie błąd.
+_COPIED = ("scripts", "studio", "tests", "config", "prompts", "setup", "pyproject.toml",
            "justfile", ".agents", ".claude")
 
 ORGANIZER = Path(__file__).resolve().parents[2]

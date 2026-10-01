@@ -5,5 +5,5 @@ file: scripts/ai_resolve.py
 find: '        if sha in seen or sha in resolved:'
 replace: '        if sha in seen:'
 tests:
-- tests/test_classify_cli.py
-- tests/test_ai_resolve.py
+- tests/cli/test_classify_cli.py
+- tests/unit/test_ai_resolve.py

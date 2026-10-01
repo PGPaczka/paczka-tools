@@ -7,4 +7,4 @@ file: scripts/status_report.py
 find: '        if str(row["run_id"]) == GROUND_TRUTH_RUN_ID:'
 replace: '        if False:'
 tests:
-- tests/test_status_report.py
+- tests/unit/test_status_report.py

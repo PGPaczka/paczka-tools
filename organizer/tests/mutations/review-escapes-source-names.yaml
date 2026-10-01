@@ -7,4 +7,4 @@ file: scripts/review_report.py
 find: '    return html.escape(str(value), quote=True)'
 replace: '    return str(value)'
 tests:
-- tests/test_review_report_cli.py
+- tests/cli/test_review_report_cli.py

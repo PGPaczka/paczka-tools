@@ -8,4 +8,4 @@ file: scripts/apply.py
 find: '        blocking = plan_gate.blocking_count(findings, strict=strict)'
 replace: '        blocking = 0'
 tests:
-- tests/test_apply.py
+- tests/unit/test_apply.py

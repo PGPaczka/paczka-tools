@@ -7,4 +7,4 @@ file: scripts/build_plan.py
 find: '                if sha not in protected:'
 replace: '                if True:'
 tests:
-- tests/test_build_plan_cli.py
+- tests/cli/test_build_plan_cli.py

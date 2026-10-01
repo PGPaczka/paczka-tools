@@ -5,4 +5,4 @@ file: scripts/prepare_subject.py
 find: '            if head:'
 replace: '            if False:'
 tests:
-- tests/test_e2e_pipeline.py
+- tests/e2e/test_e2e_pipeline.py

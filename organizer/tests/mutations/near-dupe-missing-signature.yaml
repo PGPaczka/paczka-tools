@@ -7,4 +7,4 @@ file: scripts/orglib/near_dupe.py
 find: '        if value:'
 replace: '        if value is not None:'
 tests:
-- tests/test_near_dupe.py
+- tests/unit/test_near_dupe.py

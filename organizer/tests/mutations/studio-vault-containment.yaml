@@ -9,4 +9,4 @@ find: "        resolved = config.resolve_within(\n            resolved_paths.wor
   \ f\"synapse/vault/{note_path}\"\n        )"
 replace: '        resolved = resolved_paths.work / "synapse" / "vault" / note_path'
 tests:
-- tests/test_studio_graph.py
+- tests/studio/test_studio_graph.py

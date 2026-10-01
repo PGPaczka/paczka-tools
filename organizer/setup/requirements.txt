@@ -1,3 +1,4 @@
+# Źródłem prawdy o zależnościach jest pyproject.toml; ten plik trwa, bo setup/install.sh instaluje pipem z niego.
 # Zależności Pythona organizera (README.md, sekcja Zależności). Instaluje setup/install.sh do organizer/.venv.
 PyMuPDF>=1.24      # tekst z PDF; od 1.24 moduł nazywa się `pymupdf` (nie `fitz`)
 pdfplumber         # tekst/tabelki z PDF (awaryjnie)

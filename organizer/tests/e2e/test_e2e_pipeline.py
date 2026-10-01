@@ -12,7 +12,7 @@ docelowe, własny `paths.yaml`. Żaden prawdziwy katalog materiałów nie jest
 czytany. Model AI nie jest wołany — backend dostaje atrapę runnera, więc
 przebieg jest deterministyczny i darmowy.
 
-Marker `e2e` (patrz `pytest.ini`, recepta `just e2e`).
+Marker `e2e` (patrz `pyproject.toml`, recepta `just e2e`).
 """
 
 from __future__ import annotations
@@ -318,7 +318,7 @@ def test_ai_resolve_consumes_manifest_and_writes_valid_plan(
     )
 
     schema = json.loads(
-        (Path(__file__).resolve().parents[1] / "prompts" / "plan_line.schema.json").read_text(
+        (Path(__file__).resolve().parents[2] / "prompts" / "plan_line.schema.json").read_text(
             encoding="utf-8"
         )
     )

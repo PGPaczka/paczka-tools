@@ -8,4 +8,4 @@ file: scripts/orglib/plan_verify.py
 find: '        if actual != sha:'
 replace: '        if False:'
 tests:
-- tests/test_verify.py
+- tests/unit/test_verify.py

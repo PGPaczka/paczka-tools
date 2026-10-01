@@ -7,5 +7,5 @@ file: scripts/orglib/synapse_vault.py
 find: '        row: dict[str, Any] = {"target": self.target, "kind": self.kind}'
 replace: '        row: dict[str, Any] = {"target": self.target, "kind": "related"}'
 tests:
-- tests/test_synapse_vault.py
-- tests/test_synapse_export_cli.py
+- tests/synapse/test_synapse_vault.py
+- tests/synapse/test_synapse_export_cli.py

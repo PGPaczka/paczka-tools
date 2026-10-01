@@ -148,7 +148,7 @@ else ok "5 agentów już jest (commitowane; --refresh-agents nadpisze)"; fi
 say "5/8 status line (~/.claude/statuslines)"
 if [ "$NO_PLUGINS" = 0 ]; then
   mkdir -p "$HOME/.claude/statuslines"
-  install -m 0755 "$SETUP_DIR/statusline.sh" "$HOME/.claude/statuslines/statusline.sh"
+  install -m 0755 "$ORGANIZER/.claude/statuslines/statusline.sh" "$HOME/.claude/statuslines/statusline.sh"
   python3 - "$HOME/.claude/settings.json" <<'PY'
 import json, sys, pathlib, shutil, time
 p = pathlib.Path(sys.argv[1]); d = {}

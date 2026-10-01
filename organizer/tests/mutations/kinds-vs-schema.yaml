@@ -5,4 +5,4 @@ file: scripts/orglib/kinds.py
 find: '    "svg": "image",'
 replace: '    "svg": "wektor",'
 tests:
-- tests/test_kinds.py
+- tests/unit/test_kinds.py

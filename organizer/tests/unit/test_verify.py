@@ -14,7 +14,7 @@ from typer.testing import CliRunner
 import verify as verify_cli
 from orglib import db
 from orglib.hashes import sha256_file
-from tests.test_apply import (  # fixture'y i wzorzec planu dzielone z B10
+from tests.unit.test_apply import (  # fixture'y i wzorzec planu dzielone z B10
     CONTENT,
     SUBJECT_DIR,
     plan_file,

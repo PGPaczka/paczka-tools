@@ -1,6 +1,6 @@
 """CLI B3: izolowany indeks, sztuczny manifest, nigdy prawdziwe materiały.
 
-Wzorzec izolacji jak w ``tests/test_prepare_subject.py``: workspace w ``tmp_path``,
+Wzorzec izolacji jak w ``tests/unit/test_prepare_subject.py``: workspace w ``tmp_path``,
 ``config.ORGANIZER_ROOT`` przestawiony na katalog tymczasowy. Reguły i schemat
 czytamy PRAWDZIWE — to jest sens tej warstwy: sprawdzić styk skryptu z repo.
 """

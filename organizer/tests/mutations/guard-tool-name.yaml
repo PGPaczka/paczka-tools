@@ -5,4 +5,4 @@ file: .agents/hooks/guard-sources.py
 find: '    elif command:'
 replace: '    elif command and tool == "Bash":'
 tests:
-- tests/test_agent_guard.py
+- tests/unit/test_agent_guard.py

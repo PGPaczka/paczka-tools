@@ -5,4 +5,4 @@ file: scripts/orglib/textextract.py
 find: str(Path(os.path.abspath(path)))
 replace: str(path)
 tests:
-- tests/test_special_names.py
+- tests/unit/test_special_names.py

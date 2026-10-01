@@ -13,4 +13,4 @@ replace: |-2
       )
       reason = f"kategoria {category} wg: {signal}"
 tests:
-- tests/test_classify.py
+- tests/unit/test_classify.py

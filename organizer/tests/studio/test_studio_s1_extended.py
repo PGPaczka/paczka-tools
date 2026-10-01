@@ -84,7 +84,7 @@ def test_preview_with_extracted_text(index, tmp_path) -> None:
     Pierwsza wersja tego testu wpisywała do bazy ścieżkę bezwzględną, więc
     przechodziła przy endpointcie, który na realnych danych nie pokazywał nic
     (i dodatkowo przeczytałby plik spoza `work`). Pełny zestaw przypadków —
-    `..`, dowiązanie, render strony — jest w `tests/test_studio_preview.py`.
+    `..`, dowiązanie, render strony — jest w `tests/studio/test_studio_preview.py`.
     """
     work = index.parent
     (work / "extracted_text").mkdir(exist_ok=True)

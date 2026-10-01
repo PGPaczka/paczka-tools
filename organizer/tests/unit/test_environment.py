@@ -9,7 +9,7 @@ Zasada: brakująca albo zepsuta zależność ma być **czerwona**, nie pominięt
 Odinstalowanie `catdoc` czy `tesseract-ocr-pol` musi wywalić ten plik — inaczej
 potok po cichu przestaje czytać setki materiałów, a testy dalej świecą na zielono.
 
-Dlatego testy są oznaczone markerem ``environment`` (patrz ``pytest.ini``):
+Dlatego testy są oznaczone markerem ``environment`` (patrz ``pyproject.toml``):
 wchodzą do zwykłego ``just test``, a ``just env-check`` uruchamia same te
 kontrole. Świadoma praca na maszynie bez pełnego środowiska to
 ``pytest -m "not environment"`` — wybór jawny, nie domyślny.
@@ -69,7 +69,7 @@ PDF_TEXT = "Sprawozdanie z laboratorium 3"
 
 def _requirements() -> list[str]:
     """Nazwy pakietów z setup/requirements.txt (bez komentarzy i wersji)."""
-    path = Path(__file__).resolve().parents[1] / "setup" / "requirements.txt"
+    path = Path(__file__).resolve().parents[2] / "setup" / "requirements.txt"
     names = []
     for line in path.read_text(encoding="utf-8").splitlines():
         line = line.split("#")[0].strip()

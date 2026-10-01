@@ -26,7 +26,7 @@ from orglib import config, db
 from orglib.hashes import sha256_file
 from studio.api import planning, runner
 from studio.api.app import create_app
-from tests.test_apply import CONTENT, SUBJECT_DIR, _row, _write_plan
+from tests.unit.test_apply import CONTENT, SUBJECT_DIR, _row, _write_plan
 
 THRESHOLDS = {"confidence": {"auto_apply": 0.90, "review_min": 0.70}}
 SUBJECTS = [
@@ -286,7 +286,7 @@ def test_every_stage_flag_is_accepted_by_the_real_script() -> None:
     Powstało po wpadce z etapem `review`: studio dokładało mu `--db` i `--plan`,
     których `review_report.py` nie zna, więc etap startował i natychmiast odbijał
     się od parsera. To ta sama klasa błędu, co historyczne `--ignore-user-config`
-    w backendach AI (`tests/test_cli_contract.py`).
+    w backendach AI (`tests/cli/test_cli_contract.py`).
     """
     import importlib
 

@@ -11,5 +11,5 @@ replace: |-2
       with Path(path).open(encoding="utf-8") as handle:
           for number, line in enumerate(handle.read().splitlines(), start=1):
 tests:
-- tests/test_jsonl.py
-- tests/test_near_dupe_cli.py
+- tests/unit/test_jsonl.py
+- tests/cli/test_near_dupe_cli.py

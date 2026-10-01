@@ -9,4 +9,4 @@ file: scripts/orglib/plan_gate.py
 find: '        if declared and declared != actual:'
 replace: '        if False:'
 tests:
-- tests/test_validate_plan_cli.py
+- tests/cli/test_validate_plan_cli.py

@@ -5,4 +5,4 @@ file: scripts/orglib/classify.py
 find: '                return str(value).lstrip("0").zfill(padding) if str(value).strip("0") else "0" * padding'
 replace: '                return str(value)'
 tests:
-- tests/test_classify.py
+- tests/unit/test_classify.py

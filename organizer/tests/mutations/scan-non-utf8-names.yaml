@@ -7,4 +7,4 @@ find: "            if not _is_encodable(entry.name):\n                _warn(f\"p
   \ 1\n                continue"
 replace: '            pass'
 tests:
-- tests/test_special_names.py
+- tests/unit/test_special_names.py

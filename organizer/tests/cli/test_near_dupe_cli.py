@@ -1,6 +1,6 @@
 """CLI B6: izolowany indeks w tmp_path; sprawdzamy zapis do bazy i eksport.
 
-Najważniejsze tu nie jest „czy znalazł relacje” (to warstwa `tests/test_near_dupe.py`),
+Najważniejsze tu nie jest „czy znalazł relacje” (to warstwa `tests/unit/test_near_dupe.py`),
 tylko **co robi z cudzymi wierszami** — etap podmienia wyłącznie własny wycinek.
 """
 

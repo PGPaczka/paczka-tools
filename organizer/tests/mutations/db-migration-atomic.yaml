@@ -15,4 +15,4 @@ replace: |-2
       try:
           conn.executescript(";\n".join(steps))
 tests:
-- tests/test_db_migration.py
+- tests/unit/test_db_migration.py

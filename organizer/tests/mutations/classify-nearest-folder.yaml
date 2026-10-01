@@ -7,4 +7,4 @@ file: scripts/orglib/classify.py
 find: '            near = depth == nearest'
 replace: '            near = True'
 tests:
-- tests/test_classify.py
+- tests/unit/test_classify.py

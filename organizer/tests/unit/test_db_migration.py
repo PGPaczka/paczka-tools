@@ -18,7 +18,7 @@ import pytest
 
 from orglib import db
 
-FIXTURE = Path(__file__).parent / "fixtures" / "schema_v1.sql"
+FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "schema_v1.sql"
 
 
 def _canonical(sql: str) -> str:

@@ -1,0 +1,58 @@
+# Konfiguracja organizera w jednym miejscu: metadane, zależności i pytest.
+# Źródło prawdy o zależnościach (dawniej tylko setup/requirements.txt, który
+# trwa jako wejście dla setup/install.sh — on instaluje pipem z pliku).
+[project]
+name = "paczka-organizer"
+version = "0.1.0"
+description = "Narzędzia do uporządkowania i migracji materiałów studenckich z 00_SOURCES do docelowej paczki."
+requires-python = ">=3.12"
+
+# Kolejność i piny 1:1 z setup/requirements.txt — komentarze „dlaczego" są tam.
+dependencies = [
+    "PyMuPDF>=1.24",   # tekst z PDF; od 1.24 moduł nazywa się `pymupdf` (nie `fitz`)
+    "pdfplumber",      # tekst/tabelki z PDF (awaryjnie)
+    "python-docx",     # tekst z DOCX
+    "python-pptx",     # tekst ze slajdów PPTX (także .ppsx)
+    "openpyxl",        # tekst z arkuszy XLSX/XLSM
+    "xlrd>=2.0",       # tekst ze starych arkuszy XLS (2.x czyta WYŁĄCZNIE .xls)
+    "odfpy",           # tekst z OpenDocument (.odt/.ods/.odp)
+    "datasketch",      # MinHash + LSH (near-dupe + bucketowanie kandydatów)
+    "imagehash",       # perceptual hash obrazów
+    "Pillow",          # obrazy / miniatury
+    "rapidfuzz",       # fuzzy match nazw / podobieństwo tekstu
+    "blake3",          # szybki hash (alternatywa dla sha256)
+    "ocrmypdf",        # OCR dokładający warstwę tekstu do PDF (wymaga tesseract)
+    "pytesseract",     # OCR (backend tesseract)
+    "sqlite-utils",    # wygodna praca z SQLite
+    "typer",           # CLI
+    "PyYAML",          # config
+    "jsonschema",      # walidacja linii planu wg prompts/plan_line.schema.json
+    "anthropic",       # backend AI (Claude) — dla llm_client
+    "openai",          # backend AI (Codex) — dla llm_client
+    "fastapi",         # backend studia (studio/api) — lokalne API nad indeksem
+    "uvicorn",         # serwer ASGI studia; nasłuch wyłącznie 127.0.0.1
+    "httpx",           # klient HTTP: TestClient FastAPI i smoke startu serwera w testach
+]
+
+# Zestaw testowy wydzielony, bo requirements.txt oznaczał te dwa pakiety
+# komentarzem „testy". setup/install.sh instaluje całość i tak.
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "hypothesis",      # własności granicy ścieżek (tests/unit/test_path_safety_properties.py)
+]
+
+[tool.pytest.ini_options]
+# `scripts` przed `setup`: pakiet `orglib` (skrypty potoku) jest ważniejszy niż
+# `agent` (narzędzia agentów), a `.` daje `studio` i `tests` jako pakiety.
+pythonpath = ["scripts", "setup", "."]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+    "environment: realne środowisko (biblioteki i binarki), bez atrap — czerwone, gdy czegoś brak",
+    "probe: sonda na realnych danych lokalnych; pomija się TYLKO przy braku danych",
+    "cli_contract: argv konfrontowane z parserem PRAWDZIWEGO CLI; bez promptów i bez kosztu",
+    "e2e: cały łańcuch etapów na syntetycznej paczce; styki między skryptami",
+    "reads_repo_config: test czyta REALNE config/*.yaml zamiast stuba (wiązanie kodu z configiem)",
+    "vendor: uruchamia NARZĘDZIE z studio/graf (np. Synapse.Generator) — pomijany tylko przy braku toolchainu",
+]

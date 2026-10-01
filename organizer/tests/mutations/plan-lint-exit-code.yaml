@@ -6,4 +6,4 @@ file: scripts/validate_plan.py
 find: '    blocking = counts["error"] + (counts["warning"] if strict else 0)'
 replace: '    blocking = 0'
 tests:
-- tests/test_validate_plan_cli.py
+- tests/cli/test_validate_plan_cli.py

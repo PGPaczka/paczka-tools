@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 
-ORGANIZER = Path(__file__).resolve().parents[1]
+ORGANIZER = Path(__file__).resolve().parents[2]
 GUARD = ORGANIZER / ".agents" / "hooks" / "guard-sources.py"
 
 

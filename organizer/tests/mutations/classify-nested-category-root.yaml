@@ -19,4 +19,4 @@ replace: |-2
               mapping.setdefault(fold(PurePosixPath(spec.folder).parts[0]), spec.name)
           return mapping
 tests:
-- tests/test_classify.py
+- tests/unit/test_classify.py

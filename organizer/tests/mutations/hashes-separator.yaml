@@ -5,4 +5,4 @@ file: scripts/orglib/hashes.py
 find: digest.update(f"{relpath}\0{sha256}\n".encode("utf-8"))
 replace: digest.update(f"{relpath}|{sha256};".encode("utf-8"))
 tests:
-- tests/test_hashes.py
+- tests/unit/test_hashes.py

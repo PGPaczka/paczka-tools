@@ -8,4 +8,4 @@ file: studio/api/app.py
 find: '            if not state["can_apply"]:'
 replace: '            if False:'
 tests:
-- tests/test_studio_plan.py
+- tests/studio/test_studio_plan.py

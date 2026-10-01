@@ -34,7 +34,7 @@ from orglib.synapse_vault import (
 
 #: Źródła grafu żyją w repo — liczone ze ścieżki tego pliku, nie ze stałej
 #: konfiguracyjnej, którą inne testy przestawiają na katalog tymczasowy.
-GRAF = Path(__file__).resolve().parents[1] / "studio" / "graf"
+GRAF = Path(__file__).resolve().parents[2] / "studio" / "graf"
 PROJECT = GRAF / "Synapse.Generator" / "Synapse.Generator"
 SCHEMA = GRAF / "schema" / "graph.schema.v4.json"
 

@@ -5,36 +5,40 @@ python := ".venv/bin/python"
 default:
     @just --list
 
+# --- Agenci i sesje interaktywne ---
+
 # Interaktywne sesje agentów
 agent-setup:
     bash setup/install-agent-profiles.sh
 
 agent-doctor:
-    bash scripts/agent/doctor.sh
+    bash setup/agent/doctor.sh
 
 skills-check:
-    {{ python }} scripts/agent/validate_skills.py
+    {{ python }} setup/agent/validate_skills.py
 
 claude *args:
-    bash scripts/agent/claude-interactive.sh {{ args }}
+    bash setup/agent/claude-interactive.sh {{ args }}
 
 codex *args:
-    bash scripts/agent/codex-interactive.sh {{ args }}
+    bash setup/agent/codex-interactive.sh {{ args }}
 
 codex-read *args:
-    bash scripts/agent/codex-interactive.sh --read-only -- {{ args }}
+    bash setup/agent/codex-interactive.sh --read-only -- {{ args }}
 
 codex-ship *args:
-    bash scripts/agent/codex-interactive.sh --ship -- {{ args }}
+    bash setup/agent/codex-interactive.sh --ship -- {{ args }}
 
 handoff:
-    {{ python }} scripts/agent/checkpoint.py
+    {{ python }} setup/agent/checkpoint.py
 
-# Wspólne API deterministycznego pipeline'u
+# --- Testy ---
+
+# Pełny pytest: wszystkie warstwy razem.
 test *args:
     {{ python }} -m pytest {{ args }}
 
-# Warstwy testów — pełny opis w README, sekcja „Testy: kontrakt kodu vs. realne środowisko”.
+# Warstwy testów — pełny opis w README, sekcja „Testy: pięć warstw i po co każda z nich".
 # Sam kontrakt kodu: szybka pętla edycja-test, bez zależności od maszyny.
 test-fast *args:
     {{ python }} -m pytest -m "not environment and not cli_contract and not probe and not e2e" {{ args }}
@@ -50,11 +54,11 @@ cli-check *args:
 # Czy testy w ogóle coś łapią: psuje KOPIĘ repo i sprawdza, czy robi się czerwono.
 # Zapisane kontrakty z audytu 2026-09-18; każdy MUSI wyjść jako WYKRYTE.
 mutate-check *args:
-    {{ python }} scripts/agent/mutate.py check {{ args }}
+    {{ python }} setup/agent/mutate.py check {{ args }}
 
 # Pojedyncza mutacja z pliku specyfikacji (tests/mutations/*.yaml).
 mutate spec:
-    {{ python }} scripts/agent/mutate.py one {{ spec }}
+    {{ python }} setup/agent/mutate.py one {{ spec }}
 
 # Kontrola STANU (nie kodu): spójność operacyjnego indeksu.
 index-check *args:
@@ -71,6 +75,8 @@ e2e *args:
 # Sondy na realnych danych lokalnych (target_repo, źródła) — tylko odczyt.
 probe *args:
     {{ python }} -m pytest -m probe {{ args }}
+
+# --- Potok: inicjalizacja i przygotowanie ---
 
 db-init:
     {{ python }} scripts/db_admin.py init
@@ -96,6 +102,8 @@ extract *args:
 
 llm task prompt_file *args:
     {{ python }} scripts/llm_client.py --task {{ task }} --prompt-file {{ prompt_file }} {{ args }}
+
+# --- Potok: przetwarzanie przedmiotów ---
 
 # B1: wycinek indeksu jednego przedmiotu, bez zmian materiałów.
 subject-prepare semester skrot *args:
@@ -124,8 +132,6 @@ subject-plan semester skrot *args:
 subject-decide *args:
     {{ python }} scripts/manual_decisions.py {{ args }}
 
-# Stabilne nazwy dalszych etapów — czekają na skrypty z TODO B9-B14.
-
 # B8: bramka przed apply. Kod wyjścia 2 = planu NIE WOLNO wykonać.
 subject-validate semester skrot *args:
     {{ python }} scripts/validate_plan.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
@@ -134,11 +140,23 @@ subject-validate semester skrot *args:
 subject-review semester skrot *args:
     {{ python }} scripts/review_report.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
 
+# B10: wykonanie ZAAKCEPTOWANEGO planu. Domyślnie dry-run — kopiuje dopiero z --yes,
+# najlepiej z --expect-hash <odcisk planu>, bo zgoda dotyczy konkretnego planu.
+# Bramka B8 jest wykonywana ponownie tutaj: plan odrzucony = kod 2 i zero kopii.
+subject-apply semester skrot *args:
+    {{ python }} scripts/apply.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
+
+# B11: hash po kopii wobec planu + kontrola drzewa. Kod 2 = NIE commituj materiałów.
+subject-verify semester skrot *args:
+    {{ python }} scripts/verify.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
+
+# --- Grafy i synapse ---
+
 # C3: vault dla synapse (semestr -> przedmiot -> plik) z indeksu; bez gita.
 synapse *args:
     {{ python }} scripts/synapse_export.py {{ args }}
 
-# C3: nasz vault przepuszczony przez PRAWDZIWY generator (studio/graf).
+# Marker 'vendor' to historyczna nazwa; dotyczy generatora w studio/graf/.
 vendor-check *args:
     {{ python }} -m pytest -m vendor {{ args }}
 
@@ -161,15 +179,7 @@ synapse-view *args:
 status *args:
     {{ python }} scripts/status_report.py {{ args }}
 
-# B10: wykonanie ZAAKCEPTOWANEGO planu. Domyślnie dry-run — kopiuje dopiero z --yes,
-# najlepiej z --expect-hash <odcisk planu>, bo zgoda dotyczy konkretnego planu.
-# Bramka B8 jest wykonywana ponownie tutaj: plan odrzucony = kod 2 i zero kopii.
-subject-apply semester skrot *args:
-    {{ python }} scripts/apply.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
-
-# B11: hash po kopii wobec planu + kontrola drzewa. Kod 2 = NIE commituj materiałów.
-subject-verify semester skrot *args:
-    {{ python }} scripts/verify.py --semester {{ semester }} --skrot {{ skrot }} {{ args }}
+# --- Studio ---
 
 # S0: studio — lokalny warsztat nad indeksem (studio/PLAN.md). Faza S0 jest TYLKO
 # do odczytu, a serwer nasłuchuje wyłącznie na 127.0.0.1 (adres spoza pętli
@@ -203,7 +213,7 @@ studio-graf *args:
       --no-git
     [ -d studio/graf/synapse-viewer/node_modules ] || npm --prefix studio/graf/synapse-viewer install
     npm --prefix studio/graf/synapse-viewer run build -- --base=/graf/
-    @echo "graf gotowy: http://127.0.0.1:8765/graf/ (albo zakładka „graf” w studiu)"
+    @echo "graf gotowy: http://127.0.0.1:8765/graf/ (albo zakładka „graf" w studiu)"
 
 # Front do postaci, którą serwuje `just studio`.
 studio-build:

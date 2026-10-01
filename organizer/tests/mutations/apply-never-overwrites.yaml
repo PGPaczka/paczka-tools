@@ -8,4 +8,4 @@ file: scripts/orglib/plan_apply.py
 find: 'BLOCKING_STATES: frozenset[str] = frozenset({CONFLICT, MISSING_SOURCE, OUTSIDE})'
 replace: 'BLOCKING_STATES: frozenset[str] = frozenset({MISSING_SOURCE, OUTSIDE})'
 tests:
-- tests/test_apply.py
+- tests/unit/test_apply.py

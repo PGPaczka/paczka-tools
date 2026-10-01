@@ -5,4 +5,4 @@ file: scripts/near_dupe.py
 find: '            "WHERE detection_method LIKE ?",'
 replace: '            "WHERE ? IS NOT NULL",'
 tests:
-- tests/test_near_dupe_cli.py
+- tests/cli/test_near_dupe_cli.py

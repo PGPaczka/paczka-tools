@@ -8,6 +8,6 @@ file: scripts/orglib/preview.py
 find: '    resolved = config.resolve_within(paths.work, relative_path)'
 replace: '    resolved = Path(paths.work) / relative_path'
 tests:
-- tests/test_studio_preview.py
-- tests/test_studio_s1_extended.py
-- tests/test_studio_clusters.py
+- tests/studio/test_studio_preview.py
+- tests/studio/test_studio_s1_extended.py
+- tests/studio/test_studio_clusters.py

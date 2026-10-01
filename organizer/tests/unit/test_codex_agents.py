@@ -2,7 +2,7 @@ from pathlib import Path
 import tomllib
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 CODEX_DIR = REPO_ROOT / ".codex"
 
 EXPECTED_AGENTS = {

@@ -8,5 +8,5 @@ file: studio/api/server.py
 find: '    if not address.is_loopback:'
 replace: '    if False:'
 tests:
-- tests/test_studio_server.py
-- tests/test_studio_cli_contract.py
+- tests/studio/test_studio_server.py
+- tests/studio/test_studio_cli_contract.py

@@ -2,7 +2,7 @@
 
 Reszta testów studia woła funkcje w tym samym procesie, więc sprawdza, co kod
 *zamierza* zrobić. Za mało: projekt zapłacił już raz za tę lukę przy backendach AI
-(patrz `tests/test_cli_contract.py`) — argv budowane poprawnie „w intencji” odbijało
+(patrz `tests/cli/test_cli_contract.py`) — argv budowane poprawnie „w intencji” odbijało
 się od prawdziwego CLI. Tutaj sprawdzamy trzy rzeczy, których atrapa nie złapie:
 
 1. ``python -m studio.api`` w ogóle da się uruchomić i przyjmuje nasze flagi;
