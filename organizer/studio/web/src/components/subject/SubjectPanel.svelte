@@ -1,11 +1,11 @@
 <script lang="ts">
-  import { getClusterDiff, type ClusterDiff, type ItemsPage, type SubjectDetail, type SubjectRow } from '../lib/api';
-  import { basename, count, percent, stamp } from '../lib/format';
-  import Bar from './Bar.svelte';
-  import ContentDiff from './ContentDiff.svelte';
+  import { getClusterDiff, type ClusterDiff, type ItemsPage, type SubjectDetail, type SubjectRow } from '../../lib/api';
+  import { basename, count, percent, stamp } from '../../lib/format';
+  import Bar from '../shell/Bar.svelte';
+  import ContentDiff from '../clusters/ContentDiff.svelte';
   import ItemList from './ItemList.svelte';
-  import Lightbox from './Lightbox.svelte';
-  import { previewImageUrl } from '../lib/api';
+  import Lightbox from '../shell/Lightbox.svelte';
+  import { previewImageUrl } from '../../lib/api';
 
   let {
     row,

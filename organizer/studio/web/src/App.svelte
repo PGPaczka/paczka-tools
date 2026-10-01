@@ -19,17 +19,17 @@
     defaultPanels,
     NARROW,
   } from './lib/prefs';
-  import QueuePanel from './components/QueuePanel.svelte';
-  import SubjectList from './components/SubjectList.svelte';
-  import SubjectPanel from './components/SubjectPanel.svelte';
-  import DecisionPanel from './components/DecisionPanel.svelte';
-  import ClusterPanel from './components/ClusterPanel.svelte';
-  import HistoryPanel from './components/HistoryPanel.svelte';
-  import FolderLinkPanel from './components/FolderLinkPanel.svelte';
-  import StatsPanel from './components/StatsPanel.svelte';
-  import GraphPanel from './components/GraphPanel.svelte';
-  import PlanPanel from './components/PlanPanel.svelte';
-  import SearchPanel from './components/SearchPanel.svelte';
+  import QueuePanel from './components/queue/QueuePanel.svelte';
+  import SubjectList from './components/subject/SubjectList.svelte';
+  import SubjectPanel from './components/subject/SubjectPanel.svelte';
+  import DecisionPanel from './components/queue/DecisionPanel.svelte';
+  import ClusterPanel from './components/clusters/ClusterPanel.svelte';
+  import HistoryPanel from './components/shell/HistoryPanel.svelte';
+  import FolderLinkPanel from './components/plan/FolderLinkPanel.svelte';
+  import StatsPanel from './components/shell/StatsPanel.svelte';
+  import GraphPanel from './components/graph/GraphPanel.svelte';
+  import PlanPanel from './components/plan/PlanPanel.svelte';
+  import SearchPanel from './components/shell/SearchPanel.svelte';
 
   type Mode = 'browse' | 'decide' | 'clusters' | 'history' | 'stats' | 'graph' | 'plan' | 'search' | 'folders';
 

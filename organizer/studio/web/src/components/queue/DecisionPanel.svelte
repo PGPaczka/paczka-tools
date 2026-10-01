@@ -1,6 +1,6 @@
 <script lang="ts">
   import TextPreview from './TextPreview.svelte';
-  import Lightbox from './Lightbox.svelte';
+  import Lightbox from '../shell/Lightbox.svelte';
   import {
     postDecision,
     postUndo,
@@ -17,8 +17,8 @@
     type ItemsPage,
     type DecisionRequest,
     type Preview,
-  } from '../lib/api';
-  import { basename, bytes, percent, dirname } from '../lib/format';
+  } from '../../lib/api';
+  import { basename, bytes, percent, dirname } from '../../lib/format';
 
   const CATEGORIES = [
     'egzamin', 'kolokwia', 'laboratoria', 'cwiczenia', 'projekt',

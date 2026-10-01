@@ -11,11 +11,11 @@
     type ClusterDiff,
     type ClustersPage,
     type Item,
-  } from '../lib/api';
-  import { basename, bytes, percent } from '../lib/format';
-  import { previewImageUrl } from '../lib/api';
+  } from '../../lib/api';
+  import { basename, bytes, percent } from '../../lib/format';
+  import { previewImageUrl } from '../../lib/api';
   import ContentDiff from './ContentDiff.svelte';
-  import Lightbox from './Lightbox.svelte';
+  import Lightbox from '../shell/Lightbox.svelte';
 
   interface Props {
     semester?: number | null;

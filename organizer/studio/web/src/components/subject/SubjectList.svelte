@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { SubjectRow } from '../lib/api';
-  import { count, stamp } from '../lib/format';
-  import Bar from './Bar.svelte';
+  import type { SubjectRow } from '../../lib/api';
+  import { count, stamp } from '../../lib/format';
+  import Bar from '../shell/Bar.svelte';
 
   let {
     subjects,

@@ -6,7 +6,7 @@
    * a decyzja „zostaw / duplikat / inna ścieżka" zapada po tym, CZYM plik jest.
    * Kolorowanie składni jest nadbudową: gdy go nie ma, widać czysty tekst.
    */
-  import { highlight } from '../lib/highlight';
+  import { highlight } from '../../lib/highlight';
 
   interface Props {
     text: string;

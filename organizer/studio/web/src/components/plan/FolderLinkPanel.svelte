@@ -16,8 +16,8 @@
     type FolderRow,
     type FolderLink,
     type FolderItems,
-  } from '../lib/api';
-  import { bytes, count } from '../lib/format';
+  } from '../../lib/api';
+  import { bytes, count } from '../../lib/format';
 
   type Side = 'a' | 'b';
 

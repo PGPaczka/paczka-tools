@@ -11,9 +11,9 @@
     type PlanOverview,
     type PlanTree,
     type Stage,
-  } from '../lib/api';
-  import { basename, bytes, count, percent } from '../lib/format';
-  import { collisionAt, moveTarget } from '../lib/plan';
+  } from '../../lib/api';
+  import { basename, bytes, count, percent } from '../../lib/format';
+  import { collisionAt, moveTarget } from '../../lib/plan';
 
   interface Props {
     semester?: number | null;

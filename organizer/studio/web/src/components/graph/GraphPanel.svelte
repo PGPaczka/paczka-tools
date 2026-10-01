@@ -8,8 +8,8 @@
     type GraphContentRef,
     type GraphStatus,
     getGraphScope,
-  } from '../lib/api';
-  import { bytes, percent } from '../lib/format';
+  } from '../../lib/api';
+  import { bytes, percent } from '../../lib/format';
 
   interface Props {
     semester?: number | null;

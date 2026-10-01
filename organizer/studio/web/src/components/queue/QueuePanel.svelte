@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { Dashboard, QueueStage } from '../lib/api';
-  import { count } from '../lib/format';
-  import Bar from './Bar.svelte';
+  import type { Dashboard, QueueStage } from '../../lib/api';
+  import { count } from '../../lib/format';
+  import Bar from '../shell/Bar.svelte';
 
   let {
     dashboard,

@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { getHistory, deleteDecision, type HistoryPage, type ManualDecision } from '../lib/api';
-  import { stamp } from '../lib/format';
+  import { getHistory, deleteDecision, type HistoryPage, type ManualDecision } from '../../lib/api';
+  import { stamp } from '../../lib/format';
 
   interface Props {
     onChanged?: () => void;

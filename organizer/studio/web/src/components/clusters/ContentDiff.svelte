@@ -7,8 +7,8 @@
    * Obie strony rysuje jedna pętla: wcześniej był to ten sam kod wklejony dwa razy,
    * przez co poprawka trafiała raz w lewą, raz w obie.
    */
-  import { previewImageUrl, type ClusterDiff, type Item } from '../lib/api';
-  import { bytes, percent } from '../lib/format';
+  import { previewImageUrl, type ClusterDiff, type Item } from '../../lib/api';
+  import { bytes, percent } from '../../lib/format';
 
   interface Props {
     diff: ClusterDiff | null;

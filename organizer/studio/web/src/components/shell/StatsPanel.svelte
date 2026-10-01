@@ -5,8 +5,8 @@
     runIndexStage,
     type LiveStats,
     type IndexStage,
-  } from '../lib/api';
-  import { count, percent } from '../lib/format';
+  } from '../../lib/api';
+  import { count, percent } from '../../lib/format';
 
   let stats = $state<LiveStats | null>(null);
   let loading = $state(false);

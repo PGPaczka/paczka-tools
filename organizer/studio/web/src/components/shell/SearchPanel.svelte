@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { searchItems, previewImageUrl, type Item } from '../lib/api';
-  import { bytes, percent } from '../lib/format';
+  import { searchItems, previewImageUrl, type Item } from '../../lib/api';
+  import { bytes, percent } from '../../lib/format';
   import Lightbox from './Lightbox.svelte';
 
   interface Props {

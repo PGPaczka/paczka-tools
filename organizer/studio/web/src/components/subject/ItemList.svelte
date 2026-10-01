@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { Item, ItemsPage } from '../lib/api';
-  import { bytes, count, dirname, percent, basename } from '../lib/format';
+  import type { Item, ItemsPage } from '../../lib/api';
+  import { bytes, count, dirname, percent, basename } from '../../lib/format';
 
   let {
     page,
