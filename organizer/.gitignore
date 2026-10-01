@@ -2,8 +2,33 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+.hypothesis/
 
-# Artefakty buildu vendorowanego grafu (studio/graf): dane grafu dla studia
-# powstają w 20_WORK/synapse, a te pliki nadpisuje tryb samodzielny `just synapse-view`.
+# Artefakty buildu grafu (studio/graf): dane grafu dla studia powstają
+# w 20_WORK/synapse, a te pliki nadpisuje tryb samodzielny `just synapse-view`.
 studio/graf/synapse-viewer/public/graph.json
 studio/graf/synapse-viewer/public/search-index.json
+
+# Artefakty buildu .NET i npm w studiu — odtwarzalne z `dotnet build` / `npm ci`.
+# Nadrzędny .gitignore ich nie wymienia, a bez tego `git status` w organizerze kłamie.
+**/bin/
+**/obj/
+node_modules/
+
+# Dane generowane przez potok, nie źródła. Każdy z tych plików odtwarza konkretny
+# etap, więc trzymanie ich w repo tylko zamraża jeden przebieg:
+#   reports/inventory.jsonl      — scan.py (B1), ślad źródeł, ~19 MB
+#   reports/folder_overlap.csv   — fold_hash.py, pokrycie katalogów
+#   reports/<SKROT>/*.jsonl      — manifest/plan/relacje/walidacja per przedmiot
+#   reports/<SKROT>/review.html  — review_report.py (B9)
+# Zostają w repo: STATUS.md, SOURCES_TREE.md, HANDOFF.md, README.md, dedup_summary.md
+# i bootstrap/ — jednorazowy pomiar z etapu A0, którego żaden skrypt nie odtworzy.
+reports/inventory.jsonl
+reports/folder_overlap.csv
+reports/*/manifest_slice.jsonl
+reports/*/plan.jsonl
+reports/*/plan.det.jsonl
+reports/*/relations.jsonl
+reports/*/unresolved.jsonl
+reports/*/validation.jsonl
+reports/*/review.html
