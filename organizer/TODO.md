@@ -2,7 +2,7 @@
 
 Lista zadań do odhaczania. Claude Code utrzymuje ją samodzielnie (patrz `CLAUDE.md`,
 sekcja „TODO.md”): odhacza po ukończeniu (`- [x] … (RRRR-MM-DD)`), dopisuje nowe
-pozycje, nieaktualne przekreśla z powodem. Źródło planu: `docs/ARCHITEKTURA_FINALv1.md`
+pozycje, nieaktualne przekreśla z powodem. Źródło planu: `docs/ARCHITEKTURA.md`
 (sekcja 13). Nazwy skryptów zgodne z README (Quickstart).
 
 Legenda: `[ ]` do zrobienia · `[x]` zrobione · `[~]` w toku · ~~przekreślone~~ nieaktualne
@@ -67,7 +67,7 @@ Legenda: `[ ]` do zrobienia · `[x]` zrobione · `[~]` w toku · ~~przekreślone
   5. **Dwie nowe warstwy testów**: `cli_contract` (argv kontra parser prawdziwych CLI, zero promptów i zero kosztu — wyłapuje historyczną wpadkę `--ignore-user-config` przed `exec`) i `e2e` (syntetyczna paczka przez cały łańcuch; pilnuje m.in. że `text_head` dociera z etapu extract do manifestu). `pytest.ini` z `--strict-markers`, recepty `just test-fast|env-check|cli-check|e2e|probe`, opis pięciu warstw w README wraz z wpadką, po której każda powstała.
   Testy: **723** (było 615). Każda poprawka zweryfikowana mutacyjnie — regresja czerwieni konkretny test po nazwie. (2026-09-18)
 - [x] B2e. Kontrole STANU (nie kodu) + własności granicy ścieżek. `scripts/orglib/integrity.py` i `scripts/doctor.py` (`just index-check`, `just sources-check`): (a) więzy indeksu, których schemat SQLite nie wyraża — `files.sha256` bez FK, łańcuchy i samowskazania `duplicate_of`, brakujący plik z głową tekstu, rodzaj treści rozjechany z mapą rozszerzeń; (b) niezmienność źródeł przez porównanie z tym, co zapisał skan (skasowanie, nadpisanie, obcięcie, samo dotknięcie pliku) — guard pilnuje **zamiaru**, ta kontrola sprawdza **skutek**. Na realnych danych czysto, 48 tys. plików poniżej 2 s. Przy pisaniu wyszło, że planowana kontrola „wiszący `duplicate_of`" powtarza gwarancję klucza obcego — usunięta, został test-granica pilnujący, by nikt jej nie dopisał z powrotem. Do tego własności granicy ścieżek na Hypothesis (`resolve_within_sources` nigdy nie wypuszcza poza korzeń, `_safe_path` nigdy nie zwraca `..`/NUL, `folder_path_for` zawsze zaczyna się paczką) i sondy na realnym stanie w warstwie `probe`. Reguły czasu (`mtime`) przeniesione do `orglib.db` i współdzielone ze skanem. Testy: **749**. (2026-09-18)
-- [x] B2f. Nazwy specjalne + powtarzalna warstwa mutacyjna. `tests/test_special_names.py` (21 testów) prowadzi przez skan → hash → extract → manifest nazwy z **realnego rozkładu źródeł** (zmierzonego, nie wymyślonego: spacja 47 289 plików, nawiasy 18 176, polskie znaki 30 073, wiele kropek 5 887, przecinek 405, `#`/`!` 386, `&`/`$`/`%` 191, ścieżka > 200 znaków 27, wiodący myślnik 2, apostrof 2, NFD **0** — więc nie testujemy). Domknięte dwie luki: gałąź `_is_encodable` (nazwy spoza UTF-8) nie miała testu mimo istnienia kodu, a ochrona przed nazwą udającą flagę CLI wynikała z implementacji, nie z asercji. **Pułapka złapana na sobie:** pierwsza wersja obu testów przeszła mutację na zielono — jeden przez błąd narzędzia (dwa wywołania `_is_encodable` w `scan.py`, mutowane tylko pierwsze), drugi realnie, bo w potoku ścieżka jest już absolutna i `abspath` nic nie zmieniał; doszedł test jednostkowy ze ścieżką względną. Narzędzie mutacyjne przeniesione do repo jako `scripts/agent/mutate.py` + katalog `tests/mutations/*.yaml` (10 kontraktów z tego audytu) i recepty `just mutate-check` / `just mutate SPEC`; domyślnie podmienia WSZYSTKIE wystąpienia wzorca. Testy: **770**, `just mutate-check` 10/10. (2026-09-18)
+- [x] B2f. Nazwy specjalne + powtarzalna warstwa mutacyjna. `tests/test_special_names.py` (21 testów) prowadzi przez skan → hash → extract → manifest nazwy z **realnego rozkładu źródeł** (zmierzonego, nie wymyślonego: spacja 47 289 plików, nawiasy 18 176, polskie znaki 30 073, wiele kropek 5 887, przecinek 405, `#`/`!` 386, `&`/`$`/`%` 191, ścieżka > 200 znaków 27, wiodący myślnik 2, apostrof 2, NFD **0** — więc nie testujemy). Domknięte dwie luki: gałąź `_is_encodable` (nazwy spoza UTF-8) nie miała testu mimo istnienia kodu, a ochrona przed nazwą udającą flagę CLI wynikała z implementacji, nie z asercji. **Pułapka złapana na sobie:** pierwsza wersja obu testów przeszła mutację na zielono — jeden przez błąd narzędzia (dwa wywołania `_is_encodable` w `scan.py`, mutowane tylko pierwsze), drugi realnie, bo w potoku ścieżka jest już absolutna i `abspath` nic nie zmieniał; doszedł test jednostkowy ze ścieżką względną. Narzędzie mutacyjne przeniesione do repo jako `setup/agent/mutate.py` (wtedy `scripts/agent/`) + katalog `tests/mutations/*.yaml` (10 kontraktów z tego audytu) i recepty `just mutate-check` / `just mutate SPEC`; domyślnie podmienia WSZYSTKIE wystąpienia wzorca. Testy: **770**, `just mutate-check` 10/10. (2026-09-18)
 - [x] B3. `scripts/classify.py` + `scripts/orglib/classify.py` — deterministyka i heurystyka bez AI i bez kosztu: manifest (B1) → `plan.det.jsonl` (decyzje wg `prompts/plan_line.schema.json`) i `unresolved.jsonl` (kolejka dla B5, w kształcie manifestu). Recepta `just subject-classify SEM SKROT`. Kolejność reguł: ground truth (treść już w paczce, `run_id='ground_truth'`, conf 1.0, `skip`) → artefakt kompilacji → media poza paczkę → słowa kluczowe kategorii. Ustalenia:
   - **Cała wiedza dziedzinowa jest w configu**: nazwy folderów, słowa kluczowe (prefiksowe, bo polski odmienia), `target_templates`, priorytety i `forms` w `syntax.yaml`; wagi sygnałów i progi w `thresholds.yaml: classify`. W kodzie nie ma ani jednej nazwy kategorii.
   - **Sygnał z katalogu liczy się od NAJBLIŻSZEGO plikowi**: `Ćwiczenia/2018/kolokwium2/zad.c` to kolokwium leżące w dziale ćwiczeń, a nie remis dwóch kategorii. Płytszy katalog liczy się o `conflict_penalty` słabiej — zostaje w grze, gdyby `forms` wykluczyły tę bliższą kategorię.
@@ -167,6 +167,26 @@ Legenda: `[ ]` do zrobienia · `[x]` zrobione · `[~]` w toku · ~~przekreślone
 - [ ] D3. Semestry magisterskie: uzupełnić `subjects.yaml: magisterskie` przed ich przetwarzaniem
 
 ## E. Dokumentacja
+
+- [x] E9. Porządki w układzie repo. `README.md` 644 → 149 linii (sekcja skryptów dublowała
+  `docs/CLI.md` w 13 z 14 komend — wycięta, proza uratowana do CLI.md, które urosło 289 → 438);
+  wydzielone `docs/{TESTY,AGENCI,INSTALACJA}.md`. `docs/ARCHITEKTURA_FINALv1.md` → `ARCHITEKTURA.md`
+  (11 odwołań). Archiwum `reports/historia/`: zamknięta lista QoL (22/22) i ocena Claude Code
+  sprzed wdrożenia. 27 MB generowanych artefaktów wypisane z gita (`inventory.jsonl` 19 MB,
+  `reports/AKO/*`, `folder_overlap.csv`) + `.gitignore` tłumaczy, co jest artefaktem.
+  `pytest.ini` → `pyproject.toml` (+ metadane projektu, `pythonpath` z `setup`).
+  69 płaskich testów → `tests/{unit,studio,cli,synapse,e2e}/`. `scripts/agent/` → `setup/agent/`,
+  `setup/statusline.sh` → `.claude/statuslines/`. `studio/api/queries.py` (1099) → pakiet po
+  domenach (funkcje AST-identyczne). `studio/web`: 16 komponentów do 6 podkatalogów,
+  `lib/api.ts` (940) → `lib/api/` (11 modułów; CSS bajtowo identyczny po normalizacji hashy).
+  Naprawione przy okazji: cicha ściema `mutate-check` (patrz HANDOFF), `SKILLS.md` obiecywał
+  nieistniejące `size_report.md`/`exact_duplicates.csv`, `justfile` odsyłał do nieistniejącego
+  nagłówka README, martwe `confidence_limits` w `same_day_groups`. (2026-10-01)
+- [ ] E10. `reports/HANDOFF.md` ma 75 kB i DWA nagłówki — nie da się tego ciąć, bo nie ma po
+  czym. Wprowadzić `## YYYY-MM-DD` per sesja, potem archiwizować starsze do `reports/sesje/`,
+  zostawiając w `HANDOFF.md` tylko stan bieżący.
+- [ ] E11. `DecisionPanel.svelte` ma 1183 linie. Podział na pod-komponenty wymaga oglądu
+  w działającej aplikacji (zrzuty przed/po), więc jest osobną decyzją, nie refaktorem „na słowo".
 
 - [x] E1. README: sekcja „Skrypty” z realnymi nazwami i kolejnością po A3–A6 (2026-09-17)
 - [x] E2. `reports/SOURCES_TREE.md` (generowany przez `scan.py`; pierwszy snapshot: 14 paczek, 9 540 katalogów, 48 049 plików, 37,0 GiB) (2026-09-17)

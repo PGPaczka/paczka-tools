@@ -1,4 +1,11 @@
-# Claude Code pod organizację materiałów — ocena 4 repo + rekomendowana konfiguracja
+# Ocena 4 repo pod Claude Code i rekomendowana konfiguracja (2026-09-17)
+
+> **Dokument historyczny.** To ocena sprzed wdrożenia, nie instrukcja konfiguracji.
+> Wszystkie cztery rzeczy z sekcji „Sensowne następne kroki” zostały zrobione:
+> `CLAUDE.md`, `AGENTS.md`, `.claude/settings.json` i `scripts/orglib/llm_client.py`
+> istnieją. Bieżący stan konfiguracji opisują `CLAUDE.md` i `setup/PLUGINS.md`.
+
+Poniżej oryginalna treść z 2026-09-17, bez zmian:
 
 > Kontekst: plan Pro + ~$75 kredytów extra usage (wygasają za kilka dni). Cel: **Fable jako koordynator**, a research/edycję materiałów wykonują tańsze modele (Haiku/Sonnet, Opus tylko gdy trzeba), żeby nie spalić kredytów naraz. Praca przez Claude Code w repo/folderze.
 >

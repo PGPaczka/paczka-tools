@@ -1,6 +1,6 @@
 # PLUGINS.md — co instalujemy pod sesję organizera i dlaczego
 
-Uzasadnienie i ocena źródeł: `docs/CLAUDE_CODE_SETUP.md`. Zasada: **minimum ruchomych części**,
+Uzasadnienie i ocena źródeł (historyczna): `reports/historia/2026-09-17-ocena-claude-code.md`. Zasada: **minimum ruchomych części**,
 Fable koordynuje, Haiku/Sonnet/Opus wykonują. Wszystko poniżej stawia `setup/install.sh`.
 
 ## Instalujemy
@@ -9,7 +9,7 @@ Fable koordynuje, Haiku/Sonnet/Opus wykonują. Wszystko poniżej stawia `setup/i
 |---|---|---|---|
 | **muxer** (plugin, marketplace `muxer-local`) | `DangerousYams/muxer` | klon do `~/.claude/vendor/muxer` → `claude plugin marketplace add` → `claude plugin install muxer@muxer-local` | rdzeń: agenty `muxer:scout/runner/writer/builder/reviewer/arbiter/oracle`, hook SessionStart z polityką routingu, guard PreToolUse pinujący model wbudowanym subagentom, raport kosztów po turze (`/mux`) |
 | **5 agentów VoltAgent** | `VoltAgent/awesome-claude-code-subagents` | sparse clone → kopia do `.claude/agents/` (już **commitowane**, z `model:` i `tools:` zaudytowanymi; skrypt kopiuje tylko przy `--refresh-agents`) | `python-pro`, `sql-pro`, `test-automator` (Sonnet) piszą pipeline; `documentation-engineer`, `readme-generator` (Haiku) piszą docs |
-| **status line** | `centminmod/my-claude-code-setup` (README) | `setup/statusline.sh` → `~/.claude/statuslines/statusline.sh` + klucz `statusLine` w `~/.claude/settings.json` | podgląd kontekstu i kosztu sesji na żywo |
+| **status line** | `centminmod/my-claude-code-setup` (README) | `.claude/statuslines/statusline.sh` → `~/.claude/statuslines/statusline.sh` + klucz `statusLine` w `~/.claude/settings.json` | podgląd kontekstu i kosztu sesji na żywo |
 | **jq** | apt | `--with-apt` | wymagany przez hooki muxera (bez jq hooki po cichu nic nie robią) i status line |
 | **rmlint, ncdu, tesseract(+pol), poppler-utils** | apt | `--with-apt` | bootstrap dedupu, raport rozmiaru, OCR na żądanie, `pdftotext` awaryjnie |
 | **just** | binarka z GitHub releases | `~/.local/bin/just` | runner komend `subject-start/plan/apply/pr` (opcjonalny) |
@@ -39,10 +39,9 @@ więc natywne role w `.codex/agents/`:
 | Python / SQL / testy | agenci VoltAgent | `python_pro`, `sql_pro`, `test_automator` | workspace-write |
 | docs / README | agenci VoltAgent | `documentation_engineer`, `readme_generator` | workspace-write |
 
-Model subagentów Codexa jest przypięty centralnie w `.codex/config.toml`, a
-reasoning i sandbox per rola. Agenci Claude `codex` i `agy` pozostają
-Claude-specyficznymi delegatorami zewnętrznych CLI i celowo nie mają
-rekurencyjnych odpowiedników po stronie Codexa.
+Reguły tych rół — przypisanie modelu, reasoningu i sandboxu oraz to, dlaczego
+delegatory `codex` i `agy` nie mają odpowiedników po stronie Codexa — opisuje
+`AGENTS.md`, sekcja „Subagenci". Ten plik mówi tylko, co instalujemy.
 
 ## Świadomie pomijamy
 
@@ -55,7 +54,7 @@ rekurencyjnych odpowiedników po stronie Codexa.
 | shanraisshan/claude-code-best-practice | to dokumentacja; wzorzec Research→Plan→Execute→Review→Ship jest już w `CLAUDE.md` |
 | oficjalne pluginy Anthropic (`code-review`, `commit-commands` itd.) | nic z tego nie jest potrzebne do pipeline'u; dokładać punktowo, gdy pojawi się potrzeba |
 
-## Po instalacji — test kosztowy (z `docs/CLAUDE_CODE_SETUP.md`)
+## Po instalacji — test kosztowy
 1. `cd paczka-tools/organizer && just claude` → `/mux` pokazuje tabelę routingu.
 2. Małe zadanie: „zaprojektuj `CREATE TABLE` dla `files` + `content` wg ARCHITEKTURA §4, zleć sql-pro”.
 3. Raport muxera po turze ma pokazać: Fable = koordynacja (mało tokenów), Sonnet = praca.

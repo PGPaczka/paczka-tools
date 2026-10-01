@@ -2,6 +2,27 @@
 
 ## Kontekst ręczny
 
+- **Porządki w układzie repo (2026-10-01).** Audyt czterema agentami + wykonanie. Co warto
+  pamiętać, bo wyszło inaczej, niż zakładał audyt:
+  - **`orglib` to warstwa WSPÓŁDZIELONA, nie „miejsce na logikę".** Audyt kazał wynieść
+    ~2000 linii z `fold_hash.py`, `synapse_export.py`, `scan_target.py`, `scan.py`,
+    `dedup_report.py`. Odrzucone: każdy z nich ma jednego konsumenta (własne CLI), `studio`
+    nie importuje żadnego, a kryterium z `docs/PIPELINE.md:78` to współdzielenie CLI↔studio.
+    Przenosiny wymagałyby przepisania 10 importów testowych i 2 specyfikacji mutacji bez zysku.
+  - **Pliki „śmieci" w `studio/graf/` są trzymane celowo** — `studio/graf/CLAUDE.md:21` mówi to
+    wprost i ostrzega, że rozgryzanie tego kosztuje dzień. Nie usuwać.
+  - **`server.py` nie dubluje `app.py`** (launcher z bramką loopbacka vs routing) — audyt mylił się.
+  - **Pułapka złapana na sobie:** `setup/agent/mutate.py` kopiował do piaskownicy `pytest.ini`,
+    który zniknął przy przejściu na `pyproject.toml`. Bez `pythonpath` KAŻDY test w piaskownicy
+    padał na `ModuleNotFoundError`, więc `mutate-check` raportował `35/35` **nie sprawdzając
+    niczego**. Cicha zielona ściema. Jeśli kiedyś zmienisz plik konfiguracji pytesta, sprawdź `_COPIED`.
+  - **Synchronizacja z `Billypl/synapse` zamknięta.** `vendor/synapse` (klon, 205 MB, 9 commitów
+    na `feat/paczka-integration` nigdy niewypchniętych) jest do usunięcia — treść jest w
+    `studio/graf/`, które jest dalej. `docs/SYNAPSE.md` już to odnotowuje. Samo `rm -rf` odbiło
+    się od uprawnień sesji, więc katalog MOŻE jeszcze leżeć na dysku.
+  - Bramki po całości: `just test` **1480 passed, 2 skipped**, `mutate-check` **35/35**,
+    `npx vitest` **36/36**, `npm run build` i `svelte-check` **0/0**.
+
 - **Macierz pokrycia ustawia zakres pracy (2026-10-01).** Klik w komórkę
   `przedmiot × kategoria` otwiera kolejkę decyzji zawężoną do tego przedmiotu i tej
   kategorii. Szczegóły — `studio/TODO-studio.md`. Dwie rzeczy do zapamiętania:
@@ -353,12 +374,207 @@
 - Stan akceptacji planu: `brak` — nie przygotowano ani nie zaakceptowano planu migracji materiałów.
 
 <!-- BEGIN AUTO -->
-- Odświeżono: 2026-10-01T00:47:09+02:00
+- Odświeżono: 2026-10-01T12:05:03+02:00
 - Branch: `master`
-- Commit: `ab44a66`
+- Commit: `598ec60`
 - Git status:
   ```text
-  M reports/HANDOFF.md
+  M .claude/agents/documentation-engineer.md
+   M .claude/agents/python-pro.md
+   M .claude/agents/readme-generator.md
+   M .claude/agents/sql-pro.md
+   M .claude/agents/test-automator.md
+   M .claude/skills/organizer-first-pass/SKILL.md
+  R  setup/statusline.sh -> .claude/statuslines/statusline.sh
+   M .gitignore
+   M AGENTS.md
+   M README.md
+   M SKILLS.md
+   M TODO.md
+  RM docs/ARCHITEKTURA_FINALv1.md -> docs/ARCHITEKTURA.md
+   M docs/CLI.md
+   M docs/SYNAPSE.md
+   M justfile
+   D prompts/.gitkeep
+  A  pyproject.toml
+  D  pytest.ini
+  D  reports/AKO/manifest_slice.jsonl
+  D  reports/AKO/plan.det.jsonl
+  D  reports/AKO/plan.jsonl
+  D  reports/AKO/relations.jsonl
+  D  reports/AKO/review.html
+  D  reports/AKO/unresolved.jsonl
+   M reports/README.md
+   M reports/STATUS.md
+  D  reports/folder_overlap.csv
+  RM docs/CLAUDE_CODE_SETUP.md -> reports/historia/2026-09-17-ocena-claude-code.md
+  RM QoL-todo.md -> reports/historia/2026-09-24-qol.md
+  D  reports/inventory.jsonl
+   M scripts/orglib/llm_client.py
+   M setup/PLUGINS.md
+  R  scripts/agent/checkpoint.py -> setup/agent/checkpoint.py
+  R  scripts/agent/claude-interactive.sh -> setup/agent/claude-interactive.sh
+  R  scripts/agent/codex-interactive.sh -> setup/agent/codex-interactive.sh
+  R  scripts/agent/common.sh -> setup/agent/common.sh
+  R  scripts/agent/doctor.sh -> setup/agent/doctor.sh
+  RM scripts/agent/mutate.py -> setup/agent/mutate.py
+  R  scripts/agent/validate_skills.py -> setup/agent/validate_skills.py
+   M setup/install.sh
+   M setup/requirements.txt
+   M studio/api/__init__.py
+  RM studio/api/queries.py -> studio/api/queries/dashboard.py
+   D studio/docs/screens/10e-graf-skupiska.png
+   D studio/docs/screens/10f-graf-podglad.png
+   D studio/docs/screens/13c-telefon-notatka.png
+   D studio/graf/Synapse.Generator/Synapse.Generator.Tests/UnitTest1.cs
+   M studio/web/src/App.svelte
+  RM studio/web/src/components/ClusterPanel.svelte -> studio/web/src/components/clusters/ClusterPanel.svelte
+  RM studio/web/src/components/ContentDiff.svelte -> studio/web/src/components/clusters/ContentDiff.svelte
+  RM studio/web/src/components/GraphPanel.svelte -> studio/web/src/components/graph/GraphPanel.svelte
+  RM studio/web/src/components/FolderLinkPanel.svelte -> studio/web/src/components/plan/FolderLinkPanel.svelte
+  RM studio/web/src/components/PlanPanel.svelte -> studio/web/src/components/plan/PlanPanel.svelte
+  RM studio/web/src/components/DecisionPanel.svelte -> studio/web/src/components/queue/DecisionPanel.svelte
+  RM studio/web/src/components/QueuePanel.svelte -> studio/web/src/components/queue/QueuePanel.svelte
+  RM studio/web/src/components/TextPreview.svelte -> studio/web/src/components/queue/TextPreview.svelte
+  R  studio/web/src/components/Bar.svelte -> studio/web/src/components/shell/Bar.svelte
+  RM studio/web/src/components/HistoryPanel.svelte -> studio/web/src/components/shell/HistoryPanel.svelte
+  R  studio/web/src/components/Lightbox.svelte -> studio/web/src/components/shell/Lightbox.svelte
+  RM studio/web/src/components/SearchPanel.svelte -> studio/web/src/components/shell/SearchPanel.svelte
+  RM studio/web/src/components/StatsPanel.svelte -> studio/web/src/components/shell/StatsPanel.svelte
+  RM studio/web/src/components/ItemList.svelte -> studio/web/src/components/subject/ItemList.svelte
+  RM studio/web/src/components/SubjectList.svelte -> studio/web/src/components/subject/SubjectList.svelte
+  RM studio/web/src/components/SubjectPanel.svelte -> studio/web/src/components/subject/SubjectPanel.svelte
+  A  studio/web/src/lib/api/_client.ts
+  A  studio/web/src/lib/api/clusters.ts
+  A  studio/web/src/lib/api/dashboard.ts
+  A  studio/web/src/lib/api/decisions.ts
+  A  studio/web/src/lib/api/folders.ts
+  A  studio/web/src/lib/api/graph.ts
+  A  studio/web/src/lib/api/history.ts
+  A  studio/web/src/lib/api/index.ts
+  A  studio/web/src/lib/api/items.ts
+  RM studio/web/src/lib/api.ts -> studio/web/src/lib/api/plan.ts
+  A  studio/web/src/lib/api/preview.ts
+  A  studio/web/src/lib/api/stats.ts
+  R  reports/AKO/validation.jsonl -> tests/cli/__init__.py
+  R  tests/test_build_plan_cli.py -> tests/cli/test_build_plan_cli.py
+  RM tests/test_classify_cli.py -> tests/cli/test_classify_cli.py
+  R  tests/test_cli_contract.py -> tests/cli/test_cli_contract.py
+  RM tests/test_near_dupe_cli.py -> tests/cli/test_near_dupe_cli.py
+  R  tests/test_review_report_cli.py -> tests/cli/test_review_report_cli.py
+  R  tests/test_validate_plan_cli.py -> tests/cli/test_validate_plan_cli.py
+  A  tests/e2e/__init__.py
+  RM tests/test_e2e_pipeline.py -> tests/e2e/test_e2e_pipeline.py
+   M tests/mutations/apply-gate-blocks.yaml
+   M tests/mutations/apply-never-overwrites.yaml
+   M tests/mutations/classify-det-plan-feeds-ai.yaml
+   M tests/mutations/classify-ignore-all-copies.yaml
+   M tests/mutations/classify-nearest-folder.yaml
+   M tests/mutations/classify-nested-category-root.yaml
+   M tests/mutations/classify-number-padding.yaml
+   M tests/mutations/classify-reason-signal.yaml
+   M tests/mutations/cli-flag-placement.yaml
+   M tests/mutations/converter-absolute-path.yaml
+   M tests/mutations/db-migration-atomic.yaml
+   M tests/mutations/ground-truth-delete-guard.yaml
+   M tests/mutations/guard-tool-name.yaml
+   M tests/mutations/guard-word-list.yaml
+   M tests/mutations/hashes-separator.yaml
+   M tests/mutations/jsonl-line-splitting.yaml
+   M tests/mutations/kinds-vs-schema.yaml
+   M tests/mutations/manifest-text-head.yaml
+   M tests/mutations/near-dupe-missing-signature.yaml
+   M tests/mutations/near-dupe-own-slice.yaml
+   M tests/mutations/path-containment.yaml
+   M tests/mutations/plan-ground-truth-protected.yaml
+   M tests/mutations/plan-hash-verified.yaml
+   M tests/mutations/plan-lint-exit-code.yaml
+   M tests/mutations/plan-lint-windows-names.yaml
+   M tests/mutations/review-escapes-source-names.yaml
+   M tests/mutations/scan-non-utf8-names.yaml
+   M tests/mutations/status-ground-truth-vs-plan.yaml
+   M tests/mutations/studio-apply-gate.yaml
+   M tests/mutations/studio-loopback-only.yaml
+   M tests/mutations/studio-preview-containment.yaml
+   M tests/mutations/studio-vault-containment.yaml
+   M tests/mutations/synapse-node-type.yaml
+   M tests/mutations/synapse-relation-kind.yaml
+   M tests/mutations/verify-hash-after-copy.yaml
+  A  tests/studio/__init__.py
+  R  tests/test_studio_api.py -> tests/studio/test_studio_api.py
+  RM tests/test_studio_cli_contract.py -> tests/studio/test_studio_cli_contract.py
+  R  tests/test_studio_clusters.py -> tests/studio/test_studio_clusters.py
+  R  tests/test_studio_decisions.py -> tests/studio/test_studio_decisions.py
+  R  tests/test_studio_folder_links.py -> tests/studio/test_studio_folder_links.py
+  R  tests/test_studio_graph.py -> tests/studio/test_studio_graph.py
+  R  tests/test_studio_graph_stage.py -> tests/studio/test_studio_graph_stage.py
+  R  tests/test_studio_item_names.py -> tests/studio/test_studio_item_names.py
+  R  tests/test_studio_linked_folder_decisions.py -> tests/studio/test_studio_linked_folder_decisions.py
+  R  tests/test_studio_merge.py -> tests/studio/test_studio_merge.py
+  R  tests/test_studio_package_rename.py -> tests/studio/test_studio_package_rename.py
+  R  tests/test_studio_pipeline.py -> tests/studio/test_studio_pipeline.py
+  RM tests/test_studio_plan.py -> tests/studio/test_studio_plan.py
+  R  tests/test_studio_plan_conflicts.py -> tests/studio/test_studio_plan_conflicts.py
+  R  tests/test_studio_preview.py -> tests/studio/test_studio_preview.py
+  R  tests/test_studio_rename.py -> tests/studio/test_studio_rename.py
+  RM tests/test_studio_s1_extended.py -> tests/studio/test_studio_s1_extended.py
+  R  tests/test_studio_s4.py -> tests/studio/test_studio_s4.py
+  R  tests/test_studio_same_day.py -> tests/studio/test_studio_same_day.py
+  R  tests/test_studio_server.py -> tests/studio/test_studio_server.py
+  A  tests/synapse/__init__.py
+  R  tests/test_synapse_export_cli.py -> tests/synapse/test_synapse_export_cli.py
+  R  tests/test_synapse_group_level.py -> tests/synapse/test_synapse_group_level.py
+  R  tests/test_synapse_vault.py -> tests/synapse/test_synapse_vault.py
+  RM tests/test_synapse_vendor_contract.py -> tests/synapse/test_synapse_vendor_contract.py
+  A  tests/unit/__init__.py
+  RM tests/test_agent_guard.py -> tests/unit/test_agent_guard.py
+  R  tests/test_ai_resolve.py -> tests/unit/test_ai_resolve.py
+  R  tests/test_apply.py -> tests/unit/test_apply.py
+  R  tests/test_classify.py -> tests/unit/test_classify.py
+  RM tests/test_codex_agents.py -> tests/unit/test_codex_agents.py
+  R  tests/test_config.py -> tests/unit/test_config.py
+  R  tests/test_db.py -> tests/unit/test_db.py
+  R  tests/test_db_admin.py -> tests/unit/test_db_admin.py
+  RM tests/test_db_migration.py -> tests/unit/test_db_migration.py
+  R  tests/test_dedup_report.py -> tests/unit/test_dedup_report.py
+  RM tests/test_environment.py -> tests/unit/test_environment.py
+  R  tests/test_extract_text.py -> tests/unit/test_extract_text.py
+  R  tests/test_fold_hash.py -> tests/unit/test_fold_hash.py
+  R  tests/test_folder_links.py -> tests/unit/test_folder_links.py
+  R  tests/test_hash_files.py -> tests/unit/test_hash_files.py
+  R  tests/test_hashes.py -> tests/unit/test_hashes.py
+  R  tests/test_integrity.py -> tests/unit/test_integrity.py
+  R  tests/test_jsonl.py -> tests/unit/test_jsonl.py
+  R  tests/test_kinds.py -> tests/unit/test_kinds.py
+  R  tests/test_llm_client.py -> tests/unit/test_llm_client.py
+  R  tests/test_manual_decisions.py -> tests/unit/test_manual_decisions.py
+  R  tests/test_naming.py -> tests/unit/test_naming.py
+  R  tests/test_near_dupe.py -> tests/unit/test_near_dupe.py
+  R  tests/test_path_safety_properties.py -> tests/unit/test_path_safety_properties.py
+  R  tests/test_plan_build.py -> tests/unit/test_plan_build.py
+  R  tests/test_plan_lint.py -> tests/unit/test_plan_lint.py
+  R  tests/test_prepare_subject.py -> tests/unit/test_prepare_subject.py
+  R  tests/test_preview_archive.py -> tests/unit/test_preview_archive.py
+  R  tests/test_review.py -> tests/unit/test_review.py
+  R  tests/test_scan.py -> tests/unit/test_scan.py
+  R  tests/test_scan_target.py -> tests/unit/test_scan_target.py
+  R  tests/test_skills.py -> tests/unit/test_skills.py
+  R  tests/test_special_names.py -> tests/unit/test_special_names.py
+  R  tests/test_status_report.py -> tests/unit/test_status_report.py
+  R  tests/test_subject_manifest.py -> tests/unit/test_subject_manifest.py
+  R  tests/test_subjects_vs_target_repo.py -> tests/unit/test_subjects_vs_target_repo.py
+  R  tests/test_textextract.py -> tests/unit/test_textextract.py
+  RM tests/test_verify.py -> tests/unit/test_verify.py
+  ?? docs/AGENCI.md
+  ?? docs/INSTALACJA.md
+  ?? docs/TESTY.md
+  ?? studio/api/queries/__init__.py
+  ?? studio/api/queries/_common.py
+  ?? studio/api/queries/clusters.py
+  ?? studio/api/queries/items.py
+  ?? studio/api/queries/plan.py
+  ?? studio/api/queries/preview.py
+  ?? studio/api/queries/stats.py
   ```
 - Pierwsze otwarte TODO: - [ ] B12. `scripts/provenance.py` — `reports/provenance.jsonl` + README per przedmiot do `paczka_meta/` + `00_SOURCES/linki.txt` z `source_packages`
 <!-- END AUTO -->

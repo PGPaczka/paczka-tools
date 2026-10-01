@@ -11,12 +11,12 @@ oficjalnej strony przedmiotów) — organizer robi to samo, tylko ze starych pac
 
 - **Zaczynasz tutaj:** [`docs/PIPELINE.md`](docs/PIPELINE.md) — co znaczy każdy etap,
   jakiej decyzji wymaga i jak go przejść w studiu
-- Architektura: [`docs/ARCHITEKTURA_FINALv1.md`](docs/ARCHITEKTURA_FINALv1.md)
+- Architektura: [`docs/ARCHITEKTURA.md`](docs/ARCHITEKTURA.md)
 - Struktura repo i organizacji: [`docs/ORGANIZACJA.md`](docs/ORGANIZACJA.md)
 - Zasady wspólne agentów: [`AGENTS.md`](AGENTS.md); adapter Claude:
   [`CLAUDE.md`](CLAUDE.md)
 - Setup Claude Code (muxer, agenty, skille, status line): [`setup/PLUGINS.md`](setup/PLUGINS.md),
-  ocena źródeł: [`docs/CLAUDE_CODE_SETUP.md`](docs/CLAUDE_CODE_SETUP.md)
+  ocena źródeł (historyczna): [`reports/historia/2026-09-17-ocena-claude-code.md`](reports/historia/2026-09-17-ocena-claude-code.md)
 
 ## Idea w jednym zdaniu
 
@@ -24,6 +24,35 @@ Skrypty robią wszystko, co da się ustalić deterministycznie (hash, dedup,
 klasyfikacja po ścieżce/nazwie); AI dostaje wyłącznie niejednoznaczne resztki,
 jeden przedmiot na raz; człowiek zatwierdza plan zanim cokolwiek zostanie
 skopiowane. Źródła są read-only, nic nie jest kasowane, provenance zachowane.
+
+## Quickstart
+
+```bash
+bash setup/install.sh --with-apt   # raz na maszynę
+just db-init
+
+# 1. Pierwszy przebieg na całości źródeł (nic nie kasuje)
+just scan && just hash && just fold-hash && just dedup-report && just extract
+just scan-target                   # ground truth: co już leży w repo paczki
+just status                        # reports/STATUS.md — przedmioty × etapy
+
+# 2. Jeden przedmiot od początku do końca
+just subject-prepare 3 AKO
+just subject-classify 3 AKO
+just subject-relate 3 AKO
+just subject-ai-resolve 3 AKO
+just subject-plan 3 AKO
+just subject-validate 3 AKO        # bramka: kod 2 = planu NIE wolno wykonać
+just subject-review 3 AKO          # reports/AKO/review.html do obejrzenia
+
+# 3. Dopiero po Twojej akceptacji konkretnego planu
+just subject-apply 3 AKO                                  # DRY-RUN
+just subject-apply 3 AKO --yes --expect-hash <odcisk>     # wykonanie
+just subject-verify 3 AKO                                 # dowód; potem commit
+```
+
+Pełny przewodnik z wariantami i diagnostyką: **`docs/CLI.md`**. To samo
+w przeglądarce: **`studio/README.md`** (`just studio`).
 
 ## Pipeline
 
@@ -38,373 +67,20 @@ Co każdy etap **znaczy** i jakiej decyzji od Ciebie wymaga —
 Wynik (`apply`) trafia do `paczka/` w klonie repo docelowego, na branchu
 `subject/{SKROT}`, i dalej jako PR. Kod i operacyjne raporty zostają tutaj.
 
-## Testy: pięć warstw i po co każda z nich
+## Testy
 
-Zasada nadrzędna: **jeśli coś nie działa, test ma być czerwony.** Nie łagodzimy
-asercji, żeby przeszła — naprawiamy to, co ją psuje. Pominięcie (`skip`) jest
-dozwolone wyłącznie przy braku lokalnych DANYCH, nigdy przy braku sprawności.
+Pięć warstw (kontrakt kodu, środowisko, kontrakt CLI, e2e, sonda) plus
+własności i warstwa mutacyjna — co sprawdza każda i dlaczego akurat ten
+podział, w [`docs/TESTY.md`](docs/TESTY.md).
 
-| Warstwa | Marker | Co sprawdza | Kiedy czerwona |
-|---|---|---|---|
-| Kontrakt kodu | *(brak)* | logika na atrapach, `tmp_path`, deterministycznie | błąd w logice |
-| Środowisko | `environment` | realne biblioteki i binarki, wersje minimalne | brak/zepsuta zależność |
-| Kontrakt CLI | `cli_contract` | argv backendów AI kontra parser prawdziwego CLI | zła albo źle umieszczona flaga |
-| E2E | `e2e` | cały łańcuch etapów na syntetycznej paczce | rozjazd styku między skryptami |
-| Sonda | `probe` | realny STAN: spójność indeksu, niezmienność źródeł, `target_repo` | naruszony niezmiennik; brak danych = skip |
-| Własności | *(brak)* | granica ścieżek dla KAŻDEGO wejścia (Hypothesis) | wejście, które ucieka poza korzeń |
-| Mutacyjna | *(osobno)* | czy testy w ogóle coś łapią (`tests/mutations/*.yaml`) | kontrakt przestał być pilnowany |
+## Skrypty
 
-```bash
-just test        # wszystko (~35 s)
-just test-fast   # sam kontrakt kodu, do pętli edycja-test
-just env-check   # realne zależności
-just cli-check   # zgodność z zewnętrznymi CLI (bez promptów, bez kosztu)
-just e2e         # pełny łańcuch na syntetycznej paczce
-just probe       # sondy na Twoich realnych danych
-just index-check # spójność operacyjnego indeksu (kontrola STANU, nie kodu)
-just sources-check # czy źródła są nadal takie, jakie zapisał skan
-just mutate-check  # psuje kopię repo i sprawdza, czy testy robią się czerwone
-```
-
-Dwie ostatnie recepty nie są testami kodu — sprawdzają **stan** dwóch rzeczy,
-których nie da się odtworzyć tanio: `organizer.sqlite` (budowany przyrostowo
-przez wiele przebiegów) i `00_SOURCES`. Guard w hookach pilnuje *zamiaru*
-(blokuje komendę), `sources-check` sprawdza *skutek* — także zmiany wprowadzone
-poza agentami. Obie kontrole czytają bazę w trybie `mode=ro` i kończą kodem 1,
-gdy znajdą naruszenie; pełny przebieg na 48 tys. plików trwa poniżej 2 s.
-
-Każda z tych warstw powstała po konkretnej wpadce, nie „na zapas":
-
-- **środowisko** — `catdoc` zwracał polskie znaki jako krzaki (cp1252 zamiast
-  cp1250), a testy z atrapą nie miały prawa tego pokazać;
-- **kontrakt CLI** — backend budował `codex --ignore-user-config exec …`, czego
-  prawdziwe CLI nie przyjmowało; backend nigdy nie zadziałał end-to-end przy
-  komplecie zielonych testów;
-- **e2e** — `text_head` z etapu extract musi dotrzeć do manifestu, inaczej
-  klasyfikator AI widzi samą nazwę pliku; żaden test pojedynczego etapu tego
-  styku nie obejmował.
-
-Testy z atrapami i testy realnego środowiska **celowo się uzupełniają**: pierwsze
-mówią, co kod zamierza zrobić, drugie — czy narzędzie faktycznie to przyjmuje.
-Listy kontraktowe (słowa mutujące w guardzie, formaty, backendy) są w testach
-wypisane **wprost**, a nie czytane z implementacji: parametryzacja po liście
-z kodu jest pusta, bo jej skrócenie skraca też zestaw przypadków.
-
-Nowe zależności i nowe zewnętrzne narzędzia dopisuj razem z kontrolą w warstwie
-`environment` albo `cli_contract` — i sprawdź mutacyjnie, że po ich usunięciu
-testy naprawdę czerwienieją.
-
-`just mutate-check` to odpowiedź na pytanie „czy te testy cokolwiek dają". Każdy
-plik w `tests/mutations/` psuje jedno zachowanie produkcyjne i wymaga, żeby testy
-to wyłapały; wynik `PRZEPUSZCZONE` oznacza dziurę w pokryciu, nie awarię kodu.
-Dopisując kontrakt wart pilnowania, dopisz tam mutację — raz udowodniony kontrakt
-daje się wtedy powtórzyć bez pamiętania, co dokładnie się psuło.
-
-Nazwy plików i katalogów mają własny zestaw (`tests/test_special_names.py`)
-zbudowany na **zmierzonym** rozkładzie źródeł, nie na wyobrażeniu o nim: 98%
-plików ma spację, 38% nawias, 63% polskie znaki, a dwa zaczynają się od myślnika.
-
-Świadomie **nie** ma tu: progu pokrycia (mierzy wykonane linie, nie to, czy
-asercje cokolwiek znaczą — 615 zielonych testów przy niepilnowanej serializacji
-hashy jest tego dowodem), snapshotów generowanych raportów (są w gicie, więc
-diff widać przy commicie), benchmarków (etapy uruchamiane ręcznie i rzadko) ani
-testów chaosu (WAL i transakcje partiami już to trzymają).
-
-## Skrypty (pierwszy przebieg)
-
-Kolejność uruchamiania (robione raz, na całości źródeł):
-
-1. `python scripts/db_admin.py init` — tworzy/aktualizuje schemat `20_WORK/organizer.sqlite`.
-2. `python scripts/scan.py` — statuje paczki źródłowe (`00_SOURCES/`, read-only),
-   zapisuje `source_packages`/`folders`/`files` (status `discovered`) i generuje
-   `reports/SOURCES_TREE.md`.
-3. `python scripts/hash_files.py` — liczy sha256 plików w statusie `discovered`,
-   zapisuje `content` (dedup plików), przestawia status na `hashed`.
-4. `python scripts/fold_hash.py` — liczy hashe poddrzew, oznacza dokładne
-   duplikaty katalogów (`folders.duplicate_of`) i zapisuje `reports/folder_overlap.csv`.
-5. `python scripts/dedup_report.py` — liczy z bazy unique vs duplicate (liczby,
-   bajty, per paczka) → `reports/dedup_summary.md`, `reports/inventory.jsonl`.
-6. `python scripts/scan_target.py` — skanuje istniejącą `paczka/` w repo
-   docelowym jako ground truth: content + status `applied` + klasyfikacja
-   `manual`, conf=1.0.
-7. `python scripts/extract_text.py` (`just extract`) — głowa tekstu unikalnych
-   treści do `20_WORK/extracted_text/{sha256}.txt` + podpisy podobieństwa
-   (`normalized_text_hash`, `simhash`, `perceptual_hash`), status `extracted`.
-
-| Skrypt | Wejście | Wyjście | Wznawialność / uwagi |
-|---|---|---|---|
-| `db_admin.py init` | brak (zakłada bazę) | schemat w `20_WORK/organizer.sqlite` | idempotentny; `init` też aktualizuje istniejący schemat |
-| `scan.py` | `00_SOURCES/` (read-only) | `source_packages`, `folders`, `files` (`discovered`) + `reports/SOURCES_TREE.md` | wznawialny — pomija niezmienione poddrzewa; exit 3 = skan częściowy (coś pominięto, zapis i tak się odbył), 1 = zły katalog/nieznana paczka, 2 = sprzeczne opcje |
-| `hash_files.py` | `files` w statusie `discovered` | `content` (sha256, content_kind), `files` → `hashed` | wznawialny (batch domyślnie 200); `--retry-errors` cofa `error` na `discovered`; `--package`/`--limit` do ograniczenia zakresu |
-| `fold_hash.py` | `folders`/`files` z bazy | `folders.duplicate_of`, `reports/folder_overlap.csv` | dwa przejścia (FK); próg z `config/thresholds.yaml`; `--no-overlap` pomija raport |
-| `dedup_report.py` | baza (`content`/`files`/`folders`) | `reports/dedup_summary.md`, `reports/inventory.jsonl` | tylko odczyt bazy, bez zapisu do źródeł ani do dysku poza `reports/` |
-| `scan_target.py` | `paczka/` w `target_repo` (read-only) | `files` → status `applied`, klasyfikacja `manual` conf=1.0 | `--limit`/`--batch`; nie modyfikuje `target_repo`, tylko odczyt |
-| `extract_text.py` | `files` w statusie `hashed` (bez poddrzew `duplicate_of`) | `20_WORK/extracted_text/{sha256}.txt`, `content.extracted_text_path`/`ocr_done`, `files.normalized_text_hash`/`simhash`/`perceptual_hash`, `files` → `extracted` | praca raz na sha256 (druga kopia i re-run biorą tekst z dysku, `--force` wymusza ponownie); OCR awaryjny tylko dla PDF bez warstwy tekstowej (`--no-ocr` wyłącza, `--ocr-images` dokłada obrazy); brak tekstu ≠ błąd |
-| `db_admin.py refresh-kinds` | `files.extension` + mapa `orglib/kinds.py` | przeliczone `content.content_kind` | domyślnie dry-run, zapis dopiero z `--apply`; potrzebne po dopisaniu rozszerzenia do mapy, bo `content_kind` ustala etap hash |
-
-Uwagi:
-
-- Wszystkie ścieżki (`00_SOURCES`, `target_repo`, `20_WORK`, `90_MEDIA`) tylko
-  z `config/paths.yaml` — nic nie jest hardkodowane w skryptach.
-- Źródła (`00_SOURCES/`) są read-only; wspólny hook
-  `.agents/hooks/guard-sources.py` blokuje tam zapis w Claude i Codex.
-- Nic nie jest fizycznie kasowane. Dedup jest logiczny, w bazie
-  (`folders.duplicate_of`) — oba foldery/pliki zostają na dysku.
-- `extract_text.py` czyta źródła wyłącznie do odczytu, a zapisuje do `20_WORK`;
-  `--text-dir` wskazujący wnętrze `00_SOURCES`, `target_repo` albo `90_MEDIA`
-  kończy się kodem 2. Rodzaje bez sensownej treści tekstowej (archiwum, media,
-  `.rtf`, obraz bez `--ocr-images`) przechodzą na status `extracted` z pustym
-  wynikiem — to nie jest błąd.
-- Formaty i czym są czytane: PDF → PyMuPDF (+ pdfplumber awaryjnie, + OCR dla
-  skanów), `.docx` → python-docx, `.pptx`/`.ppsx` → python-pptx, `.xlsx`/`.xlsm`
-  → openpyxl, `.xls` → xlrd, `.odt`/`.ods`/`.odp` → odfpy, `.csv` i tekst/kod →
-  wprost (UTF-8, awaryjnie cp1250), obrazy → phash (+ OCR na żądanie).
-  Stare formaty binarne `.doc`/`.ppt`/`.pps` wymagają **systemowego** pakietu
-  `catdoc` (`catdoc`, `catppt`; instaluje go `setup/install.sh --with-apt`) —
-  bez niego wynik ma metodę `no_converter` widoczną w podsumowaniu przebiegu,
-  a doinstalowanie pakietu i ponowny `just extract --force` domykają temat bez
-  zmian w kodzie. Konwerter dostaje jawne kodowanie źródłowe `--legacy-charset`
-  (domyślnie `cp1250`): bez tego `catdoc` zakłada cp1252 i polskie znaki
-  zamieniają się w krzaki (sprawdzone na realnym pliku ze źródeł).
-- Kody wyjścia `scan.py`: `0` pełny skan, `3` skan częściowy (coś pominięto —
-  nieczytelny katalog, nazwa spoza UTF-8, błąd stat), `1` zły katalog źródeł
-  lub nieznana paczka, `2` sprzeczne opcje.
-- Do gita trafiają: `reports/SOURCES_TREE.md`, `reports/dedup_summary.md`,
-  `reports/inventory.jsonl`, `reports/folder_overlap.csv`,
-  `reports/bootstrap/bootstrap_rmlint.txt`. Poza gitem: `20_WORK/organizer.sqlite`
-  (operacyjne źródło prawdy, odtwarzalne przez re-run).
-- Wynik pierwszego przebiegu na całości źródeł: 14 paczek, 48 049 plików,
-  37,0 GiB, z czego 18 426 unikalnych treści i 17,9 GiB kopii (48,4%).
-
-`python scripts/llm_client.py --task classify|relate --prompt-file PLIK|-` — cienki
-CLI nad `orglib/llm_client.py` (backend anthropic/openai/`claude -p`/`codex exec`/`agy -p`
-z `config/thresholds.yaml: llm`, cache po sha256 promptu w `20_WORK/ai_cache.sqlite`);
-smoke test backendów, nieużywany w automatycznym cyklu per-przedmiot.
-
-## Skrypty cyklu per-przedmiot — gotowe B1, B2, B3, B5, B6, B7, B8, B9, B10, B11
-
-> **Przewodnik krok po kroku — `docs/CLI.md`**: cała droga od stosu paczek do
-> materiałów w repo, z komendami, kodami wyjścia i tym, co zrobić, gdy etap
-> odmówi. Poniżej zostaje kontrakt i uzasadnienia poszczególnych etapów.
-
-Po pierwszym przebiegu przygotuj wycinek z **istniejącego indeksu SQLite**:
-
-```bash
-just subject-prepare 3 AKO
-# Stary alias też działa: just subject-prepare 3 AK
-# Kolizja SI w SEM7 wymaga grupy:
-just subject-prepare 7 SI --grupa KASK_Architektura_Systemów_Komputerowych
-just subject-prepare 3 AKO --help
-```
-
-`scripts/prepare_subject.py` nie otwiera materiałów, nie wywołuje AI i nie
-modyfikuje statusów ani klasyfikacji, w tym ground truth. Baza jest otwierana
-w trybie SQLite `mode=ro` / `query_only`, bez inicjalizacji schematu.
-
-Potem klasyfikacja deterministyczna i heurystyczna — bez AI i bez kosztu:
-
-```bash
-just subject-classify 3 AKO --dry-run   # rozkład decyzji, nic nie zapisuje
-just subject-classify 3 AKO             # plan.det.jsonl + unresolved.jsonl obok manifestu
-```
-
-`scripts/classify.py` czyta manifest i rozstrzyga kolejno: treść już leżącą
-w paczce (ground truth z `classifications`, `run_id='ground_truth'`) → artefakt
-kompilacji (`syntax.yaml: ignore`; w źródłach to 14,2% plików) → media poza paczkę
-→ słowa kluczowe kategorii z `syntax.yaml: categories.*.keywords`, szukane w nazwie
-pliku, w **najbliższym** katalogu ze ścieżki i w głowie tekstu z etapu extract.
-Siła sygnału jest wprost pewnością decyzji (`thresholds.yaml: classify`), a progi
-`confidence` decydują, co idzie automatem, co do review, a co do AI. Nazwy plików
-zostają oryginalne: kanoniczna nazwa z `syntax.yaml` wymaga TEMATU, którego nie da
-się wyprowadzić bez zgadywania — to miękkie ostrzeżenie dla validatora, nie błąd.
-
-Skrypt niczego nie zapisuje do bazy (czyta ją wyłącznie po ground truth) i jest
-w pełni odtwarzalny: ten sam manifest daje bajt w bajt ten sam plan.
-
-Pozycje, których deterministyka nie rozstrzygnęła, domyka klasyfikator AI:
-
-```bash
-just subject-ai-resolve 3 AKO --dry-run    # co poszłoby do modelu i jakim backendem
-just subject-ai-resolve 3 AKO --limit 10   # próbka: oceń jakość, zanim puścisz resztę
-just subject-ai-resolve 3 AKO              # reszta; sha256 już zapisane są pomijane
-```
-
-`scripts/ai_resolve.py` zapisuje `plan.ai.jsonl` obok manifestu — jedna linia na
-sha256, walidowana wobec `prompts/plan_line.schema.json`. Gdy obok leży
-`plan.det.jsonl` z B3, do modelu idą **dokładnie** te treści, których w nim nie ma
-(`--ignore-det-plan` wyłącza tę bramkę, `--det-plan` wskazuje inny plik). Progi `confidence`
-z `config/thresholds.yaml` są wiążące: deklaracja modelu nie przepchnie pozycji
-obok review. Backend bierze się z `thresholds.yaml: llm` (domyślnie `codex_cli`),
-więc klasyfikacja nie obciąża limitu koordynatora. Skrypt nie dotyka materiałów
-i nie wykonuje `apply`.
-Podobieństwo treści (near-dupe i starsze wersje) liczy osobny etap:
-
-```bash
-just subject-relate 3 AKO --dry-run   # ile par i z której warstwy, nic nie zapisuje
-just subject-relate 3 AKO             # wiersze w `relations` + eksport relations.jsonl
-```
-
-`scripts/near_dupe.py` używa podpisów z etapu extract w trzech warstwach: równość
-`normalized_text_hash` (to samo w innym opakowaniu, pewność 1.0), simhash w progu
-Hamminga (materiał z dopiskiem/poprawką) i phash dla obrazów. Kandydatów dobiera
-przez pasma bitowe (zasada szufladkowa), a nie „każdy z każdym". Gdy obie treści
-mają rozpoznany, różny rok — starsza dostaje relację `older_version` wskazującą
-nowszą; w przeciwnym razie zostaje symetryczne `near_duplicate`, zapisane raz.
-Niczego nie kasuje i **niczego nie oznacza jako `outdated`** — to decyzja człowieka
-(reguła twarda nr 10).
-
-Tu źródłem prawdy jest już baza: etap pisze do tabeli `relations` i eksportuje
-deterministyczny `relations.jsonl` (ślad w gicie, wsad dla review B9 i dla pól
-`related_to`/`relation` w planie B7). Zapis jest **podmianą własnego wycinka** —
-kasuje wyłącznie wiersze z `detection_method` zaczynającym się od `near_dupe:`
-i tylko dla par z przetwarzanego zakresu, więc decyzje ręczne (B14) zostają.
-
-Decyzje scala w jeden plan etap B7:
-
-```bash
-just subject-plan 3 AKO --dry-run   # co powstanie, ile kolizji, jaki plan_hash
-just subject-plan 3 AKO             # plan.jsonl + zapis do bazy
-```
-
-`scripts/build_plan.py` łączy `plan.det.jsonl`, `plan.ai.jsonl` i `relations.jsonl`
-w `plan.jsonl`: pierwsza linia to nagłówek `{"_meta": …}` z `plan_hash`, dalej jedna
-decyzja na treść. Przy dwóch decyzjach o tej samej treści wygrywa mocniejsza metoda
-(człowiek > deterministyka > heurystyka > model), a odrzucona trafia do podsumowania.
-Kolizje ścieżek rozstrzyga **katalog źródłowy** (`kol_02/Zadanie 23/main.c`), więc
-komplet plików jednego rozwiązania zostaje razem; przy nierozstrzygalnej kolizji
-wchodzi krótki skrót sha256 — żadna treść nie znika po cichu.
-
-Od tego etapu **źródłem prawdy jest baza**: decyzje lądują w `classifications`,
-pozycje planu w `plan_items`, a `plan.jsonl` jest ich eksportem do gita. Zapis
-podmienia wycinek jednego przedmiotu i nigdy nie dotyka wierszy ground truth.
-
-Zanim cokolwiek ruszy materiały, plan przechodzi przez bramkę:
-
-```bash
-just subject-validate 3 AKO            # kod 0 = przechodzi, 2 = ODRZUCONY
-just subject-validate 3 AKO --strict   # ostrzeżenia też blokują
-```
-
-`scripts/validate_plan.py` sprawdza schemat linii, bezpieczeństwo ścieżek, kolizje
-celów, zgodność kategorii ze ścieżką, bramkę pewności z `thresholds.yaml`, nadpisanie
-materiału ułożonego ręcznie (tabela `applied`) oraz to, czy nazwa **powstanie na
-Windowsie** — repo klonują studenci, więc znak `<>:"|?*`, nazwa zastrzeżona (`CON`,
-`COM1`…), końcowa kropka/spacja i ścieżka dłuższa niż 240 znaków są twardym błędem.
-Wypisuje też dry-run diff: ile plików w ilu katalogach plan dołożyłby do paczki.
-Ustalenia lądują w `validation.jsonl` obok planu. Niezgodność nazwy z konwencją
-(`lab_3` zamiast `lab_03`) jest **ostrzeżeniem**, bo da się ją poprawić automatycznie.
-
-Do decyzji człowieka służy strona przeglądu:
-
-```bash
-just subject-review 3 AKO      # reports/{SKROT}/review.html
-just status                    # reports/STATUS.md — przedmioty x etapy
-```
-
-`scripts/review_report.py` buduje **samowystarczalną** stronę (miniatury wbudowane
-jako `data:`), więc da się ją otworzyć i przesłać bez dostępu do repo. Sekcje idą
-w kolejności tego, co blokuje: ustalenia walidacji → pozycje `needs_review` od
-najmniej pewnych → `unresolved` → **klastry podobieństwa** → media → drzewo po
-zmianie. W klastrach jest to, czego nie rozstrzygnie żadna heurystyka: diff HTML
-(`difflib.HtmlDiff`) dla tekstu albo dwie miniatury obok siebie dla skanów.
-Strona niczego nie zatwierdza — zgoda na `apply` to osobna, jawna decyzja.
-
-Graf relacji dla `synapse` (osobna aplikacja użytkownika — generator .NET + viewer Svelte):
-
-```bash
-just synapse         # vault w 20_WORK/synapse/vault: semestry, przedmioty, pliki
-just vendor-check    # nasz vault przez PRAWDZIWY generator + walidacja ich schematem
-```
-
-`scripts/synapse_export.py` pisze notatki `.md`, w których **relacje mają rodzaj**
-(`belongs_to`, `near_duplicate`, `older_version`) i pewność z etapu B6 — dzięki czemu graf
-pokazuje nie tylko, ŻE materiały są powiązane, ale CZYM. Kontrakt (w tym zmiany wprowadzone
-w samym synapse) opisuje `docs/SYNAPSE.md`. Źródła generatora i viewera są **w tym repo**,
-w `studio/graf/` (wciągnięte `git subtree` z `Billypl/synapse`), bo są przerobione pod nas;
-`vendor/synapse` zostaje wyłącznie jako klon upstreamu do synchronizacji i nie wchodzi do repo.
-
-`scripts/status_report.py` liczy stan całości z indeksu: ile treści jest już
-w paczce (ground truth), ile ma plan, ile czeka na obejrzenie i czego nikt jeszcze
-nie tknął. Ground truth jest liczony osobno od planu — inaczej raport twierdziłby,
-że przedmiot jest zrobiony, choć to tylko materiały ułożone ręcznie lata temu.
-
-Opcje `--db PLIK` i `--out-dir KATALOG` pozwalają jawnie wskazać indeks oraz
-dokładny katalog wyjściowy. Domyślna baza pochodzi z `config/paths.yaml`.
-Raport zapisuje się atomowo; błąd pozostawia poprzedni raport. Zapis pod
-`sources`, `target_repo`, `media` (także przez symlink), nadpisanie bazy oraz
-symlink jako plik wyjściowy są odrzucane. Również baza nie może leżeć w tych
-chronionych drzewach: SQLite może potrzebować pomocniczych plików WAL/SHM.
-
-Domyślnie wynik trafia do `reports/{SKROT}/manifest_slice.jsonl`, np.
-`reports/AKO/manifest_slice.jsonl`. Jeżeli kanoniczny skrót powtarza się w
-katalogu przedmiotów, ścieżka zawiera pełną tożsamość:
-`reports/SEM{semester}/{grupa}/{SKROT}/manifest_slice.jsonl`. Dzięki temu
-kolejne przygotowanie SI/WFI/SK nie nadpisuje raportu innego przedmiotu.
-Jawny `--out-dir` omija ten automatyczny podział — używaj osobnych katalogów.
-
-**Kontrakt manifestu v1:** jeden obiekt JSON na SHA-256, stabilny porządek
-i bajtowo identyczny wynik dla tego samego indeksu i konfiguracji:
-
-- `schema_version`, `sha256`, `source_sha256` (oba hashe równe);
-- `semester`, `subject_key` (kanoniczny skrót), `grupa`, `target_dir`;
-- `source_paths` — wszystkie zindeksowane kopie treści, także poza
-  dopasowanym przedmiotem i w folderach-duplikatach;
-- `matched_source_paths` — zdrowe kopie będące kandydatami tego przedmiotu;
-- `source_path` — preferowana zdrowa kopia spoza poddrzew `duplicate_of`
-  do przyszłej ekstrakcji; `null` oznacza brak takiej kopii i wymaga review;
-- `content_kind`, `size_bytes`, `needs_review`, `review_reasons`;
-- `text_head` — **opcjonalna** głowa tekstu z etapu extract (B2), obcięta
-  do `config/thresholds.yaml: llm.max_text_head_bytes`. Brak klucza oznacza
-  treść bez ekstrakcji albo bez tekstu (archiwum, media, skan bez OCR).
-  Bez wcześniejszego `just extract` klasyfikator AI (B5) widzi wyłącznie
-  nazwy i ścieżki plików.
-
-Dopasowanie wykorzystuje pełne tokeny skrótu, aliasu lub nazwy w komponentach
-ścieżki (również nazwie paczki/pliku), bez rozróżniania wielkości liter,
-separatorów i polskich znaków. Rozpoznaje m.in. `SEM3`, `sem_3`, `semestr III`.
-Jawny inny semestr/grupa wyklucza dopasowanie; brak semestru, kolizja nazw,
-sprzeczne pochodzenie albo rozmiary oznaczają review. B1 **nie jest
-klasyfikatorem**: nie nadaje confidence, kategorii ani zgody na kopiowanie.
-Fuzzy i treść dokumentów nie są tu używane; nieznane warianty nazw wymagają
-uzupełnienia aliasów lub późniejszego review. Wpisy bez poprawnego hasha,
-bez `content`, w stanie `discovered`/`error` nie inicjują kandydatury.
-Semestry magisterskie pozostają poza zakresem (D3).
-
-### Wykonanie planu: `apply` (B10) i `verify` (B11)
-
-To jedyne etapy, które zapisują materiały, więc mają węższy kontrakt niż reszta:
-
-```bash
-just subject-apply 3 AKO                          # DRY-RUN: pokazuje, co by zrobił
-just subject-apply 3 AKO --yes --expect-hash <odcisk>   # wykonanie konkretnego planu
-just subject-verify 3 AKO                         # hash po kopii + kontrola drzewa
-```
-
-- **Domyślnie nic się nie kopiuje.** Bez `--yes` `apply` liczy operacje, zapisuje
-  `apply_snapshot.json` obok planu i kończy. `--expect-hash` przypina wykonanie do
-  odcisku, który został zaakceptowany — plan przebudowany po akceptacji jest odmową,
-  a nie „tym samym planem”.
-- **Bramka B8 jest wykonywana ponownie w `apply`**, tym samym kodem
-  (`orglib/plan_gate.py`). Plan z błędami to kod wyjścia 2 i zero kopii; uruchomienie
-  `validate_plan` wcześniej niczego nie „odblokowuje”.
-- **Repo docelowe musi stać na gałęzi `subject/{SKROT}`** z czystym katalogiem
-  `paczka/` (`--create-branch` przełącza, `--allow-dirty` powtarza przerwany przebieg,
-  `--no-git` pomija kontrole, gdy repo nie jest klonem).
-- **Nic nie jest nadpisywane ani kasowane.** Plik o innej treści pod ścieżką docelową
-  zatrzymuje CAŁY przebieg (żadnych częściowych zapisów), a plik o tej samej treści to
-  „już jest” — powtórzony `apply` nie kopiuje niczego drugi raz. Brak pliku źródłowego
-  też jest odmową: indeks rozjechał się ze źródłami i naprawia to `just sources-check`.
-- **`apply` nie commituje.** Commit materiałów należy do człowieka po zielonym
-  `verify`, na gałęzi przedmiotu.
-- `verify` liczy sha256 **po kopii** i porównuje z planem (kod 2 = nie commituj),
-  a potem sprawdza, czy pod katalogiem przedmiotu nie ma plików spoza planu i spoza
-  ground truth (ostrzeżenie; `--strict` robi z niego błąd). Zielony `verify` przestawia
-  pliki na status `verified`.
-
-Zmierzone na realnym planie AKO (2519 pozycji, dry-run, 2026-09-22): 1497 do
-skopiowania, 0 kolizji, 0 brakujących źródeł, 2,1 s.
-
-Dalsze skrypty B12–B13 są nadal do implementacji.
+Pełny przewodnik po komendach, etap po etapie, z kodami wyjścia i tym, co
+zrobić po błędzie, jest w [`docs/CLI.md`](docs/CLI.md). Etapy cyklu
+per-przedmiot, w kolejności: B1 (wycinek indeksu) → B2 (ekstrakcja tekstu) →
+B3 (klasyfikacja deterministyczna) → B5 (klasyfikacja AI) → B6 (podobieństwo
+treści) → B7 (plan) → B8 (walidacja) → B9 (przegląd) → B10 (apply) → B11
+(verify). B4 nie istnieje, B12–B13 są nadal do implementacji.
 
 ## Studio — lokalny warsztat nad indeksem
 
@@ -438,207 +114,36 @@ Liczby w widoku pochodzą z tego samego kodu co `just status`: `/api/subjects` w
 
 ```
 paczka-tools/organizer/          # ← tu odpalasz `just claude` lub `just codex`
-├── AGENTS.md  CLAUDE.md         # zasady wspólne + adapter Claude/muxer
+├── AGENTS.md  CLAUDE.md  GEMINI.md  # zasady wspólne + adaptery Claude/muxer/Gemini
 ├── .agents/                     # wspólne hooki + symlinki skills dla Codexa
 ├── ../.codex/                   # hook, ustawienia multi-agent i role Codexa
-├── README.md  SKILLS.md
+├── README.md  SKILLS.md  pyproject.toml  # metadane, zależności i konfiguracja pytest
 ├── .claude/                     # commitowane: settings.json, hooks/guard-sources.py,
-│                                #   agents/ (5 z VoltAgent), skills/ (organizer-*)
-├── docs/                        # dokumentacja architektury, organizacji i konfiguracji
+│                                #   agents/ (5 z VoltAgent), skills/ (organizer-*),
+│                                #   statuslines/statusline.sh
+├── docs/                        # ARCHITEKTURA, CLI, ORGANIZACJA, PIPELINE, SYNAPSE,
+│                                #   TESTY, AGENCI, INSTALACJA
 ├── config/                      # paths.yaml, subjects.yaml, syntax.yaml, thresholds.yaml
 ├── prompts/                     # prompty AI (classify_ambiguous, relate_cluster)
 ├── scripts/                     # etapy pipeline (Python)
 ├── studio/                      # lokalny warsztat nad indeksem: api/ (FastAPI) + web/ (Svelte)
-│   └── graf/                    #   źródła synapse (generator .NET + viewer) — git subtree
+│   └── graf/                    #   źródła synapse (generator .NET + viewer) — fork jednokierunkowy
+├── tests/                       # unit/, studio/, cli/, synapse/, e2e/, mutations/ (YAML), fixtures/
 ├── reports/                     # SOURCES_TREE.md, inventory, plany, handoff (w gicie)
-│   └── bootstrap/               # historyczne raporty wstępne
-└── setup/                       # install.sh, PLUGINS.md, requirements.txt, statusline.sh
+│   ├── bootstrap/                #   historyczne raporty wstępne
+│   └── historia/                 #   zamknięte decyzje i oceny (poza bieżącym TODO)
+└── setup/                       # install.sh, PLUGINS.md, requirements.txt, agent/ (narzędzia agentów)
 ```
 
 ## Agenci interaktywni
 
-Claude pozostaje domyślnym koordynatorem, ale stan projektu i procedury nie są
-zależne od hosta. **Zawsze startuj przez `just`, nie przez gołe `claude`/`codex`** —
-launcher wchodzi do katalogu organizera, ustawia zmienne sesji i pilnuje, żeby
-Codex nie wystartował na cudzym koncie ani z zapisem do źródeł.
-
-### Raz na maszynę
-
-```bash
-bash setup/install.sh        # venv, zależności, plugin muxer, settings.local.json
-just agent-setup             # profil ~/.codex/paczka-openai.config.toml
-just agent-doctor            # kontrola: CLI, konto Codexa, ścieżki z paths.yaml
-```
-
-`agent-doctor` musi skończyć bez `BRAK`/`BŁĄD`. Zgłasza m.in., gdy bazowy
-`~/.codex/config.toml` przestał wskazywać OpenAI — wtedy delegacja poszłaby na
-cudze konto (patrz „Dlaczego nie `--ignore-user-config`” niżej).
-
-### Claude — koordynator
-
-```bash
-just claude                  # sesja interaktywna w paczka-tools/organizer/
-just claude --resume         # argumenty idą wprost do CLI
-just claude -p "pytanie"     # jednorazowy prompt, bez sesji
-```
-
-Sesja dostaje `.claude/settings.json`: plugin muxer, hook `guard-sources.py`,
-katalogi robocze z `config/paths.yaml` i deny-listę na `00_SOURCES`. Skille
-`organizer-*` są wtedy dostępne jako `/organizer-subject AKO 3` itd.
-
-### Codex — GPT interaktywnie
-
-Trzy tryby, różnią się **wyłącznie** tym, gdzie Codex może pisać:
-
-```bash
-just codex-read              # nic nie zapisuje — analiza, drugie zdanie, review
-just codex                   # organizer + 20_WORK (domyślny do pracy nad kodem)
-just codex-ship              # dodatkowo target_repo i 90_MEDIA — tylko po akceptacji planu
-```
-
-Argumenty dopisuje się wprost, **bez `--`** (recepty `codex-read`/`codex-ship` już
-go dodają, drugi psuje wywołanie):
-
-```bash
-just codex-read "streść reports/HANDOFF.md"    # start z gotowym promptem
-just codex --version                            # argumenty idą do CLI
-```
-
-`codex-ship` odmówi startu, gdy `target_repo` nie jest klonem gita. **Nigdy** nie
-dodawaj `00_SOURCES` jako katalogu zapisywalnego — żaden z trybów tego nie robi.
-
-Że sesja idzie na właściwe konto, potwierdzisz przez `just agent-doctor` (linie
-`profil Codexa` i `bazowy config Codexa`) albo `codex doctor` (sekcja
-`Configuration` → `model … · openai`). Model zmienisz bez edycji plików:
-
-```bash
-CODEX_MODEL=gpt-6-astra just codex
-CODEX_PROFILE=inny-profil just codex     # profil musi mieć model_provider = "openai"
-```
-
-Launcher czyta `~/.codex/<profil>.config.toml` i **odmawia startu**, jeśli profil
-nie wymusza `model_provider = "openai"`. Dzięki temu jest odporny na to, co ktoś
-ustawi w bazowym `~/.codex/config.toml`.
-
-### Który model wykonuje pracę AI
-
-Backend zadań pipeline'u bierze się z `config/thresholds.yaml: llm` — domyślnie
-`classify` i `relate` idą na `codex_cli`, więc praca klasyfikacyjna obciąża konto
-ChatGPT, a limit koordynatora zostaje na planowanie i ocenę. `just claude` tego
-nie nadpisuje; skierowanie zadania na Claude to świadoma decyzja na jedną sesję:
-
-```bash
-PACZKA_LLM_RELATE_BACKEND=claude_cli just claude
-```
-
-### Dlaczego nie `--ignore-user-config`
-
-Flaga wygląda jak wygodny sposób na ominięcie cudzego proxy w bazowym configu
-Codeksa, ale odcina też sekcję `[hooks.state]` — a wtedy Codex przestaje
-uruchamiać `.codex/hooks.json`, czyli **guard chroniący `00_SOURCES` milknie**.
-Konto wymuszaj jawnie: `codex exec -c model_provider="openai" …`.
-
-Wspólne zasady są w `AGENTS.md`, kontrakt przekazania stanu w
-`reports/HANDOFF.md`, a deterministyczne operacje w `justfile` i `scripts/`.
-
-Codex ma projektowe subagenty w `../.codex/agents/`: `explorer`, `runner`,
-`reviewer`, `python_pro`, `sql_pro`, `test_automator`,
-`documentation_engineer` i `readme_generator`. `../.codex/config.toml`
-centralnie wybiera ich model i limit równoległości; każda rola ma osobno
-przypisany reasoning oraz sandbox. Role analityczne są read-only, a role
-implementacyjne zapisują wyłącznie w granicach sandboxu sesji nadrzędnej.
-
-Poza gitem — workspace `~/dev/paczka/PaczkaMerge/` (ścieżki w `config/paths.yaml`):
-```
-00_SOURCES/            # stare paczki (read-only, backup na Drive)
-10_NEW/PaczkaInfaPG/   # klon repo docelowego; apply pisze do paczka/ (branch subject/{SKROT})
-20_WORK/               # organizer.sqlite, extracted_text, thumbnails
-90_MEDIA/              # duże wideo/audio wyjęte z paczki
-paczka-tools/          # ten klon
-```
-
-Wszystkie ścieżki są w `config/paths.yaml` — organizer działa niezależnie od tego,
-gdzie leży checkout repo docelowego.
+`just claude` i `just codex` uruchamiają sesje koordynatora i GPT nad tym
+repo — launcher, tryby zapisu, które konto wykonuje pracę AI pipeline'u
+i dlaczego `--ignore-user-config` jest zakazane, opisuje
+[`docs/AGENCI.md`](docs/AGENCI.md).
 
 ## Zależności
 
-Wszystko stawia jeden skrypt (idempotentny):
-```bash
-bash setup/install.sh --with-apt     # pakiety systemowe + muxer + agenty + status line + venv
-```
-Szczegóły i lista pluginów: `setup/PLUGINS.md`. Poniżej to samo ręcznie.
-
-### Narzędzia systemowe
-```bash
-# Debian/Ubuntu
-sudo apt update && sudo apt install -y \
-  rmlint ncdu tesseract-ocr tesseract-ocr-pol poppler-utils rclone
-# gh (GitHub CLI): https://github.com/cli/cli#installation
-# just (runner): https://github.com/casey/just   (opcjonalnie)
-```
-
-- **rmlint** — bootstrap dedup (pliki + `--merge-directories` dla folderów)
-- **ncdu** — interaktywny raport rozmiaru (`ncdu -o snapshot.json`)
-- **tesseract** (+ `pol`) — OCR na żądanie
-- **poppler-utils** — `pdftotext` awaryjnie
-- **rclone** — sync z Google Drive
-- **gh** — automatyzacja issue/PR (cross-repo do `paczka-content`)
-- **Node.js 20+** (`node`, `npm`) — front studia (`studio/web`, Svelte + Vite)
-
-### Python (self-contained w tym folderze)
-```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r setup/requirements.txt
-```
-
-`setup/requirements.txt`:
-```
-PyMuPDF            # tekst z PDF (fitz)
-pdfplumber         # tekst/tabelki z PDF (awaryjnie)
-python-docx        # tekst z DOCX
-python-pptx        # tekst ze slajdów PPTX
-datasketch         # MinHash + LSH (near-dupe + bucketowanie kandydatów)
-imagehash          # perceptual hash obrazów
-Pillow             # obrazy / miniatury
-rapidfuzz          # fuzzy match nazw / podobieństwo tekstu
-blake3             # szybki hash (alternatywa dla sha256)
-ocrmypdf           # OCR dokładający warstwę tekstu do PDF
-pytesseract        # OCR (backend tesseract)
-sqlite-utils       # wygodna praca z SQLite
-typer              # CLI
-PyYAML             # config
-fastapi            # backend studia (studio/api)
-uvicorn            # serwer ASGI studia (tylko 127.0.0.1)
-httpx              # klient HTTP w testach studia
-anthropic          # backend AI (Claude) — dla llm_client
-openai             # backend AI (Codex) — dla llm_client
-```
-
-## Quickstart
-
-```bash
-bash setup/install.sh --with-apt   # raz na maszynę
-just db-init
-
-# 1. Pierwszy przebieg na całości źródeł (nic nie kasuje)
-just scan && just hash && just fold-hash && just dedup-report && just extract
-just scan-target                   # ground truth: co już leży w repo paczki
-just status                        # reports/STATUS.md — przedmioty × etapy
-
-# 2. Jeden przedmiot od początku do końca
-just subject-prepare 3 AKO
-just subject-classify 3 AKO
-just subject-relate 3 AKO
-just subject-ai-resolve 3 AKO
-just subject-plan 3 AKO
-just subject-validate 3 AKO        # bramka: kod 2 = planu NIE wolno wykonać
-just subject-review 3 AKO          # reports/AKO/review.html do obejrzenia
-
-# 3. Dopiero po Twojej akceptacji konkretnego planu
-just subject-apply 3 AKO                                  # DRY-RUN
-just subject-apply 3 AKO --yes --expect-hash <odcisk>     # wykonanie
-just subject-verify 3 AKO                                 # dowód; potem commit
-```
-
-Pełny przewodnik z wariantami i diagnostyką: **`docs/CLI.md`**. To samo
-w przeglądarce: **`studio/README.md`** (`just studio`).
+Instalację robi jeden idempotentny skrypt (`bash setup/install.sh --with-apt`);
+narzędzia systemowe, zależności Pythona (źródło prawdy: `pyproject.toml`)
+i co robić ręcznie, gdy skrypt nie wystarczy — w [`docs/INSTALACJA.md`](docs/INSTALACJA.md).

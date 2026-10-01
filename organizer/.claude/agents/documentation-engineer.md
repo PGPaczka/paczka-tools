@@ -13,7 +13,7 @@ model: haiku
 - `00_SOURCES` jest READ-ONLY. Nigdy nie zapisuj, nie przenoś, nie kasuj tam niczego.
 - Nie otwieraj binariów ze źródeł; pracujesz na kodzie, configu i tekstowych raportach.
 - Skrypty muszą być idempotentne i wznawialne (status w SQLite, UPSERT po sha256), zgodnie z
-  `docs/ARCHITEKTURA_FINALv1.md`. Nic nie kasuje plików automatycznie.
+  `docs/ARCHITEKTURA.md`. Nic nie kasuje plików automatycznie.
 - Na koniec zwróć **zwięzłe podsumowanie (≤30 linii)**: co zmieniłeś (pliki), jak to sprawdzić,
   co zostało otwarte. Nigdy nie wklejaj całych plików do odpowiedzi — koordynator płaci za każdy token.
 

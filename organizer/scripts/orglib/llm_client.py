@@ -1,6 +1,6 @@
 """Klient AI wymienny na backendy: chowa Claude/Codex/Gemini/API za jednym interfejsem.
 
-Kontrakt: ``docs/ARCHITEKTURA_FINALv1.md`` §12 i ``AGENTS.md``. Skrypty potoku
+Kontrakt: ``docs/ARCHITEKTURA.md`` §12 i ``AGENTS.md``. Skrypty potoku
 (``ai_resolve.py`` i przyszłe) wołają wyłącznie
 :class:`LLMClient` — nie wiedzą, który backend faktycznie odpowiedział. Wybór
 backendu per zadanie (``classify``/``relate``/...) pochodzi z

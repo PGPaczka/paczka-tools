@@ -2,8 +2,9 @@
 
 Jak indeks organizera zamienia się w graf, który pokazuje **rodzaj** powiązania między
 materiałami. Generator: `scripts/synapse_export.py` (`just synapse`), model:
-`scripts/orglib/synapse_vault.py`, źródła narzędzia: **`studio/graf/`** (w repo, wciągnięte
-`git subtree` z gałęzi `feat/paczka-integration` repo `Billypl/synapse`).
+`scripts/orglib/synapse_vault.py`, źródła narzędzia: **`studio/graf/`** (w repo, pierwotnie
+wciągnięte `git subtree` z gałęzi `feat/paczka-integration` repo `Billypl/synapse`, dziś
+rozwijane już tylko tutaj).
 
 ## Czym jest synapse (i czym NIE jest lokalna kopia)
 
@@ -52,15 +53,16 @@ przerobiony pod nas (schemat v2, typy węzłów, rodzaje krawędzi, czytelność
 węzłów, naprawiony deep link), a te zmiany żyły wyłącznie w lokalnym klonie i przepadłyby
 razem z nim.
 
-`organizer/vendor/synapse` zostaje jako **klon upstreamu** (dalej poza gitem) — służy
-tylko do synchronizacji:
+**Synchronizacja z upstreamem jest zamknięta (decyzja 2026-10-01).** `studio/graf/` to
+od tej pory fork jednokierunkowy: zmiany robimy u siebie i nic nie wraca do
+`Billypl/synapse`. Pomocniczy klon `organizer/vendor/synapse`, przez który szedł
+`git subtree pull/push`, został skasowany — jego gałąź `feat/paczka-integration` nigdy
+nie trafiła na remote, ale cała jej treść jest w `studio/graf/`, które jest dalej
+(doszły m.in. schemat v3 i v4, widoki macierzy i eksploratora, podgląd pliku).
 
-```bash
-# z korzenia paczka-tools
-git subtree pull --prefix=organizer/studio/graf --squash organizer/vendor/synapse feat/paczka-integration
-git subtree push --prefix=organizer/studio/graf organizer/vendor/synapse feat/paczka-integration
-# potem z klona: git -C organizer/vendor/synapse push origin feat/paczka-integration
-```
+Praktyczny skutek: **nie szukaj drogi powrotnej i nie odtwarzaj klonu.** Bump schematu
+jest tani, bo viewer i generator idą w jednym commicie. Nazwa markera testowego
+`vendor` (`just vendor-check`) jest historyczna — uruchamia generator z `studio/graf/`.
 
 **Osadzenie w studiu (S4.1).** `just studio-graf` buduje ze źródeł w `studio/graf/` viewer z `--base=/graf/`
 (assety pod prefiksem, `/graph.json` i `/vault/...` zostają bezwzględne — serwuje je

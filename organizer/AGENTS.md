@@ -7,7 +7,7 @@ ustawienia techniczne, ale nie mogą osłabiać reguł z tego pliku.
 
 Projekt żyje w `paczka-tools/organizer/` i **z tego katalogu uruchamiaj sesje**.
 Mapa repozytoriów: `docs/ORGANIZACJA.md`. Architektura:
-`docs/ARCHITEKTURA_FINALv1.md`. Stan pracy: `TODO.md` i `reports/HANDOFF.md`.
+`docs/ARCHITEKTURA.md`. Stan pracy: `TODO.md` i `reports/HANDOFF.md`.
 
 ## Role agentów — nie mieszaj ich
 
@@ -99,7 +99,7 @@ schowanej w zmiennej albo w `os.chdir` nie da się tego rzetelnie rozstrzygnąć
 Wynik takiego odczytu wyprowadzaj przekierowaniem powłoki (`> /tmp/raport.txt`)
 albo skryptem w `scripts/`; oba warianty są dozwolone i objęte testami.
 
-Obie strony kompromisu pilnuje `tests/test_agent_guard.py`; przy zmianach
+Obie strony kompromisu pilnuje `tests/unit/test_agent_guard.py`; przy zmianach
 w hooku dopisuj tam zarówno próbę obejścia, jak i wariant odczytu, który ma
 nadal działać. Listy słów mutujących są w testach **wypisane wprost**, a nie
 czytane z hooka: parametryzacja po liście z implementacji jest pusta, bo jej

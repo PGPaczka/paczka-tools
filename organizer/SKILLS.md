@@ -41,7 +41,7 @@ poddrzewa niezmienione od ostatniego razu.
 **Wejście:** `files` bez hasha.
 **Kroki:** policz sha256 (+ opcjonalnie blake3) każdego pliku → wypełnij
 `content` (dedup plików). Idempotentne (UPSERT po sha256).
-**Wyjście:** `content`, `exact_duplicates.csv`.
+**Wyjście:** tabela `content` (dedup plików po sha256).
 
 ## 🔧 fold-hash
 **Kiedy:** po `hash-content`.
@@ -54,7 +54,7 @@ tylko-provenance).
 **Kiedy:** po `fold-hash`, przed pilotażem.
 **Kroki:** policz treść unikalną vs zduplikowaną (bajty i pliki), rozmiar per
 paczka; złóż z `ncdu` (interaktywnie).
-**Wyjście:** `reports/size_report.md`.
+**Wyjście:** `reports/dedup_summary.md` (+ `reports/inventory.jsonl`).
 
 ## 🔧 extract-text
 **Kiedy:** przed klasyfikacją, tylko dla poddrzew `unique`.

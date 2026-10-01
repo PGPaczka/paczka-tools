@@ -111,15 +111,30 @@ paczka-tools/organizer/
 ├── AGENTS.md  CLAUDE.md              # zasady wspólne + adapter Claude Code
 ├── README.md  SKILLS.md
 ├── docs/
-│   ├── ARCHITEKTURA_FINALv1.md       # ten dokument
+│   ├── ARCHITEKTURA.md               # ten dokument
+│   ├── CLI.md                        # pełny przewodnik po komendach
 │   ├── ORGANIZACJA.md                # mapa repozytoriów i organizacji
-│   └── CLAUDE_CODE_SETUP.md          # dokumentacja konfiguracji
+│   ├── PIPELINE.md                   # etapy potoku i ich styki
+│   ├── SYNAPSE.md                    # kontrakt eksportu do grafu
+│   ├── TESTY.md                      # pięć warstw testów i po co każda
+│   ├── AGENCI.md                     # sesje interaktywne Claude i Codeksa
+│   └── INSTALACJA.md                 # zależności systemowe i Pythona
+├── pyproject.toml                    # metadane + konfiguracja pytesta (pythonpath, markery)
 ├── config/   (paths.yaml, subjects.yaml, syntax.yaml, thresholds.yaml — syntax.yaml pełni rolę taksonomii)
-├── prompts/  (classify_ambiguous, relate_cluster)
-├── scripts/  (etapy pipeline)
-└── reports/  (inventory, plany, provenance-operacyjne — w gicie)
+├── prompts/  (classify_ambiguous, relate_cluster, plan_line.schema.json)
+├── scripts/  (21 etapów potoku jako CLI)
+│   └── orglib/                       # warstwa WSPÓŁDZIELONA przez CLI i studio
+├── setup/    (install.sh, requirements.txt, PLUGINS.md)
+│   └── agent/                        # narzędzia agentów: doctor, mutate, checkpoint
+├── studio/   (lokalny warsztat nad indeksem)
+│   ├── api/                          # FastAPI; queries/ podzielone po domenach
+│   ├── web/                          # Svelte; components/ i lib/api/ po domenach
+│   └── graf/                         # źródła synapse — fork jednokierunkowy
+├── tests/    (unit/ cli/ studio/ synapse/ e2e/ + mutations/ fixtures/)
+└── reports/  (stan pracy; co jest w gicie, mówi reports/README.md)
     ├── SOURCES_TREE.md               # snapshot drzewa źródeł (ślad, generowany)
-    └── bootstrap/                   # historyczne raporty wstępne
+    ├── historia/                     # zamknięte listy zadań i oceny sprzed wdrożeń
+    └── bootstrap/                    # jednorazowy pomiar z etapu A0
 ```
 
 Katalogi lokalne (poza gitem, ścieżki w `config/`):

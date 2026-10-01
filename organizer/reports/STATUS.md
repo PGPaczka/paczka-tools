@@ -3,7 +3,7 @@
 Plik **generowany** przez `scripts/status_report.py` (`just status`). Nie edytuj ręcznie;
 źródłem liczb jest operacyjny indeks SQLite, a nie katalogi z raportami.
 
-- Wygenerowano: 2026-09-30T22:32:14Z
+- Wygenerowano: 2026-10-01T10:03:49Z
 - Źródła: 0 paczek, 0 katalogów (w tym 0 duplikatów), 0 plików
 - Statusy plików: brak
 - Treści: 0 unikalnych, 0 z wyekstrahowanym tekstem

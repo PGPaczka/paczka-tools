@@ -18,7 +18,7 @@ użyć, ale workflow nie może od niego zależeć. Argument: `$ARGUMENTS`
 3. Jeśli brakuje skryptu dla danego kroku (`scripts/scan.py`, `scripts/hash_files.py`,
    `scripts/fold_hash.py`, `scripts/dedup_report.py`, `scripts/scan_target.py`) — **najpierw zleć jego
    napisanie** dostępnemu coding agentowi lub subagentowi, z briefem:
-   kontrakt z `docs/ARCHITEKTURA_FINALv1.md` §4–5, idempotencja (UPSERT po sha256 / (pack, rel_path)),
+   kontrakt z `docs/ARCHITEKTURA.md` §4–5, idempotencja (UPSERT po sha256 / (pack, rel_path)),
    status machine `discovered → hashed → …`, ścieżki tylko z `config/paths.yaml`. Potem wykonaj review.
 
 ## Kroki
